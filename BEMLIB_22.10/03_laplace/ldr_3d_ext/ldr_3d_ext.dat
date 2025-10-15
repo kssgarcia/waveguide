@@ -1,0 +1,24 @@
+2     Ioctaicos: 1 for octahadron, 2 for icosahedron
+2             Ndiv
+
+1.50 0.50       b/a and c/a
+1.0           equivalent radius
+0.0 0.0 0.0   center coordinates
+
+7             mint
+6             NGL
+
+0.5           beta_ps: point source coefficient
+
+0.0 0.0 0.0   coordinates of the point source
+
+20            number of iterations in a batch
+0.0000000001      accuracy
+
+1             Iflow (1 for free space, 2 for wall)
+
+-0.8         Ign for Iflow=2: wall
+1            Ign for Iflow=2: Dirichlet (1) or Neumann (2)
+-------------------
+
+0.4 0.2 0.3   coordinates of the point source

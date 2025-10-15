@@ -1,0 +1,7 @@
+0.00001           epsilon for Newton iterations
+100             Maximum number of iterations
+3.14 0.001      initial guess for xi and eta (symmetric)
+200             number of intervals
+178 0.01        alpha(initial) alpha(final) in degrees
+
+7.5 2.7        initial guess for xi and eta (symmetric)

@@ -1,0 +1,14 @@
+1.0          viscocity
+1.0          density
+6            number of Gauss Legendre points
+ 0.2 -0.10   coordinates of first point
+ 0.0  0.10   coordinates of second point
+-0.1 -0.02   coordinates of third point
+
+0.9      wall velocity amplitude
+2.0      angular frequency
+
+16 5.0  boundary element distribution for size 1
+16 5.0  boundary element distribution for size 2
+16 5.0  boundary element distribution for size 3
+

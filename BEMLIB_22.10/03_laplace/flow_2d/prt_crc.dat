@@ -1,0 +1,55 @@
+12        	Gauss Legendre
+1.0	 	radius of the protrusion
+0.75      	angle (in multiples of pi)
+
+16 0.2 -5.0       left part of the wall
+32 5.0   	left part of the cavity
+32 0.2   	right part of the cavity
+16 5.0 5.0   	right part of the wall
+
+0               Iwall (0 for no upper wall)
+1.9             location of the upper wall
+12 0.2  5       right part of the upper wall
+12 5.0 -5       left part of the upper wall
+
+-2.0 2.0  xmin, xmax : streamline window
+-0.5 3.5  ymin, ymax : streamline window
+
+-2 0.05 circular protrusion  alpha = 0.75
+-2 0.10
+-2 0.20 circular protrusion  alpha = 0.75
+-2 0.30
+-2 0.40
+-2 0.50
+-2 0.60
+-2 0.70
+-2 0.80
+-2 0.90
+-2 1.00
+-2 1.10
+-2 1.20
+-2 1.30
+-2 1.40
+-2 1.50
+-2 1.60
+-2 1.70
+-2 1.80
+-2 1.60
+-2 1.80
+-2 1.90
+-2 2.00
+-2 2.10
+-2 2.20
+-2 2.30
+-2 2.40
+-2 2.50
+-2 2.60
+-2 2.70
+-2 2.80
+-2 2.90
+-2 3.00
+-2 3.10
+-2 3.20
+-2 3.30
+99  99
+

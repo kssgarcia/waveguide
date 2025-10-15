@@ -1,0 +1,15 @@
+-1 0.01
+-1 0.02
+-1 0.1
+-1 0.2
+-1 0.3
+-1 0.4
+-1 0.5
+-1 0.6
+-1 0.7
+-1 0.8
+99 99  ! no more streamlines
+
+Starting points for streamlines
+Last line must be : 99 99
+

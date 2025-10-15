@@ -1,0 +1,8 @@
+% -*- mode: reftex-index-phrases; TeX-master: "Guia_Plantilla_Latex_ColoquioUMNG_2025_Esp.tex" -*-
+%                              Key      Macro Format            Repeat
+%---------------------------------------------------------------------
+>>>INDEX_MACRO_DEFINITION:	i	\index{%s}          	t
+>>>INDEX_MACRO_DEFINITION:	g	\glossary{%s}       	t
+%---------------------------------------------------------------------
+
+

@@ -1,0 +1,34 @@
+all:
+	cd 01_num_comp; make all
+	cd 02_lin_calc; make all
+	cd 03_lin_eq; make all
+	cd 04_nl_eq; make all
+	cd 05_eigen; make all
+	cd 06_interp_diff; make all
+	cd 07_integration; make all
+	cd 08_approximation; make all
+	cd 09_ode; make all
+	cd 10_ode_ddm; make all
+	cd 11_pde_diffusion; make all
+	cd 12_pde_poisson; make all
+	cd 13_pde_cd; make all
+	cd 14_bem; make all
+	cd 15_fem; make all
+	cd 99_spec_fnc; make all
+clean:
+	cd 01_num_comp; make clean
+	cd 02_lin_calc; make clean
+	cd 03_lin_eq; make clean
+	cd 04_nl_eq; make clean
+	cd 05_eigen; make clean
+	cd 06_interp_diff; make clean
+	cd 07_integration; make clean
+	cd 08_approximation; make clean
+	cd 09_ode; make clean
+	cd 10_ode_ddm; make clean
+	cd 11_pde_diffusion; make clean
+	cd 12_pde_poisson; make clean
+	cd 13_pde_cd; make clean
+	cd 14_bem; make clean
+	cd 15_fem; make clean
+	cd 99_spec_fnc; make clean

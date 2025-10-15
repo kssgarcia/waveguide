@@ -1,0 +1,11 @@
+1.0   viscocity
+1.0   density
+6     number of Gauss Legendre points (1,2,3,4,5,6,12,20)
+1.2   major semi-axis
+0.8   minor semi-axis
+
+0.9      wall velocity amplitude
+2.0      angular frequency
+
+16    Number of points around the ellipse
+

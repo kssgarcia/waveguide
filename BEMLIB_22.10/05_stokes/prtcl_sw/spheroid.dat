@@ -1,0 +1,8 @@
+1.0   visc
+6     NGL
+0.02   x semi-axis
+1.0   s semi-axis
+0.0   x position of sphere center
+1.0   Omega
+
+32  number of elements

@@ -1,0 +1,81 @@
+1.0      viscosity
+1.0      shear rate: k
+0.0      pressure gradient: pg
+6        Gauss Legendre
+1.0      height
+0.50     opening
+
+32 0.1 -5.0     left part of the wall
+16 5.0          left side of the cavity
+16 5.0          bottom of the cavity
+16 5.0          right part of the cavity
+32 10.0 5.0      right part of the wall
+
+0               Iwall (0 for no upper wall)
+2.0             wall
+12 0.2  5       right part of the upper wall
+12 5.0 -5       left part of the upper wall
+
+-2.0 2.0  xmin, xmax : streamline window
+-0.5 3.5  ymin, ymax : streamline window
+
+-0.75 0.45
+-1 0.10
+-1 0.20
+-2 0.05
+-2 0.10
+-2 0.20
+-2 0.30
+-2 0.40
+-2 0.50
+-2 0.60
+-2 0.70
+-2 0.80
+-2 0.90
+-2 1.00
+-2 1.10
+-2 1.20
+-2 1.30
+-2 1.40
+-2 1.50
+-2 1.60
+-2 1.70
+-2 1.80
+-2 1.90
+-2 2.00
+-2 2.10
+-2 2.20
+-2 2.30
+-2 2.40
+-2 2.50
+-2 2.60
+-2 2.70
+-2 2.80
+-2 2.90
+-2 3.00
+99 99
+-0.55 0.08
+
+-1 0.30
+-1 0.40
+-1 0.50
+-0.001 -0.90
+-0.001 -0.80
+-0.001 -0.70
+-0.001 -0.60
+-0.001 -0.50
+-0.001 -0.40
+99 99
+
+-1 0.01 rectangular cavity of depth 0.25 on a plane wall
+-1 0.05
+-1 0.10 
+-1 0.20
+-1 0.30
+-1 0.40
+-1 0.50
+-0.4 -0.18
+-0.4 -0.20
+-0.4 -0.22
+99 99
+

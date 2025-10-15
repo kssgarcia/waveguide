@@ -1,0 +1,17 @@
+Cylindrical cavity
+
+1.0      viscosity
+0.5      shear rate
+-1.0     pressure gradient: pg
+6        Gauss Legendre points: Choose from 1,2,3,4,5,6,12,20
+
+2.0      depth
+0.50     opening radius
+16 0.2   Neop RTop
+
+16 0.2       NEB, RTB  (bottom)
+32 5.0       NES, RTS  (side)
+32 4.0 5.0   NeW  RTW  truncated wall
+
+1.0          x = wall (upper wall)
+32 5.0 1.0   NeU, RTU, truncation of upper wall

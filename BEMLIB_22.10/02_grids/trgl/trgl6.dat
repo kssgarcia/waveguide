@@ -1,0 +1,5 @@
+2 1 2       Ishape (1 for octahedron, 2 for icosahedron)
+1 2        Ndiv
+1.0 1.0 b/a, c/a
+1.0        req
+0.0 0.0 0.0  cxp, cyp, czp

@@ -1,0 +1,20 @@
+2     Ioctaicos: 1 for octahadron, 2 for icosahedron
+0   Ndiv
+
+0.3 1.0       b/a and c/a
+1.0           equivalent radius
+0.0 0.0 0.0   center
+
+1             intm: integration method (1 for quadrature)
+9 12 3 12 3 12 9 9 3     mint
+
+10            Number of iterations
+0.0000001     tolerance
+
+1             Iflow: 1 for free space
+
+-0.8         for Iflow=2: wall
+1            for Iflow=2: Idn: Dirichlet (1) or Neumann (2)
+
+4         mpoly
+0 1     0 for evenly spaced, 1 for Lobatto

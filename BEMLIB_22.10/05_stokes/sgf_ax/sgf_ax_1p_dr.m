@@ -1,0 +1,79 @@
+clear all
+close all
+
+%================
+% driver for the periodic axisymmetric Green's function
+%================
+
+Iopt=1;
+
+%---
+% parameters
+%---
+
+L=3*pi;
+L=1.0;
+
+%---
+X = 0.4;
+Y = 1.1;
+
+X0 = 0.0;
+Y0 = 0.9;
+%---
+
+%---
+% automatic
+%---
+
+Np=2;
+accuracy = 0.0001;
+Nsum = floor(0.05*Y/(accuracy*Np*Np*L));
+if(Nsum<2)
+ Nsum=2;
+end
+
+%---
+% manual
+%---
+
+Np = 2;
+Nsum = 8;
+
+%==================
+% symmetry property
+%==================
+
+[GXX,GXY,GYX,GYY ...
+...
+   ,QXXX,QXXY,QXYX,QXYY ...
+   ,QYXX,QYXY,QYYX,QYYY ...
+  ...
+  ,PXX,PXY,PYX,PYY ...
+  ,Iaxis] ...
+...
+  = sgf_ax_1p (Iopt ...
+              ,X0,Y0 ...  % evaluation point
+              ,X,Y ...    % ring
+              ,L ...
+              ,Nsum ...
+              ,Np);
+
+Y0*[GXX, GXY; GYX, GYY]
+
+[GXX,GXY,GYX,GYY ...
+...
+   ,QXXX,QXXY,QXYX,QXYY ...
+   ,QYXX,QYXY,QYYX,QYYY ...
+  ...
+  ,PXX,PXY,PYX,PYY ...
+  ,Iaxis] ...
+...
+  = sgf_ax_1p (Iopt ...
+              ,X,Y ...
+              ,X0,Y0 ...
+              ,L ...
+              ,Nsum ...
+              ,Np);
+
+Y*[GXX, GXY; GYX, GYY]

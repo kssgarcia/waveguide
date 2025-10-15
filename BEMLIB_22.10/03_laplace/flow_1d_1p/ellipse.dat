@@ -1,0 +1,8 @@
+1.0   shear rate 
+1.0   viscocity
+6     number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+1.0   ellipse major semi-axis
+2.0   ellipse minor semi-axis
+1.0   period
+
+32    Number of elements around the ellipse

@@ -1,0 +1,43 @@
+1.0    viscosity
+
+6     Number of Gauss-Legendre points for numerical integration
+
+ 1.0    shear rate
+ 2.0    pressure gradient
+ 0.0    wall
+ 1.5    L: period for singly-periodic flow
+
+ 0.0    particle x velocity 
+ 0.0    particle y velocity 
+ 0.0    particle angular velocity 
+
+-1.0    lower wall velocity
+ 1.0    upper wall velocity
+ 0.9    h: channel semi-width	for Iflow = 3
+ 1      IQPD			for Iflow = 3
+ 5      NGFWW 			for Iflow = 3	
+
+1.0       Uinf       for Iflow = 10
+
+1.0 0.0   a11 a12    for Iflow = 10
+0.0 1.0   a21 a22    for Iflow = 10
+2 2       Max1 Max2  for Iflow = 10
+
+2  Isolve (1 or 2)
+
+1  Method  (1 for the single-layer representation; 2 otherwise)
+
+1  Iprec: Precondition (Isolve=1)
+0  Ireg:  Regularize: choose from 0,1,3  (previously: Ired) (Isolve=1)
+
+2.0       expansion factor for clustering (Isolve = 2)
+
+200       Maximum number of iterations: Niter
+0.000001  Pointwise iteration tolerance
+
+---------------------------
+Iflow = 
+        1  semi-infinite non-periodic shear flow
+        2  semi-infinite periodic shear flow
+        3  channel flow
+        10 Doubly periodic flow

@@ -1,0 +1,15 @@
+Spherical cavity
+
+1.0      	viscosity
+1        	shear rate: k
+0.0     	pressure gradient: delta
+6        	Gauss Legendre points: choose from 1,2,3,4,5,6,12,20
+1.0	 	radius of the cavity
+0.50      	angle (in multiples of pi)
+
+48 0.1   	Cavity:  NEC, RTC 
+64 15.0  5.0 	Wall:    NeW  RTW  wall truncation level
+24 0.2   	Opening: Neop RTop
+
+1.0             wall: upper wall at x = wall
+48 8.0 5.0 	NeU  RTU   truncated upper wall

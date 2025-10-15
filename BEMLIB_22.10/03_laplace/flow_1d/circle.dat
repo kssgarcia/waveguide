@@ -1,0 +1,9 @@
+1.0    negative of pressure gradient
+1.0    viscosity
+6      number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+0.5    tube radius 
+
+0.0 0.0 | 0.1 -0.1    shifted origin of particular solution
+
+64 1.00     number of elements, ratio of element lengths
+

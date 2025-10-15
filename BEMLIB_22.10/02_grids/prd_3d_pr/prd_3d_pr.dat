@@ -1,0 +1,4 @@
+1.2 0.1 0.2   Periods: RLX,RLY,RLZ
+0.15          thmax
+0.05          dist_max
+0.01          dist_min

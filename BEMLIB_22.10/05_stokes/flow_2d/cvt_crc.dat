@@ -1,0 +1,87 @@
+1.0      viscosity
+1.0      shear rate
+0.0      pressure gradient: delta
+6        Gauss Legendre
+1.0	 radius of the cavity
+0.75 0.25 0.50 0.75     angle (in multiples of pi)
+
+24 0.2 -5.0       left part of the wall
+32 5.0   	left part of the cavity
+32 0.2   	right part of the cavity
+24 5.0 5.0   	right part of the wall
+
+0               Iwall (0 for no upper wall)
+1.5             wall
+12 0.2  5       right part of the upper wall
+12 5.0 -5       left part of the upper wall
+
+-2.0 2.0  xmin, xmax : streamline window
+-2.0 2.0  ymin, ymax : streamline window
+
+-2 0.01 circular cavity: alpha = 0.75
+-2 0.05
+-2 0.10
+-2 0.20
+-2 0.30
+-2 0.40
+-2 0.50
+-2 0.60
+-2 0.70
+-2 0.80
+-2 0.90
+-2 1.00
+-2 1.10
+-2 1.20
+-2 1.30
+-2 1.40
+-2 1.50
+-2 1.60
+-2 1.70
+-2 1.80
+-2 1.90
+-0.001 -0.6
+-0.001 -0.70
+-0.001 -0.80
+-0.001 -0.90
+-0.001 -1.00
+-0.001 -1.10
+-0.001 -1.20
+-0.001 -1.30
+-0.001 -1.40
+-0.001 -1.50
+-0.001 -1.60
+99 99
+
+
+-2 0.01 circular cavity: alpha = 0.250
+-2 0.05
+-2 0.10
+-2 0.20
+-2 0.30
+-2 0.40
+-2 0.50
+-2 0.60
+-2 0.70
+-2 0.80
+-2 0.90
+-2 1.00
+-2 1.10
+-2 1.20
+99 99
+
+-2 0.01 circular cavity: alpha = 0.50
+-2 0.05
+-2 0.10
+-2 0.20
+-2 0.30
+-2 0.40
+-2 0.50
+-2 0.60
+-2 0.70
+-2 0.80
+-0.001 -0.90
+-0.001 -0.80
+-0.001 -0.70
+-0.001 -0.60
+99 99
+

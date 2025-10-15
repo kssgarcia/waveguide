@@ -1,0 +1,264 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+\usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+\decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\begin{document}
+\begin{center}
+{\Large Dipole moments}
+\end{center}
+This document derives the equations (3.15) of the paper {\tt ICOVP27.06.25PZh.pdf}. The document follows the notation and conventions of many textbooks, which are different from those in the paper. In particular, the disturbance potential denoted by $\Psi$ in the paper is denoted here by $\phi_d$ and the uniform undisturbed fluid flow, which in paper points in the negative $y$ direction, here points in the positive $x$ direction. We begin by defining the physical problem where the disturbance potential arises.
+
+\section{The physical problem}
+Let us determine how a rigid cylinder disturbs an otherwise uniform fluid flow. Suppose the cylinder axis is perpendicular to the $(x,y)$ plane and has an arbitrary cross section described by a closed contour $\Gamma$. We want to find the two-dimensional velocity field ${\bf V}=(u,v)$ of the irrotational flow,
+\begin{equation}
+  \label{eq:19}
+  \nabla \times {\bf V} = {\bf 0},
+\end{equation}
+of an incompressible fluid,
+\begin{equation}
+  \label{eq:33}
+  \nabla \cdot {\bf V} = 0,
+\end{equation}
+around the closed contour $\Gamma$. The fluid can slide along the contour, but not enter it. Therefore, the component of the velocity perpendicular to the contour must be zero,
+\begin{equation}
+  \label{eq:36}
+  {\bf V}\cdot{\bf n} = 0,~\mathrm{over}~\Gamma.
+\end{equation}
+From \eqref{eq:19} it follows that there must exist a scalar field $\phi$ (known as the velocity potential) such that
+\begin{equation}
+  \label{eq:37}
+  {\bf V} = \nabla\phi.
+\end{equation}
+Substituting \eqref{eq:37} into \eqref{eq:33}, we get the Laplace equation
+\begin{equation}
+  \label{eq:38}
+  \nabla^2\phi = 0.
+\end{equation}
+Moreover, using \eqref{eq:37}, \eqref{eq:36} takes the form,
+\begin{equation}
+  \label{eq:42}
+  \nabla\phi\cdot{\bf n} = \frac{\partial\phi}{\partial n} = 0,~\mathrm{over}~\Gamma.
+\end{equation}
+Far away from the cylinder, the velocity must approach the undisturbed uniform flow with magnitude $U$ and direction ${\bf\hat{x}}$,
+\begin{equation}
+  \label{eq:43}
+\lim_{r\rightarrow\infty} \nabla\phi = U{\bf\hat{x}},
+\end{equation}
+$r = \sqrt{x^2 + y^2}$.
+Equations \eqref{eq:38}, \eqref{eq:42}, and \eqref{eq:43} determine $\phi$ up to an anbitrary additive constant.
+
+Because of the condition \eqref{eq:43}, $\phi$ can be written as
+\begin{equation}
+  \label{eq:45}
+  \phi(x,y) = U x + \phi_d(x,y),
+\end{equation}
+where $U x$ is the potential of the undisturbed flow and $\phi_d(x,y)$ is the potential introduced by the presence of the cylinder (disturbance potential), which must satisfy
+\begin{equation}
+  \label{eq:47}
+  \boxed{
+    \lim_{r\rightarrow\infty} \nabla\phi_d = {\bf 0}.
+    }
+\end{equation}
+Note that
+\begin{align}
+  \lim_{r\rightarrow\infty} \nabla\phi &= \lim_{r\rightarrow\infty} \nabla\left[U x + \phi_d(x,y)\right] \\
+                                       &= U {\bf\hat{x}} + \lim_{r\rightarrow\infty} \nabla\phi_d(x,y) \\
+                                       &= U {\bf\hat{x}} + {\bf 0} \\
+                                       &= U {\bf\hat{x}}.
+\end{align}
+Additionally on the boundary of the cylinder, Eq. \eqref{eq:42} implies
+\begin{align}
+  \label{eq:48}
+  \nabla\phi\cdot{\bf n} &= U{\bf\hat{x}}\cdot{\bf n} + \nabla\phi_d\cdot{\bf n} \\
+                         &= U n_1 + \frac{\partial\phi_d}{\partial n} \\
+                         &= 0,
+\end{align}
+where ${\bf n} = (n_1, n_2)$. Solving $\frac{\partial\phi_d}{\partial n}$ from the previous equation
+\begin{equation}
+  \label{eq:49}
+  \boxed{
+    \frac{\partial\phi_d}{\partial n} = -U n_1.
+    }
+  \end{equation}
+  Since $\phi$ and $U x$ are solutions of the Laplace equation, $\phi_d$ must be one too,
+  \begin{equation}
+    \label{eq:50}
+    \boxed{
+      \nabla^2 \phi_d = 0.
+      }
+  \end{equation}
+Equations \eqref{eq:47}, \eqref{eq:49}, and \eqref{eq:50} correspond to equations (3.13) in the paper.
+
+\section{Laurent series expansion of the complex potential}
+We can define a complex potential $F(z)$, $z=x + iy$, whose real part is the velocity potential $\phi$,
+\begin{equation}
+  \label{eq:51}
+  F(z) = \phi(x,y) + i \psi(x,y).
+\end{equation}
+and which is analytical in the region outside the contour $\Gamma$. Since $F(z)$ is analytical, the Cauchy-Riemann relations imply that its imaginary part $\psi$ must be the {\it stream function}, which satisfies
+\begin{equation}
+  \label{eq:1}
+  {\bf V} = \nabla\times \psi{\bf\hat{z}}
+\end{equation}
+and is constant over the flow streamlines, in particular over the contour $\Gamma$.
+
+Due to \eqref{eq:45} and \eqref{eq:47}, the only term with a positive power of $z$ in the Laurent series expansion of $F(z)$ is that of degree one. Hence, the series has the form
+\begin{equation}
+  \label{eq:2}
+  F(z) = U z + \frac{M_1}{z} + \frac{M_2}{z^2} + ...
+\end{equation}
+where, according to the theorem on the existence the Laurent series \cite{brown2014}, the complex coefficients $M_n = A_n + iB_n$ are given by
+\begin{equation}
+  \label{eq:3}
+  M_n = \frac{1}{2\pi i}\oint_\Gamma F(z)z^{n-1}dz.
+\end{equation}
+
+The real part of equation \eqref{eq:2} is
+\begin{equation}
+  \label{eq:4}
+  \phi(x,y) = U x + \frac{A_1 x}{r^2} + \frac{B_1 y}{r^2} + O\left(\frac{1}{r^2}\right).
+\end{equation}
+So
+\begin{equation}
+  \label{eq:4}
+  \phi_d(x,y) = \frac{A_1 x}{r^2} + \frac{B_1 y}{r^2} + O\left(\frac{1}{r^2}\right),
+\end{equation}
+which corresponds to Eq. (3.14) in the paper.
+
+For the coefficient $M_1$, \eqref{eq:3} takes the form
+\begin{align}
+  \label{eq:5}
+  M_1 &= \frac{1}{2\pi i} \oint_\Gamma F(z) dz \\
+      &=\frac{1}{2\pi i} \oint_\Gamma \left[\phi(x,y) + i\psi(x,y)\right]dz \\
+      &=\frac{1}{2\pi i} \left[\oint_\Gamma \phi(x,y)dz + i\oint_\Gamma \psi(x,y)dz \right].\label{eq:phi_psi}
+\end{align}
+The stream function $\psi(x,y)$ is constant over $\Gamma$ and can chosen to be zero there, cancelling the second integral in \eqref{eq:phi_psi}. As a result,
+\begin{align}
+  \label{eq:7}
+  M_1 &= \frac{1}{2\pi i}\oint_\Gamma \phi(x,y)(dx + i dy)\\
+  &= \frac{1}{2\pi}\left[\oint_\Gamma \phi(x,y) dy -
+    i\oint_\Gamma \phi(x,y) dx \right].\label{eq:phi_xy}
+\end{align}
+Replacing \eqref{eq:45} into \eqref{eq:phi_xy},
+\begin{align}
+  M_1 &= \frac{1}{2\pi}\left(\oint_\Gamma [U x + \phi_d(x,y)]dy -
+        i\oint_\Gamma [U x + \phi_d(x,y)]dx \right) \\
+  &= \frac{1}{2\pi}\left(U\oint_\Gamma  x dy + \oint_\Gamma  \phi_d(x,y) dy -i U\oint_\Gamma  x dx -i \oint_\Gamma \phi_d(x,y) dx \right).\label{eq:M1}
+\end{align}
+The first ingregral in \eqref{eq:M1} is equal to the area $S$ of the region enclosed by the contour $\Gamma$,
+\begin{equation}
+  \label{eq:10}
+  \oint_\Gamma xdy = S,
+\end{equation}
+and the third integral vanishes,
+\begin{equation}
+  \label{eq:8}
+  \oint_\Gamma x dx = 0.
+\end{equation}
+Therefore the real and imaginary parts of $M_1$ are given by
+\begin{equation}
+  \label{eq:9}
+  A_1 = \frac{1}{2\pi}\left(U S + \oint_\Gamma \phi_d(x,y)dy \right)
+  \end{equation}
+  and
+  \begin{equation}
+    \label{eq:11}
+    B_1 = -\frac{1}{2\pi}\oint_\Gamma \phi_d(x,y)dx.
+  \end{equation}
+  where it must be understood that if $z(t) = x(t) + i y(t)$ is a given parametrization of $\Gamma$, the elements of integration are
+    \begin{align}
+    \label{eq:12}
+    dx &= \dot{x}(t) dt \\
+    dy &= \dot{y}(t) dt.
+    \end{align}
+    The integrals can be expressed in terms of the components of the normal unit vector ${\bf n}$ that points inwadly and the arclenth element $dl$ in the following manner. The unit vector ${\bf T}$ tangent to $\Gamma$ is
+    \begin{align}
+      \label{eq:13}
+      {\bf T} &= (T_1, T_2) \\
+              &=  \left( \frac{\dot{x}(t)}{|\dot{z}(t)|}, \frac{\dot{y}(t)}{|\dot{z}(t)|} \right).
+    \end{align}
+    where $|\dot{z}(t)| = \sqrt{[\dot{x}(t)]^2 + [\dot{y}(t)]^2}$. The element of arclenth $dl$ is
+  \begin{equation}
+    \label{eq:6}
+    dl = |\dot{z}(t)| dt.
+  \end{equation}
+  Therefore,
+  \begin{align}
+    dx &= T_1 dl \\
+    dy &= T_2 dl.
+  \end{align}
+  The vector ${\bf n}$ is pependicular to ${\bf T}$, ${\bf n} = {\bf\hat{k}} \times {\bf T}$,
+  \begin{align}
+    {\bf n} &= (n_1, n_2) \\
+            &= (-T_2, T_1).
+  \end{align}
+  As a result
+
+
+  \begin{equation}
+    \label{eq:9}
+    \boxed{
+      A_1 = \frac{1}{2\pi}\left(U S - \oint_\Gamma \phi_d(x,y)n_1 dl \right)
+      }
+  \end{equation}
+  and
+  \begin{equation}
+    \label{eq:11}
+    \boxed{
+      B_1 = -\frac{1}{2\pi}\oint_\Gamma \phi_d(x,y) n_2 dl,
+      }
+    \end{equation}
+ which correspond to equations (3.15) in the paper.
+\begin{thebibliography}{99}
+\bibitem{brown2014}J.W. Brown and R.V. Churchill, {\it Complex Variables and Applications}, Ninth Edition, McGraw-Hill, 2014.
+\end{thebibliography}
+
+
+
+
+ \end{document}
+
+  

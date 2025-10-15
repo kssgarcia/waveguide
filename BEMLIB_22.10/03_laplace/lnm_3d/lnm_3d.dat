@@ -1,0 +1,13 @@
+2            1 for the interior; 2 for the exterior problem
+
+2     Ioctaicos: 1 for octahadron, 2 for icosahedron
+1             Ndiv
+
+1.0 0.5       b/a and c/a
+1.0           equivalent radius
+0.0 0.0 0.0   center
+
+7             mint
+6             NGL
+
+1             Iflow: do not touch

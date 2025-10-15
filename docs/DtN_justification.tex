@@ -1,0 +1,211 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+% \usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath, amssymb}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+% \decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\newcommand{\wt}[1]{\widetilde{#1}}
+\newcommand{\ol}[1]{\overline{#1}}
+
+\begin{document}
+\begin{center}
+{\Large Use of the Dirichlet-to-Neumann operator to simulate an infinite domain outside a boundary}
+\end{center}
+We are interested in solving numerically the Helmholtz equation,
+\begin{equation}
+  \label{eq:9}
+  \nabla^2 u + k^2u = 0,
+\end{equation}
+on an infinite two-dimensional waveguide with an obstacle (Fig. \ref{fig:waveguide}). Homogeneous Dirichlet boundary condition are imposed over the waveguide top and bottom boundaries (located at $y=0$ and $y=H$, respectively)
+\begin{equation}
+  \label{eq:10}
+  u(x,0) = u(x,H) = 0,
+\end{equation}
+and homogeneous Neumann boundary conditions are imposed over the obstacle boundary $\Gamma$,
+\begin{equation}
+  \label{eq:11}
+  \frac{\partial u}{\partial n} = 0,~~(x,y) \in \Gamma.
+\end{equation}
+Additionally, the solution $u$ must stay bounded as $x \rightarrow \pm\infty$.
+
+For the ensuing discussion, the waveguide is divided into the three regions shown in Fig. \ref{fig:waveguide}: $S^+ = \{(x,y)| x > L,  0 \le y \le H\}$, $S^- = \{(x,y)| x < -L,  0 \le y \le H\}$, and $\Omega_L = \{(x,y)~\mathrm{outside}~\mathrm{the}~\mathrm{obstacle}| -L < x < L, 0 \le y \le H\}$.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=8cm]{./waveguide_rectangle_obstacle.pdf}
+  \caption{Two-dimensional infinite waveguide with an obstacle (triangle). The waveguide is divided into three disjoint regions $\Omega_L$, $S^-$, and $S^+$.}
+  \label{fig:waveguide}
+\end{figure}
+
+Numerical methods can only be applied to bounded regions, for instance the region $\Omega_L$, because the memory of a computer, where the discrete, approximate $u$-values are stored, is finite. Fortunatelly, there is a way to define a boundary condition on the right boundary of $\Omega_L$, $\Sigma_L = \{(x,y)|x=L\}$, that simulates the existence of the semi-infite strip $S^+$ to its right, and equivalently for the left boundary, $\Sigma_{-L} = \{(x,y)|x=-L\}$. The procedure, described in references  \cite{ihlenburg1998finite} and \cite{chesnel2025tutorial}, is explained next.
+
+The problem defined by \eqref{eq:9}, \eqref{eq:10}, and \eqref{eq:11} is equivalent to the following coupled problem
+\begin{subequations}
+  \label{eq:omegaL}
+\begin{align}
+  \nabla^2 u + k^2u &= 0~~\mathrm{in}~\Omega_L \\
+  u(x,0)=u(x,H)&=0,~~-L < x < L \\
+  \frac{\partial u}{\partial n} &= 0~~\mathrm{on}~ \Gamma \\
+  u &= u_{+}~~~\mathrm{on}~ \Sigma_{+} \label{eq:cp1} \\
+  \frac{\partial u}{\partial n} &= \frac{\partial u_{+}}{\partial n}~~\mathrm{on}~\Sigma_{+}  \label{eq:cp2}\\
+    u &= u_{-}~~~\mathrm{on}~ \Sigma_{-} \\
+  \frac{\partial u}{\partial n} &= \frac{\partial u_{-}}{\partial n}~~\mathrm{on}~\Sigma_{-}
+\end{align}
+\end{subequations}
+\begin{subequations}
+  \label{eq:Sp}
+\begin{align}
+  \nabla^2 u_+ + k^2u_+ &= 0~~\mathrm{in}~S^+ \\
+  u_+(x,0)=u_+(x,H) &=0,~~x > L \\
+  u~\mathrm{is}~&\mathrm{bounded}~\mathrm{in}~S^+
+\end{align}  
+\end{subequations}
+\begin{subequations}
+  \label{eq:Sm}
+\begin{align}
+  \nabla^2 u_- + k^2u_- &= 0~~\mathrm{in}~S^- \\
+  u_-(x,0)=u_-(x,H) &=0,~~x < -L \\
+  u~\mathrm{is}~&\mathrm{bounded}~\mathrm{in}~S^-
+\end{align}  
+\end{subequations}
+
+Suppose $u_+ = u$ is given on $\Sigma_L$ and we can solve analytically the Dirichlet problem for $u_+$ in $S^+$. Having $u_+$, we can compute $\partial u_+/\partial n$ on $\Sigma_L$. Thus we have constructed a mapping
+\begin{equation}
+  \label{eq:12}
+  \Lambda^+: \left.u_+\right|_{\Sigma_L} \rightarrow \left.\frac{\partial u_+}{\partial n}\right|_{\Sigma_L}.
+\end{equation}
+$\Lambda^+$ is a linear operator called the Dirichlet-to-Neumann (DtN) operator. By \eqref{eq:cp1} and \eqref{eq:cp2}, the operator $\Lambda^+$ equivalently maps
+\begin{equation}
+  \label{eq:13}
+  \left.u\right|_{\Sigma_L} \rightarrow \left.\frac{\partial u}{\partial n}\right|_{\Sigma_L}.
+\end{equation}
+Similarly, the DtN operator $\Lambda^-$ can be defined for the left boundary,
+\begin{equation}
+  \label{eq:14}
+  \Lambda^-: \left.u_-\right|_{\Sigma_{-L}} \rightarrow \left.\frac{\partial u_-}{\partial n}\right|_{\Sigma_{-L}}.  
+\end{equation}
+Using the DtN operators $\Lambda^{\pm}$, the coupled problem \eqref{eq:omegaL}, \eqref{eq:Sp}, and \eqref{eq:Sm}, is equivalent to the reduced problem
+\begin{subequations}
+  \label{eq:reduced}
+  \begin{align}
+    \nabla^2 u + k^2u &= 0~~\mathrm{in}~\Omega_L \\
+  u(x,0)=u(x,H)&=0,~~-L < x < L \\
+  \frac{\partial u}{\partial n} &= 0~~\mathrm{on}~ \Gamma \\
+  \frac{\partial u}{\partial n} &= \Lambda^+ u~~\mathrm{on}~\Sigma_{+} \\
+  \frac{\partial u}{\partial n} &= \Lambda^- u~~\mathrm{on}~\Sigma_{-}. 
+  \end{align}
+\end{subequations}
+The problem \eqref{eq:reduced} is defined on the bounded domain $\Omega_L$, so it is amenable to numerical solution. However, to proceed further, we need an explicit representation of the DtN operators $\Lambda^{\pm}$. That representation can be based on the analytical solution of the Helmholtz equation in the undisturbed waveguide (without the obstacle) $\{(x,y)| -\infty < x < \infty, 0 < y < H\}$ with homogeneous Dirichlet boundary conditions $u(x,0)=u(x,H) = 0$.
+
+By the method of separation of variables \cite{chesnel2025tutorial}, the following separable solutions of the Helmholtz equation in the undisturbed waveguide are found,
+\begin{equation}
+  \label{eq:1}
+  w_n^\pm(x,y) = e^{\pm i \beta_n x} \varphi_n(x),~~n=1,2,\ldots
+\end{equation}
+where
+\begin{equation}
+  \label{eq:2}
+  \beta_n = \sqrt{k^2 - \lambda_n^2}~~\mathrm{with}~~\lambda_n = \frac{n\pi}{H},
+\end{equation}
+and
+\begin{equation}
+  \label{eq:3}
+  \varphi_n(y) = \sqrt{\frac{2}{H}}\sin(\lambda_n y).
+\end{equation}
+The general solution is a superposition of the separable solutions $w_n^\pm(x,y)$,
+\begin{equation}
+  \label{eq:4}
+  u(x,y) = \sum_{n=1}^\infty \left(A_n e^{i \beta_n x} + B_n e^{-i\beta_n x}\right)\varphi_n(y).
+\end{equation}
+The series in \eqref{eq:4} can also be used to express the solution $u_+$ in the semi-infinite strip $S^+$. However, the condition of boundedness of $u_+$ requires that the terms with $e^{-i\beta_n x}$ be excluded. Therefore, on $S^+$ the solution $u_+$ has the analytical expression
+\begin{align}
+  \label{eq:5}
+  u_+(x,y) &= \sum_{n=1}^\infty A_n e^{i \beta_n x}\varphi_n(y) \\
+           &= \sum_{n=1}^\infty \wt{A}_n e^{i \beta_n (x-L)}\varphi_n(y).\label{eq:sum_wtA}
+\end{align}
+The coefficients $\wt{A}_n$ can be found from the (supposedly) known value of $u_+$ on $\Sigma_L$, 
+\begin{equation}
+  \label{eq:upL}
+  u^+(L,y) = \sum_{m=1}^\infty \wt{A}_m \varphi_m(y).             
+\end{equation}
+and the orthogonatlity of the functions $\varphi_n(y)$,  
+\begin{equation}
+  \label{eq:6}
+  \langle \varphi_m,\varphi_n \rangle = \int_0^H \varphi_m(y) \varphi_n(y) dy = \delta_{mn}.
+\end{equation}
+Applying the inner product $\langle \cdot, \varphi_n \rangle$ on both sides of \eqref{eq:upL}, we have
+\begin{align}
+  \langle u_+, \varphi_n \rangle &= \left\langle \sum_{m=1}^\infty \wt{A}_m \varphi_m , \varphi_n \right\rangle \\
+                                 &= \sum_{m=1}^\infty \wt{A}_m \left\langle \varphi_m , \varphi_n \right\rangle \\
+                                 &= \sum_{m=1}^\infty \wt{A}_m \delta_{mn} \\                                  
+                                 &= \wt{A}_n.\label{eq:wtA}
+\end{align}
+Substituting \eqref{eq:wtA} into \eqref{eq:sum_wtA}, we get the following form for the solution $u_+(x,y)$ in $S^+$,
+\begin{equation}
+  \label{eq:7}
+  u_+(x,y) = \sum_{n=1}^\infty \left\langle u_+, \varphi_n\right\rangle e^{i \beta_n (x-L)}\varphi_n(y)  
+\end{equation}
+To obtain an expression for the DtN operator $\Lambda^+$, we compute the derivative of \eqref{eq:7} normal to $\Sigma_L$,
+\begin{align}
+  \label{eq:8}
+  \left.\frac{\partial u_+}{\partial n}\right|_{\Sigma_L} &= \left.\frac{\partial u_+}{\partial x}\right|_{\Sigma_L} \\
+                                  &= \sum_{n=1}^\infty i \beta_n \left\langle u_+, \varphi_n\right\rangle \varphi_n(y)
+\end{align}
+Therefore, the DtN operator has the form
+\begin{equation}
+  \label{eq:16}
+  (\Lambda^+ u)(y) = \sum_{n=1}^\infty i \beta_n \left\langle u, \varphi_n\right\rangle \varphi_n(y),
+\end{equation}
+where the inner product $\left\langle u, \varphi_n\right\rangle$ is computed over $\Sigma_L$,
+\begin{equation}
+  \label{eq:17}
+  \left\langle u, \varphi_n\right\rangle = \int_0^H u(L,y)\varphi_n(y) dy.
+\end{equation}
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+ \end{document}
+
+  

@@ -1,0 +1,13 @@
+-1.0 1.0      xstart, ystart
+
+1                       straight line
+0.0 1.1    10 3.2    1
+2                         arc
+1.1 1.0 1.6 16 10.0  1
+1                       straight line
+5.0 4.0    20 8.5    1
+1                       straight line
+-1.0 4.2   20 3.0    1
+1                        straight line
+-1.0 1.0   12 5.0    0
+0

@@ -1,0 +1,152 @@
+% \documentclass[tikz,border=2mm]{standalone}
+% \usetikzlibrary{decorations.pathmorphing}
+
+% \begin{document}
+% \begin{tikzpicture}[scale=1.2]
+
+% % Axes
+% \draw[->] (-3,0) -- (3,0) node[right] {$x$};
+% \draw[->] (0,-0.5) -- (0,3.2) node[above] {$y$};
+
+% % Lines y=0 and y=d
+% \draw[thick] (-2.5,0) -- (2.5,0) node[right] {$y=0$};
+% \draw[thick] (-2.5,3) -- (2.5,3) node[right] {$y=d$};
+
+% % Labels for x = -a and x = a
+% \draw (-2,0) node[below] {$x=-a$};
+% \draw (2,0) node[below] {$x=a$};
+
+% % Curved domain D
+% \draw[thick,decorate,decoration={bumps,segment length=20pt,amplitude=3pt}]
+%   (-2,0) .. controls (-1,1.5) and (1,1.5) .. (2,0)
+%   node[midway,above] {$\partial D$};
+
+% % Label inside domain
+% \node at (0,1) {$D$};
+% \node at (0.3,0.5) {$D_-$};
+
+% % Points Q and P
+% \fill (1.2,0.8) circle (1pt) node[below right] {$Q(\xi,\eta)$};
+% \fill (1.5,2.5) circle (1pt) node[right] {$P(x,y)$};
+
+% % Image point of Q
+% \fill (1.2,3.2) circle (1pt) node[above right] {$(\xi,2d-\eta)$};
+
+% % Connectors r and r1
+% \draw (1.2,0.8) -- (1.5,2.5) node[midway,left] {$r$};
+% \draw (1.2,3.2) -- (1.5,2.5) node[midway,right] {$r_1$};
+
+% \end{tikzpicture}
+% \end{document}
+
+% \documentclass[tikz,border=2mm]{standalone}
+% \begin{document}
+% \begin{tikzpicture}[scale=1.2]
+
+% % Axes
+% \draw[->] (-3,0) -- (3,0) node[right] {$x$};
+% \draw[->] (0,-2) -- (0,3.5) node[above] {$y$};
+
+% % Lines y=0 and y=d
+% \def\d{3}
+% \draw[thick] (-3,\d) -- (3,\d) node[right] {$y=d$};
+% \draw[thick] (-3,0) -- (3,0) node[right] {$y=0$};
+
+% % Labels for x = -a and x = a
+% \draw (-2,0) node[below] {$x=-a$};
+% \draw (2,0) node[below] {$x=a$};
+
+% % Closed curve: r(theta) = 2 + cos theta + 0.3 cos 2theta
+% \draw[domain=0:360,smooth,variable=\t,thick]
+%   plot ({(2+cos(\t)+0.3*cos(2*\t))*cos(\t)},
+%         {(2+cos(\t)+0.3*cos(2*\t))*sin(\t)}) node[right] {$\partial D$};
+
+% % Labels inside domain
+% \node at (0.3,1.2) {$D$};
+% \node at (0.5,0.5) {$D_-$};
+
+% % Points Q, P and image point
+% \fill (1.2,0.8) circle (1pt) node[below right] {$Q(\xi,\eta)$};
+% \fill (1.5,2.5) circle (1pt) node[right] {$P(x,y)$};
+% \fill (1.2,2*\d-0.8) circle (1pt) node[above right] {$(\xi,2d-\eta)$};
+
+% % Connectors r and r1
+% \draw (1.2,0.8) -- (1.5,2.5) node[midway,left] {$r$};
+% \draw (1.2,2*\d-0.8) -- (1.5,2.5) node[midway,right] {$r_1$};
+
+% \end{tikzpicture}
+% \end{document}
+
+% \documentclass[tikz,border=2mm]{standalone}
+% \begin{document}
+% \begin{tikzpicture}[scale=1.2]
+
+% % Axes
+% \draw[->] (-3,0) -- (3,0) node[right] {$x$};
+% \draw[->] (0,-2) -- (0,3.5) node[above] {$y$};
+
+% % Lines y=0 and y=d
+% \def\d{3}
+% \draw[thick] (-3,\d) -- (3,\d) node[right] {$y=d$};
+% \draw[thick] (-3,0) -- (3,0) node[right] {$y=0$};
+
+% % Labels for x = -a and x = a
+% \draw (-2,0) node[below] {$x=-a$};
+% \draw (2,0) node[below] {$x=a$};
+
+% % Closed curve with more samples
+% \draw[domain=0:360,samples=400,smooth,variable=\t,thick]
+%   plot ({(1+0.5*cos(\t)+0.15*cos(2*\t))*cos(\t)},
+%         {(1+0.5*cos(\t)+0.15*cos(2*\t))*sin(\t)}) node[right] {$\partial D$};
+
+% % Labels inside domain
+% \node at (0.3,1.2) {$D$};
+% \node at (0.5,0.5) {$D_-$};
+
+% % Points Q, P and image point
+% \fill (1.2,0.8) circle (1pt) node[below right] {$Q(\xi,\eta)$};
+% \fill (1.5,2.5) circle (1pt) node[right] {$P(x,y)$};
+% \fill (1.2,2*\d-0.8) circle (1pt) node[above right] {$(\xi,2d-\eta)$};
+
+% % Connectors r and r1
+% \draw (1.2,0.8) -- (1.5,2.5) node[midway,left] {$r$};
+% \draw (1.2,2*\d-0.8) -- (1.5,2.5) node[midway,right] {$r_1$};
+
+% \end{tikzpicture}
+% \end{document}
+
+\documentclass[tikz,border=2mm]{standalone}
+\begin{document}
+\begin{tikzpicture}[scale=1.2]
+
+% Define degree and radius at theta = 40
+\def\theta{40}
+\def\radius{(2/3)*(2+cos(\theta)+0.3*cos(2*\theta))}
+
+% Axes
+\draw[->] (-3,0) -- (3,0) node[right] {$x$};
+\draw[->] (0,-2) -- (0,3.5) node[above] {$y$};
+
+% Curve: scaled to 2/3 original
+\draw[domain=0:360,samples=400,smooth,variable=\t,thick]
+  plot ({(2/3)*(2+cos(\t)+0.3*cos(2*\t))*cos(\t)},
+        {(2/3)*(2+cos(\t)+0.3*cos(2*\t))*sin(\t)})
+  node[right] {$\partial D$};
+
+% Radius at theta=40 degrees
+\draw[red,thick] (0,0) -- ({\radius*cos(\theta)}, {\radius*sin(\theta)});
+
+% Mark the point on the curve
+\fill[red] ({\radius*cos(\theta)}, {\radius*sin(\theta)}) circle (1.2pt)
+  node[above right] {$(r,\theta=40^\circ)$};
+
+% Draw angle arc for theta
+\draw[blue,thick,->] (1,0) arc (0:\theta:1);
+\node[blue] at (0.8,0.35) {$\theta=40^\circ$};
+
+% Indicate radius length
+\node[red] at ({0.5*\radius*cos(\theta)}, {0.5*\radius*sin(\theta)})
+  [above left] {$r \approx 1.87$};
+
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,41 @@
+1 2    Ioctaicos: 1 for octahadron, 2 for icosahedron
+2 0 1 2      Level of triangulation
+
+1.00 1.00        aspect ratios: b/a c/a
+1.0 0.25 0.30             equivalent radius
+0.00 1.5 0.00   cx, cy, cz (coordinates of the particle center)
+0. 0. 0.0 0.20 0.10 -0.50   rotation angles: phix, phiy,phiz
+
+0.0 0.0 0.0   force
+0.0 0.0 1.0   torque
+
+7    number of Gauss_triangle base points for regular integrals
+4    number of Gauss_Legendre base points for singular integrals
+
+1.0    viscosity
+
+0.0 1.0    shear rate
+
+0.0    wall:  position of wall at y=wall (for Iflow=2 and 7)
+
+1.0 0.0         0.0  First base vector for sgf_3d_3p
+0.5 0.866025    0.0  Second base vector
+0.0 0.0         1.0  Third base vector
+
+5    Max1 for summation of the periodic Green's function
+5    Max2 for summation of the periodic Green's function
+
+5.0 0.0  for sgf_3d_2p_w
+0.0 5.0
+
+4 2 for sgf_3d_2p_w
+
+
+------------------------------
+LEGEND:
+
+Iflow: 1  particle in free space
+       2  particle in a semi-infinite domain
+          bounded by a plane wall at x = wall
+       3  triply periodic array
+       7  doubly periodic particle array in a semi-infinite domain

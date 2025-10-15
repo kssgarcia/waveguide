@@ -1,0 +1,347 @@
+% $Header: /cvsroot/latex-beamer/latex-beamer/solutions/generic-talks/generic-ornate-15min-45min.en.tex,v 1.5 2007/01/28 20:48:23 tantau Exp $
+
+\documentclass{beamer}
+
+% This file is a solution template for:
+
+% - Giving a talk on some subject.
+% - The talk is between 15min and 45min long.
+% - Style is ornate.
+
+
+
+% Copyright 2004 by Till Tantau <tantau@users.sourceforge.net>.
+%
+% In principle, this file can be redistributed and/or modified under
+% the terms of the GNU Public License, version 2.
+%
+% However, this file is supposed to be a template to be modified
+% for your own needs. For this reason, if you use this file as a
+% template and not specifically distribute it as part of a another
+% package/program, I grant the extra permission to freely copy and
+% modify this file as you see fit and even to delete this copyright
+% notice.
+
+
+\mode<presentation>
+{
+  \usetheme{Madrid}
+  % or ...
+  \setbeamercovered{transparent}
+  \setbeamertemplate{theorems}[numbered]
+  \setbeamertemplate{figures}[numbered]
+  % or whatever (possibly just delete it)
+}
+
+
+%\usepackage[spanish]{babel}
+% or whatever
+\usepackage{graphicx}
+\usepackage[latin1]{inputenc}
+% or whatever
+
+\usepackage{times}
+\usepackage[T1]{fontenc}
+% Or whatever. Note that the encoding and the font should match. If T1
+% does not look nice, try deleting the line with the fontenc.
+\usepackage{amsmath,amsthm}
+\usepackage{amssymb}
+\usepackage{amsmath}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amscd}
+\usepackage{amsfonts}
+\usepackage{makeidx}
+\usepackage{enumerate}      
+\usepackage{IEEEtrantools}
+%\usepackage{cases}
+%\usepackage{cases}
+\usepackage{mathrsfs}
+
+%\usepackage{amsmath,empheq}
+
+\usepackage{color}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\usepackage{showkeys}
+\usepackage{amsmath}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amscd}
+\usepackage{amsfonts}
+\usepackage{makeidx}
+\usepackage{enumerate}      
+\usepackage{IEEEtrantools}
+%\usepackage{cases}
+%\usepackage{cases}
+\usepackage{mathrsfs}
+
+%\usepackage{amsmath,empheq}
+
+
+\usepackage[latin1]{inputenc}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage [all]{xy}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{cases}
+
+\usepackage{amsmath}
+
+\usepackage{cancel}
+
+\usepackage{mathrsfs}
+
+
+
+\newtheorem{teo}{Theorem}[section]
+    \newtheorem{lem}[teo]{Lemma}
+    \newtheorem{prop}[teo]{Proposition}
+    \newtheorem{coro}[teo]{Corollary}
+    \newtheorem{defn}[teo]{Definition}
+    \newtheorem{obs}[teo]{Remark}
+    \newtheorem{exa}[teo]{Example}
+%\newtheorem{theorem}[section]{Teorema}
+%\renewcommand{\thetheorem}{\arabic{section}.\arabic{theorem}}
+%\renewcommand{\theequation}{\thesection.\arabic{equation}}  %%% PARA ENUMERAR LAS %ECUACIONES POR SECCIÓN CON NÚMEROS ARÁBIGOS
+\newcommand{\re}{\ref}
+\newcommand{\fr}{\frac}
+\newcommand{\ci}{\cite}
+\newcommand{\ov}{\overline}
+    \newtheorem*{dem}{\textsc{Proof}}
+    \newcommand{\bdem}{\begin{dem}}
+    \newcommand{\edem}{\end{dem}}
+%%%%%%%%%%%%%%
+     \newcommand{\be}{\begin{equation}}
+    \newcommand{\ee}{\end{equation}}
+     \newcommand{\ba}{\begin{array}}
+    \newcommand{\ea}{\end{array}}
+\newcommand{\beqn}{\begin{eqnarray}}
+    \newcommand{\eeqn}{\end{eqnarray}}
+    \newcommand{\bl}{\begin{lem}}
+    \newcommand{\el}{\end{lem}}
+    \newcommand{\bp}{\begin{prop}}
+    \newcommand{\ep}{\end{prop}}
+\newcommand{\ds}{\displaystyle}
+     \newcommand{\la}{\label}
+     \newcommand{\al}{\alpha}
+      \newcommand{\Ga}{\Gamma}
+      \newcommand{\cC}{\cal C}
+    \newcommand{\De}{\Delta}
+     \newcommand{\om}{\omega}
+    \newcommand{\vp}{\varphi} \newcommand{\ga}{\gamma}
+    \newcommand{\R}{\mathbb{R}}
+    \newcommand{\C}{\mathbb{C}}
+     \newcommand{\Z}{\mathbb{Z}}
+     \newcommand{\no}{\noindent}
+     \newcommand{\Res}{{\rm Res}}
+     \newcommand{\vare}{\varepsilon}
+   
+   
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+   \providecommand{\abs}[1]{\lvert#1\rvert}
+\providecommand{\norm}[1]{\lVert#1\rVert}
+ 
+    
+    
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+    
+    
+    \IEEEyessubnumber
+
+\title[Trapped Modes]{Discrete and embedded trapped modes in a quantum waveguide with a small obstacle}
+\author[Zhevandrov et al.]{
+  P. Zhevandrov, A.  Merzon, M.I. Romero Rodr\'iguez
+  }
+\institute[UMSNH, UMNG]{
+{Facultad de Ciencias F\'{\i}sico-Matem\'aticas, UMSNH, Morelia, Mexico}\\
+{Instituto de  F\'{\i}sica y Matem\'aticas, UMSNH, Morelia, Mexico}\\
+{Universidad Militar ``Nueva Granada'', Bogot\'a, Colombia}
+}
+\date[2025]{XIII Taller de Geometr\'\i a y Sistemas Din\'amicos}
+
+
+\subject{Talks}
+% This is only inserted into the PDF information catalog. Can be left
+% out.
+
+
+
+% If you have a file called "university-logo-filename.xxx", where xxx
+% is a graphic format that can be processed by latex or pdflatex,
+% resp., then you can add a logo as follows:
+
+%\pgfdeclareimage[height=1 cm]{university-logo}{university-logo-filename}
+%\logo{\pgfuseimage{university-logo}}
+
+
+
+% Delete this, if you do not want the table of contents to pop up at
+% the beginning of each subsection:
+%\AtBeginSubsection[]
+%{
+% \begin{frame}<beamer>{Outline}
+%    \tableofcontents[currentsection,currentsubsection]
+%  \end{frame}
+%}
+
+
+% If you wish to uncover everything in a step-wise fashion, uncomment
+% the following command:
+
+%\beamerdefaultoverlayspecification{<+->}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Outline}
+  \tableofcontents
+  % You might wish to add the option [pausesections]
+\end{frame}
+
+
+
+
+% Since this a solution template for a generic talk, very little can
+% be said about how it should be structured. However, the talk length
+% of between 15min and 45min and the theme suggest that you stick to
+% the following rules:
+
+% - Exactly two or three sections (other than the summary).
+% - At *most* three subsections per section.
+% - Talk about 30s to 2min per frame. So there should be between about
+% 15 and 30 frames, all told.
+\section{Numerical methods}
+\begin{frame}{Numerical method}
+  The Helmholtz equation was solved numerically using a simple version of the Boundary Element Method (Linton et. al, 1992). The solution $u$ on a point $P \in \Omega$ has the integral representation
+  \begin{equation}
+    \label{eq:1}
+    u(P) = \int_{\gamma} \left[ u(q)\, 
+      \frac{\partial}{\partial n} G(P,q) 
+- G(P,q)\, \frac{\partial u}{\partial n}(q) \right] \, ds ,
+  \end{equation}
+  where $q$ is a point over the obstacle boundary $\gamma$, and $G(P,q)$ is the Green's function of the Helmholtz equation that satisfies the homogeneous Dirichlet boundary conditions $G(P,q) = 0$ for $P \in \Gamma_{\pm}$. For a point $p \in \gamma$, the integral representation becomes
+  \begin{equation}
+    \label{eq:1}
+    \frac{1}{2}u(p) = \int_{\gamma} \left[ u(q)\, 
+      \frac{\partial}{\partial n} G(p,q) 
+- G(p,q)\, \frac{\partial u}{\partial n}(q) \right] \, ds.
+  \end{equation}
+  
+\end{frame}
+
+
+\begin{frame}
+  If $\gamma$ is parametrized in polar coordinates, radius $\rho = \rho(\theta), 0 \le \theta < 2\pi$, the integral representation becomes
+  \begin{equation}
+    \label{eq:2}
+      \frac{1}{2}u(\psi) = \int_{0}^{2\pi} 
+u(\theta) \, \frac{\partial}{\partial n} 
+G(\psi,\theta)\, w(\theta) \, d\theta, 
+  \end{equation}
+  where $w(\theta) = [\rho^2(\theta) + \rho'^2(\theta)]^{1/2}$. Discretizing $\theta$, $\theta_i = (i + \frac{1}{2})\Delta\theta$, $\Delta\theta = 2\pi/M$, $i=1, 2,\ldots$, the integral equation becomes a homogeneous linear system
+  \begin{equation}
+    \label{eq:3}
+    \sum_{j=1}^M A_{ij} u_j = 0,~~i=1,2,\ldots,M.
+  \end{equation}
+  where the unknowns are $u_j = u(\theta_j)$ and the matrix elements $A_{ij}$ depend on $\frac{\partial G}{\partial n}(\psi_i, \theta_j)$, which, in turn, depend on the assumed value of the wave number $k$. $G(\psi,\theta)$ is computed by the method of the lattice sums (Linton, 1998).
+\end{frame}
+
+\begin{frame}{Results}
+  The system has nontrivial solutions $[u_1, u_2, \ldots, u_M]$ (trapped modes) for values $k_{num}$ of $k$ such that $\det A = 0$.
+
+  \begin{columns}
+    \begin{column}{0.3\textwidth}
+      For a circle of radius $R=1$, $\mu=R^2$, $b=1$, $a_0^* = 0.295$, $a = 0.6$, $\varepsilon=10^{-2}$,
+      \begin{align}
+        \sigma_{num} &= \sqrt{\Lambda_1 - k_{num}^2} \nonumber\\
+                     &= 3.7341 \times 10^{-4} \nonumber
+      \end{align}
+    \end{column}
+    
+    \begin{column}{0.7\textwidth}
+      \begin{figure}[htbp]
+        \centering
+        \includegraphics[scale=0.4]{determinant.pdf}
+        % \caption{Small obstacle in a waveguide}\label{Gam_d}
+      \end{figure}
+      
+    \end{column}
+  \end{columns}
+  
+\end{frame}
+
+\begin{frame}
+  Comparison of $\sigma_{num}$ with the analytical $\sigma$ as functions of $\varepsilon$, for a circle with $R=1$ and $a = 0.6$.
+  \begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.50]{sigma_analytic_numeric.pdf}
+    % \caption{Small obstacle in a waveguide}\label{Gam_d}
+  \end{figure}
+
+\end{frame}
+
+\begin{frame}
+  \centerline{Difference between $\sigma_{num}$ and the analytical $\sigma$}
+  \begin{figure}[htbp]
+    \centering
+    \includegraphics[scale=0.50]{difference_sigma.pdf}
+    % \caption{Small obstacle in a waveguide}\label{Gam_d}
+  \end{figure}
+
+\end{frame}
+
+
+
+\begin{frame}{References}
+  \begin{itemize}
+  \item Zhevandrov, P., Merzon, A., Romero Rodr\'\i guez, M.I. et al. Discrete and Embedded Trapped Modes in a Plane Quantum Waveguide with a Small Obstacle: Exact Solutions. {\it Acta Appl Math} 196, 8 (2025). https://doi.org/10.1007/s10440-025-00720-2
+
+  \item Linton, C. M., and D. V. Evans. "Integral equations for a class of problems concerning obstacles in waveguides." Journal of Fluid Mechanics 245 (1992): 349-365.
+
+  \item Linton, C. M. "The Green's function for the two-dimensional Helmholtz equation in periodic domains." Journal of Engineering Mathematics 33.4 (1998): 377-401.
+    
+  \end{itemize}
+
+%\centerline{ \textbf{Perturbed quantum waveguide}}
+
+
+
+%\centerline{Nazarov S  \emph{Theor Math Phys}, \textbf{167}(2011), 606--627}
+
+%\vspace{0.5cm}
+
+%\centerline{ \textbf{Timoshenko system}}
+
+
+
+%\centerline{Aya H, Cano R, Zhevandrov P  \emph{J Eng Math}, \textbf{77}(2012), 87--104}
+
+%\vspace{0.5cm}
+
+%\centerline{ \textbf{Two-layer shallow water}}
+
+
+
+%\centerline{Romero Rodr\'\i guez M I, Zhevandrov P  \emph{J Fluid Mech}, \textbf{753}(2014), 427--447}
+
+%\vspace{0.5cm}
+
+%\centerline{\textbf{One-layer cylinder}}
+
+%\centerline{Garibay F, Zhevandrov P \emph{Russ J Math Phys}, \textbf{22}(2015), 174--183}
+
+\end{frame}
+\end{document}

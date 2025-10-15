@@ -1,0 +1,18 @@
+0.6666666666   cud: 1 for the upper half-space, -1 for the lower half-space
+1.0           slope of the profile at infinity
+
+1 0 3             Ndiv
+
+1.0 0.0       a11, a12
+0.0 1.0   0.5  0.866025404 0.0 1.0       a21, a22
+
+0.01  0.01     ampx ampy
+
+6             mint
+4             NGL
+
+2             Method_lgf
+3 3 3         Max1 Max2 Max3
+
+40            Number of iterations
+0.000000001     Maximum error

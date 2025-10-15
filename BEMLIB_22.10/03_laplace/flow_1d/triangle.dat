@@ -1,0 +1,11 @@
+1.0  negative of the pressure Gradient
+1.0  viscocity
+6    number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+
+ 0.0  -0.50      coordinates of first point
+ 0.3  0.20      coordinates of second point
+-0.4  0.3      coordinates of third point
+
+64 5.0 ! first  side: number of elements and stretch
+64 5.0 ! second side: number of elements and stretch
+64 5.0 ! third  side: number of elements and stretch

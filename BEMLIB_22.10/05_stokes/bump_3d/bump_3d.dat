@@ -1,0 +1,33 @@
+3 2      Level of triangulation (0, 1, 2, 3)
+1.00     bump radius
+0.750  contact angle in multiples of pi
+9 7   number of Gauss_triangle base points for regular integrals
+4      number of Gauss_Legendre base points for singular integrals
+1.0   viscosity
+1.0   shear rate
+0.0   wall:  x position of wall
+
+-1.5 0.6 0.0     streamline starting point
+-1.5 0.6 0.2     streamline starting point
+-1.5 0.6 0.4     streamline starting point
+-1.5 0.6 0.6     streamline starting point
+-1.5 0.6 0.8     streamline starting point
+-1.5 0.6 1.0     streamline starting point
+-1.5 0.6 1.2     streamline starting point
+-1.5 0.6 1.4     streamline starting point
+-1.5 0.9 0.0     streamline starting point
+-1.5 0.9 0.2     streamline starting point
+-1.5 0.9 0.4     streamline starting point
+-1.5 0.9 0.6     streamline starting point
+-1.5 0.9 0.8     streamline starting point
+-1.5 0.9 1.0     streamline starting point
+-1.5 0.9 1.2     streamline starting point
+-1.5 0.3 0.0     streamline starting point
+-1.5 0.3 0.2     streamline starting point
+-1.5 0.3 0.4     streamline starting point
+-1.5 0.3 0.6     streamline starting point
+-1.5 0.3 0.8     streamline starting point
+-1.5 0.3 1.0     streamline starting point
+-1.5 0.3 1.2     streamline starting point
+-1.5 0.3 1.4     streamline starting point
+99 99 99

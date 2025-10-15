@@ -1,0 +1,31 @@
+1 2                 Ioctaicos: 1 for octahedron, 2 for icosahedron
+2 3 2 3 | 3 2       ndiv:
+
+1       Isize: 0 for req (equiv rad), 1 for max axis to be 1.0
+1             intm: integration method: 1 for quadrature, 2 for rule
+9 7 12 9        mint: choose from 1,3,4,6,7,9,12,13
+0.000001 0.0000001      tolerance inner
+0.0000001      tolerance outer
+500            number of iterations in a batch
+
+1.0 viscosity
+
+0.0 -1.00 -1.060 -1.25 -1.0453 -1.5431 -2.5 -1.05 -1.10 -1.25 -1.0 -1.50 1.25    wall: for Iflow=10: the wall is located at y=wall
+
+1 Iadhere
+0.0 15.0 torque
+0.0 10.0 0.0 2.0 10.0  adhesion
+
+1.0  U0
+1.0 shrt
+
+2 2 Max1 Max2 for periodic flow
+
+2 1 5 4 3 1 2 3 2 3 2 1 3     mpoly
+1 0  Ipd: 0 for evenly spaced, 1 for Lobatto
+
+1 2 1   Runge-Kutta: IRK
+0.05 0.020 0.10 0.020 0.0125 0.025 0.10 0.05 Dt
+
+50 1500   Nstep
+0     Nstep

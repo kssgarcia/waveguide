@@ -1,0 +1,795 @@
+% $Header: /cvsroot/latex-beamer/latex-beamer/solutions/generic-talks/generic-ornate-15min-45min.en.tex,v 1.5 2007/01/28 20:48:23 tantau Exp $
+
+\documentclass{beamer}
+
+% This file is a solution template for:
+
+% - Giving a talk on some subject.
+% - The talk is between 15min and 45min long.
+% - Style is ornate.
+
+
+
+% Copyright 2004 by Till Tantau <tantau@users.sourceforge.net>.
+%
+% In principle, this file can be redistributed and/or modified under
+% the terms of the GNU Public License, version 2.
+%
+% However, this file is supposed to be a template to be modified
+% for your own needs. For this reason, if you use this file as a
+% template and not specifically distribute it as part of a another
+% package/program, I grant the extra permission to freely copy and
+% modify this file as you see fit and even to delete this copyright
+% notice.
+
+
+\mode<presentation>
+{
+  \usetheme{Madrid}
+  % or ...
+  \setbeamercovered{transparent}
+  \setbeamertemplate{theorems}[numbered]
+  \setbeamertemplate{figures}[numbered]
+  % or whatever (possibly just delete it)
+}
+
+
+%\usepackage[spanish]{babel}
+% or whatever
+\usepackage{graphicx}
+\usepackage[latin1]{inputenc}
+% or whatever
+
+\usepackage{times}
+\usepackage[T1]{fontenc}
+% Or whatever. Note that the encoding and the font should match. If T1
+% does not look nice, try deleting the line with the fontenc.
+\usepackage{amsmath,amsthm}
+\usepackage{amssymb}
+\usepackage{amsmath}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amscd}
+\usepackage{amsfonts}
+\usepackage{makeidx}
+\usepackage{enumerate}      
+\usepackage{IEEEtrantools}
+%\usepackage{cases}
+%\usepackage{cases}
+\usepackage{mathrsfs}
+
+%\usepackage{amsmath,empheq}
+
+\usepackage{color}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\usepackage{showkeys}
+\usepackage{amsmath}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{amscd}
+\usepackage{amsfonts}
+\usepackage{makeidx}
+\usepackage{enumerate}      
+\usepackage{IEEEtrantools}
+%\usepackage{cases}
+%\usepackage{cases}
+\usepackage{mathrsfs}
+
+%\usepackage{amsmath,empheq}
+
+
+\usepackage[latin1]{inputenc}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage [all]{xy}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{cases}
+
+\usepackage{amsmath}
+
+\usepackage{cancel}
+
+\usepackage{mathrsfs}
+
+
+
+\newtheorem{teo}{Theorem}[section]
+    \newtheorem{lem}[teo]{Lemma}
+    \newtheorem{prop}[teo]{Proposition}
+    \newtheorem{coro}[teo]{Corollary}
+    \newtheorem{defn}[teo]{Definition}
+    \newtheorem{obs}[teo]{Remark}
+    \newtheorem{exa}[teo]{Example}
+%\newtheorem{theorem}[section]{Teorema}
+%\renewcommand{\thetheorem}{\arabic{section}.\arabic{theorem}}
+%\renewcommand{\theequation}{\thesection.\arabic{equation}}  %%% PARA ENUMERAR LAS %ECUACIONES POR SECCIÓN CON NÚMEROS ARÁBIGOS
+\newcommand{\re}{\ref}
+\newcommand{\fr}{\frac}
+\newcommand{\ci}{\cite}
+\newcommand{\ov}{\overline}
+    \newtheorem*{dem}{\textsc{Proof}}
+    \newcommand{\bdem}{\begin{dem}}
+    \newcommand{\edem}{\end{dem}}
+%%%%%%%%%%%%%%
+     \newcommand{\be}{\begin{equation}}
+    \newcommand{\ee}{\end{equation}}
+     \newcommand{\ba}{\begin{array}}
+    \newcommand{\ea}{\end{array}}
+\newcommand{\beqn}{\begin{eqnarray}}
+    \newcommand{\eeqn}{\end{eqnarray}}
+    \newcommand{\bl}{\begin{lem}}
+    \newcommand{\el}{\end{lem}}
+    \newcommand{\bp}{\begin{prop}}
+    \newcommand{\ep}{\end{prop}}
+\newcommand{\ds}{\displaystyle}
+     \newcommand{\la}{\label}
+     \newcommand{\al}{\alpha}
+      \newcommand{\Ga}{\Gamma}
+      \newcommand{\cC}{\cal C}
+    \newcommand{\De}{\Delta}
+     \newcommand{\om}{\omega}
+    \newcommand{\vp}{\varphi} \newcommand{\ga}{\gamma}
+    \newcommand{\R}{\mathbb{R}}
+    \newcommand{\C}{\mathbb{C}}
+     \newcommand{\Z}{\mathbb{Z}}
+     \newcommand{\no}{\noindent}
+     \newcommand{\Res}{{\rm Res}}
+     \newcommand{\vare}{\varepsilon}
+   
+   
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+   \providecommand{\abs}[1]{\lvert#1\rvert}
+\providecommand{\norm}[1]{\lVert#1\rVert}
+ 
+    
+    
+   %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+    
+    
+    \IEEEyessubnumber
+
+\title[Trapped Modes]{Trapped modes in a planar waveguide with a small rigid obstacle}
+\author[Romero et al.]{
+ M.I. Romero Rodr\'iguez, P. Zhevandrov, A.  Merzon.
+  }
+\institute[UMNG, UMSNH]{
+{Universidad Militar ``Nueva Granada'', Bogot\'a, Colombia}\\
+{Facultad de Ciencias F\'{\i}sico-Matem\'aticas, UMSNH, Morelia, M\'exico}\\
+{Instituto de  F\'{\i}sica y Matem\'aticas, UMSNH, Morelia, M\'exico}
+
+}
+\date[2025]{ICOVP  WMVC 2025\\IMP-CIAS 4084}
+
+
+\subject{Talks}
+% This is only inserted into the PDF information catalog. Can be left
+% out.
+
+
+
+% If you have a file called "university-logo-filename.xxx", where xxx
+% is a graphic format that can be processed by latex or pdflatex,
+% resp., then you can add a logo as follows:
+
+%\pgfdeclareimage[height=1 cm]{university-logo}{university-logo-filename}
+%\logo{\pgfuseimage{university-logo}}
+
+
+
+% Delete this, if you do not want the table of contents to pop up at
+% the beginning of each subsection:
+%\AtBeginSubsection[]
+%{
+% \begin{frame}<beamer>{Outline}
+%    \tableofcontents[currentsection,currentsubsection]
+%  \end{frame}
+%}
+
+
+% If you wish to uncover everything in a step-wise fashion, uncomment
+% the following command:
+
+%\beamerdefaultoverlayspecification{<+->}
+
+
+\begin{document}
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Outline}
+  \tableofcontents
+  % You might wish to add the option [pausesections]
+\end{frame}
+
+
+
+
+% Since this a solution template for a generic talk, very little can
+% be said about how it should be structured. However, the talk length
+% of between 15min and 45min and the theme suggest that you stick to
+% the following rules:
+
+% - Exactly two or three sections (other than the summary).
+% - At *most* three subsections per section.
+% - Talk about 30s to 2min per frame. So there should be between about
+%   15 and 30 frames, all told.
+
+
+\section{Formulation}
+
+\begin{frame}{Formulation}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.18]{Gam_d.pdf}
+%\caption{Small obstacle in a waveguide}\label{Gam_d}
+\end{figure}
+\centerline{Small obstacle in a waveguide}
+\end{frame}
+
+
+\begin{frame}{Boundary Value Problem}
+We formulate the following boundary value problem:
+\begin{align}\label{PD1}
+-\Delta u &= k^2 u, \quad (x,y)\in\Omega, \\
+\nonumber \\
+\label{PD2}
+u|_{\Gamma_{\pm}} &= 0, \quad 
+\frac{\partial u}{\partial n}\bigg|_{\gamma} = 0,
+\end{align}
+\begin{block}{Spectral Interpretation}  $k^2$ is the spectral parameter of  (\ref{PD1})-(\ref{PD2}).  
+\end{block}
+\begin{itemize}
+   
+    \item $k = \dfrac{\omega}{c}$, where $\omega$ is the frequency and $c$ is the wave speed.
+   
+\end{itemize}
+\end{frame}
+
+
+
+\begin{frame}{Geometry and Trapped Modes}
+\begin{itemize}
+    \item The obstacle boundary is given by
+    \[
+    \gamma = \Big\lbrace x = \varepsilon X(t), \; y = a + \varepsilon Y(t)\Big\rbrace,
+    \]
+    where $\varepsilon$ is a small parameter.
+    
+    \item The domain is $
+    \Omega = \{ -b < y < b \} \setminus \text{obstacle},
+    $
+    i.e., the strip without $\gamma$.  
+    The boundaries are $
+    \Gamma_{\pm} = \Big\lbrace x \in \mathbb{R}, \; y = \pm b \Big\rbrace.
+    $
+
+    \item Assumptions:  
+    $|a| < b$, and $X(t), Y(t)$ are $2\pi$-periodic, smooth ($C^\infty$) functions with zero mean:
+    \[
+    \int_{-\pi}^{\pi} X(t)\,dt = \int_{-\pi}^{\pi} Y(t)\,dt = 0.
+    \]
+\end{itemize}
+
+
+\begin{block}{Definition}
+\textbf{Trapped modes} are nontrivial solutions of (\ref{PD1}), (\ref{PD2}) that \emph{decay at infinity} (i.e., as $|x|\to\infty$).
+\end{block}
+
+\end{frame}
+
+
+\begin{frame} {Summary}
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.36]{Intro doc icovp.pdf}
+\end{figure}
+\end{frame}
+
+
+
+
+\begin{frame}{Continuous spectrum}
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.45]{Spec.pdf}
+%\caption{Small obstacle in a waveguide}\label{Gam_d}
+\end{figure}
+\centerline{Continuous spectrum, $\Lambda_n=\pi^2n^2/4b^2$}
+\end{frame}
+
+
+
+\section{Main Results}
+
+\begin{frame}{Exterior Neumann Problem}
+We consider the exterior Neumann problem in the plane:
+\begin{equation}\label{Dlta}
+\Delta \Psi = 0 \quad \text{in } \Omega_0, \qquad  
+\frac{\partial \Psi}{\partial n}\Big|_{\Gamma} = n_2, \qquad 
+\nabla \Psi \to 0 \quad \text{as } r=\sqrt{x^2+y^2}\to\infty,
+\end{equation}
+
+\begin{itemize}
+    \item The contour $\Gamma$ is the ``inflated'' version of $\gamma$:  \item
+$\Gamma = \{x=X(t), \; y=Y(t)\}, $
+    and \item 
+$\Omega_0$ denotes the exterior of $\Gamma$ in the plane.
+    
+    \item $\dfrac{\partial}{\partial n}$ is the derivative along the inward-looking normal to $\Gamma$. $n_2 = \dfrac{\dot{X}}{\sqrt{\dot{X}^2 + \dot{Y}^2}}$ is the second component of the normal.
+\end{itemize}
+\end{frame} 
+
+\begin{frame}
+\begin{block}{Interpretation}
+Problem (\ref{Dlta}) describes the vertical flow of an unbounded fluid past the contour $\Gamma$.  
+The solution is unique up to an additive constant and satisfies
+\begin{equation}\label{Psi}
+\Psi = \text{const} - \mu \frac{y}{r^2} - \nu \frac{x}{r^2} 
+       + O\!\left(\frac{1}{r^2}\right), \quad r\to\infty.
+\end{equation}
+\end{block}
+We can assume that the constant in (\ref{Psi}) is zero.  
+
+\medskip
+\begin{itemize}
+    \item The constants $\mu$ and $\nu$ are the \textit{strengths of the vertically and horizontally oriented dipoles}, respectively, associated with problem (\ref{Dlta}).
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{Dipole Strengths}
+
+
+\begin{equation}\label{mu}
+\mu = \frac{1}{2\pi}\left( S + \int_{\Gamma} n_2 \Psi \, dl \right), 
+\qquad 
+\nu = \frac{1}{2\pi} \int_{\Gamma} n_1 \Psi \, dl,
+\end{equation}
+
+where
+\begin{itemize}
+    \item $S$ = area enclosed by $\Gamma$,
+    \item $dl$ = arclength element,
+    \item $n_1, n_2$ = components of the inward normal to $\Gamma$.
+\end{itemize}
+
+\medskip
+\begin{block}{Parameters}
+\begin{itemize}
+    \item $\mu$ is always positive.  
+    \item Denote
+    \begin{equation} \label{a_0^ast}
+    a_0^{\ast} = \frac{2b}{\pi}\arctan\sqrt{\frac{S}{2\pi \mu}}.
+    \end{equation}
+\end{itemize}
+\end{block}
+\end{frame}
+
+
+
+\begin{frame}{Interval $[0,\Lambda_1)$. Dicrete eigenvalue}
+\begin{theorem}\label{sigma_alpha}
+For sufficiently small $\varepsilon$, there exists a value 
+\[
+a = a^{\ast} = a_0^{\ast} + O(\varepsilon),
+\]
+such that problem (\ref{PD1}), (\ref{PD2}) possesses a unique trapped mode on $[0,\Lambda_1)$ if $|a| > a^{\ast}$.  
+
+\medskip
+If $|a| \leq a^{\ast}$, there are no trapped modes on this interval.  
+
+\medskip
+When it exists, the eigenvalue is analytic in $\varepsilon$ and $\varepsilon_1=\varepsilon\ln\varepsilon$, and is given by
+\[
+k^2 = \Lambda_1 - \sigma^2,
+\]
+where
+\begin{equation}\label{sigmaO(var)}
+\sigma = \varepsilon^2 \frac{\pi^2}{4b^3}
+\left( \pi\mu \sin^2\frac{\alpha}{2} - \tfrac{1}{2} S \cos^2\frac{\alpha}{2} \right)
++ O(\varepsilon^3 \ln \varepsilon), 
+\quad \alpha = \frac{\pi a}{b}.
+\end{equation}
+\end{theorem}
+\end{frame}
+
+\begin{frame}
+
+\begin{block}{Remark}
+\begin{itemize}
+\item Formula (\ref{sigmaO(var)}) is known.  
+Our contribution consists in proving the analyticity of $\sigma$ in $\varepsilon, \varepsilon_1$ and its uniqueness.
+\item The condition $|a|\geq a^{*}$ means that the obstacle is located close to one of the walls.
+\end{itemize}
+\end{block}
+
+\begin{block}{Examples} In general, the values of the dipole strenghts cannot be obtained explicitly, except in a few cases. The example shown corresponds to a particular case.\end{block}
+\end{frame}
+
+
+
+
+\begin{frame}{Example}
+\begin{exa}
+Formula (\ref{sigmaO(var)}) shows that if the expression 
+\begin{equation*}
+-S\cos^2\alpha +2\pi\mu\sin^2\alpha
+\end{equation*}
+is positive, then there exists a discrete eigenvalue of our problem given by \[ k^2=\ds\frac{\pi^2}{4b^2}-\sigma^2.\]\\ For example, for a circle of radius $r_0$ (i.e., $S=\pi r_0^2,~\mu=r_0^2$) this will be the case if
+$$
+\ds\frac{1}{2}-\ds\frac{3}{2}\cos2\alpha>0
+$$
+which is true if $a$, for example, is close to $b$ (the obstacle is close to the upper boundary of the guide). 
+\end{exa}
+\end{frame}
+
+
+
+
+\begin{frame}{Interval $\Lambda_1\leq k^2<\Lambda_2$ Embedded eigenvalue.}
+\begin{teo}\label{a^{ast}+}
+For sufficiently small $\varepsilon$, the following statements hold:
+\begin{enumerate}
+%\item[(i)] There are no eigenvalues on the interval $[\Lambda_1,\Lambda_2-\sigma_0]$ with any fixed $\sigma_0>0$. 
+\item[(i)] If $\nu\neq 0$ or $|a|\geq\delta>0$ with $\delta$ independent of $\varepsilon$, then there are no eigenvalues on $[\Lambda_1,\Lambda_2)$.
+\item[(ii)] If $\Gamma$ is symmetric with respect to the $x$-axis, then there exists a unique eigenvalue on $[\Lambda_1,\Lambda_2)$ given by $k^2=\Lambda_2-\sigma^2$, where
+\begin{equation}\label{sigma_O(varepsilon)}
+\sigma=\varepsilon^2\left(\frac{\pi}{b}\right)^3 \mu+O(\varepsilon^3\ln\varepsilon).
+\end{equation}
+\item[(iii)] If $\Gamma$ is symmetric with respect to the $y$-axis, then there exists a unique eigenvalue on $[\Lambda_1,\Lambda_2)$, given by (\ref{sigma_O(varepsilon)}), if $a=\varepsilon a_1+O(\varepsilon^2),$
+where $a_1$ is defined by
+\begin{equation}\label{fa1}
+a_1=\Big(2(2S+\pi\mu)\Big)^{-1}\int\limits_{-\pi}^{\pi} \big(Y\dot{X}-3X\dot{Y}\big)\,\big(Y-\Psi(X,Y)\big)\;dt.
+\end{equation}  
+\end{enumerate}
+\end{teo}
+\end{frame}
+
+
+
+\begin{frame}{Horizontal symmetry.}
+
+
+%\newpage
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.15]{FIGpa_33.pdf}
+\end{figure}
+\centerline{Contour $\Gamma$ for an obstacle symmetric with respect to $x$-axis} 
+\centerline{($a=0$, $Y(t)$ is odd and $X(t)$ is even; in this case $\nu=0$ automatically)}
+\end{frame}
+
+
+
+
+
+
+\begin{frame}{Vertical symmetry.}
+%\newpage
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.15]{FigPARA_1.pdf}
+\end{figure}
+\centerline{Contour $\Gamma$ for an obstacle symmetric with respect to $y$-axis} 
+\centerline{($Y(t)$ is even and $X(t)$ is odd; in this case we also have $\nu=0$)}
+\end{frame}
+
+\begin{frame}{Example}
+\begin{exa}\label{X}
+In the case of a slightly perturbed circle, it is possible to calculate explicitly all the objects entering formula (\ref{fa1}). For example, if $X(t)=\sin t-\ds\frac{\beta}{2} \sin 2t,~ Y(t)= -\cos t+\ds\frac{\beta}{2}\cos2t$, $\beta\ll 1$,  $a_1=-\beta/12+O(\beta^2)$.
+\end{exa}
+
+\end{frame}
+\begin{frame}
+\begin{obs}
+The existence of the eigenvalue in $(ii)$ (even when $\varepsilon$ is not small) can be proven by means of restricting problem (\ref{PD1}), (\ref{PD2}) to solutions odd in  $y$  (the restriction of problem (\ref{PD1}), (\ref{PD2}) to odd in $y$ functions removes the interval $[\Lambda_1,\Lambda_2)$ from the continuous spectrum) thus reducing the problem of embedded eigenvalues to the discrete spectrum of the restricted problem.\\Our contribution consists mainly in $(iii)$ (the restriction to odd or even in $x$ functions does not remove the interval $[\Lambda_1,\Lambda_2)$ from the continuous spectrum, thus the eigenvalue in this case is truly embedded) and the proof of uniqueness and analyticity of $\sigma$. 
+\end{obs}
+
+\begin{obs}
+The uniqueness of the eigenvalues is due exclusively to the smallness of the obstacle. Similarly to the one-dimensional Schr\"odinger equation with a shallow potential well, the number of eigenvalues can augment when the obstacle becomes large (just as in the case of deep potential well).
+\end{obs}
+\end{frame}
+
+\section{Schr\"odinger equation}
+
+
+
+%\begin{frame}{Make Titles Informative.}
+%
+%  You can create overlays\dots
+%  \begin{itemize}
+%  \item using the \texttt{pause} command:
+%    \begin{itemize}
+%    \item
+%      First item.
+%      \pause
+%    \item
+%      Second item.
+%    \end{itemize}
+%  \item
+%    using overlay specifications:
+%    \begin{itemize}
+%    \item<3->
+%      First item.
+%    \item<4->
+%      Second item.
+%    \end{itemize}
+%  \item
+%    using the general \texttt{uncover} command:
+%    \begin{itemize}
+%      \uncover<5->{\item
+%        First item.}
+%      \uncover<6->{\item
+%        Second item.}
+%    \end{itemize}
+%  \end{itemize}
+%\end{frame}
+
+
+\begin{frame}{Schr\"odinger Equation}
+$$\hat K_{Sch}\psi=-\psi''+\varepsilon V(x)\psi=E\psi,\qquad \varepsilon\ll1,$$
+$$E=-\sigma^2,\qquad \psi\simeq\exp(-\sigma|x|),\qquad \sigma\to0,\varepsilon\to0$$
+\centerline{\includegraphics [width=8cm ,height=5cm ]{swell.png}}
+\end{frame}
+
+\begin{frame}{Spectrum}
+\centerline{\includegraphics[width=8cm, height=5cm ]{spec.png}}
+\centerline{The distance between the eigenvalue} \centerline{ and the continuous spectrum is $\sigma^2$.}
+$$\sigma\sim\varepsilon$$
+\end{frame}
+
+
+
+
+\begin{frame}{Fourier transform}
+\centerline{$E=-\sigma^2,\qquad\sigma>0$.}
+\begin{equation}\label{SE}
+-\psi''+\varepsilon V\psi=-\sigma^2\psi,
+\end{equation}
+Apply Fourier transform to (\ref{SE}):\begin{equation}\label{TFES1}
+(p^2+\sigma^2)\tilde{\psi}(p)=-\frac{\varepsilon}{2\pi}\int \tilde{V}(p-p')\tilde{\psi}(p')dp',
+\end{equation}
+\end{frame}
+
+%\begin{frame}{Form of the solution}
+%\centerline{$\psi\sim e^{-\sigma|x|},\qquad \tilde\psi(p)\sim\delta(p)$,}
+%\centerline{$\tilde\psi(p)=\int e^{-ipx}\psi(x)\,dx=\mathcal{F}_{x\to p}\psi(x)$}
+%$$(p^2+\sigma^2)\tilde\psi=-\frac\varepsilon{2\pi}\int\tilde V(p-p')\tilde\psi(p')\,dp'\simeq C\tilde V(p)$$
+%$$\tilde\psi\sim C \frac{\tilde V(p)}{p^2+\sigma^2}=\frac{A(p,\varepsilon)}{p^2+\sigma^2}$$
+%$$A(p,\varepsilon)=A_0(p)+\varepsilon A_1(p)+\dots,\qquad \sigma=\varepsilon\sigma_1+\varepsilon^2\sigma_2+\dots$$
+%\end{frame}
+
+\begin{frame}{Exact solution}
+Look for the solution of (\ref{TFES1}) in the form:
+\begin{equation}\label{Eqtphi}
+\tilde{\psi}(p,\varepsilon)=\frac{A(p,\varepsilon)}{p^2+\sigma^2},
+\end{equation}
+Substituting (\ref{Eqtphi}) in (\ref{TFES1}), we obtain:
+\begin{equation}\label{EqAS}
+A(p,\varepsilon)=-\frac{\varepsilon}{2\pi}\int \frac{\tilde{V}(p-p')A(p',\varepsilon)}{p'^2+\sigma^2}dp'.
+\end{equation}
+\emph{Note that for $\sigma=0$ (\ref{EqAS}) has a singularity at $p'=0$.}
+\end{frame}
+
+
+\begin{frame}{Exact solution}
+Introduce
+\begin{align}\label{ECG}\gamma:=(-\infty,-1] \cup \{p:\,|p|=1, \Im p>0\} \cup[1,\infty).\end{align}
+
+\centerline{\includegraphics[width=8cm ,height=2.5cm ]{gamma.png}}
+
+\end{frame}
+
+\begin{frame}{Exact solution}
+Apply the Cauchy Residue Theorem  to the right-hand side of (\ref{EqAS}):
+\begin{equation}\label{EqAS1}
+A(p)=-\frac{\varepsilon}{2\pi}\int_\gamma \frac{\tilde{V}(p-q)A(q)}{q^2+\sigma^2}dq-\frac{\varepsilon}{2\sigma} \tilde{V}(p-i\sigma)A(i\sigma),
+\end{equation}
+%$\tilde{V}(\zeta)$ is the analytic continuation of $\tilde{V}(p)$ to the complex plane.
+\end{frame}
+
+\begin{frame}{Exact solution}
+ Define the integral operator $T_\sigma$  acting on the Banach space of functions analytic in a strip containing the real axis with the standard sup-norm by
+\begin{align*}
+[T_\sigma \varphi(q)](p)=\frac{1}{2\pi}\int_\gamma \frac{\tilde{V}(p-q)\varphi(q)}{q^2+\sigma^2}dq,
+\end{align*}
+
+ and write (\ref{EqAS1}) in terms of $T_\sigma$:
+\begin{equation*} [(1+\varepsilon T_\sigma)A(q)](p)=-\frac{\varepsilon}{2\sigma}\tilde{V}(p-i\sigma)A(i\sigma).\end{equation*}
+
+
+
+\end{frame}
+
+\begin{frame}{Explicit solution}
+$T_\sigma$ is bounded,
+$\varepsilon T_\sigma$ is small, for this reason (\ref{EqAS1}) gives
+\begin{equation}\label{EqAS2}
+A(p)=-\frac{\varepsilon}{2\sigma}A(i\sigma)[(1+\varepsilon T_{\sigma})^{-1}\tilde{V}(q-i\sigma)](p),
+\end{equation}
+$(1+\varepsilon T_{\sigma})^{-1}=\sum_{n=0}^{\infty}(-1)^n\varepsilon^n T_\sigma^n,$ $T_\sigma^0\equiv 1$ (the Neumann series).
+\end{frame}
+
+
+\begin{frame}{Explicit solution}
+ Evaluate (\ref{EqAS2}) at $p=i\sigma$,
+multiply by $\sigma$  equation (\ref{EqAS2}) and divide by $A(i\sigma)$. We obtain the \emph{\textbf{secular equation}} for $\sigma:$
+  \begin{equation}\label{eqsES}
+    \sigma=-\frac{\varepsilon}{2} [(1+\varepsilon T_{\sigma})^{-1}\tilde{V}(q-i\sigma)](i\sigma)\sim-\frac\varepsilon2\int V(x)\,dx.
+  \end{equation}
+\end{frame}
+
+
+
+
+
+
+\section{Reduction to Integral Equations}
+
+
+
+
+
+\begin{frame}{Waveguide - Reduction to Integral Equations}
+We derive the system  for the boundary values of $u$. \\We have, by the Green formula applied to the domain $\Omega$, 
+\begin{equation}\label{GF}
+u(\xi,\eta)=-\ds\int\limits_{\Gamma_{+}+\Gamma_{-}+\gamma} G\Big(x-\xi,y-\eta\Big)\ds\frac{\partial u}{\partial n} dl+\ds\int\limits_{\Gamma_{+}+\Gamma_{-}+\gamma} u\;\ds\frac{\partial G(x-\xi,y-\eta)}{\partial n} dl,\quad(\xi,\eta)\in\Omega,\quad(x,y)\in\partial\Omega
+\end{equation}
+
+\begin{itemize}
+\item $dl$ is the element of the arclength of $\partial\Omega$ at the point $(x,y)$, 
+\item $G(x,y)$ is any fundamental solution of (\ref{PD1}) bounded at infinity,
+\item  $\Delta G+k^2 G=\delta(x,y)$ and 
+\item $\partial/\partial n$ is the derivative along the exterior normal to $\Omega$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+ \begin{itemize}
+\item We use the fundamental solution of the form $G(x,y)=\ds\frac{1}{4i}\;H_{0}^{(1)}(k r)$ in the equation on $\gamma$, 
+\item and in equations on $\Gamma_\pm$  we use the fundamental solution of the form  $G(x,y)=\ds\frac{1}{4}\;N_{0}(k r)$; here $r=\sqrt{x^2+y^2}$ and $H_0^{(1)}$ is the Hankel function of the first kind and $N_0$ is the Neumann function.
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+
+ We  reduce our problem to three integral equations for the functions $\varphi(x)$, $\psi(x)$ and $\theta(t)$, where
+\begin{align*}
+ \varphi(x)=\ds\frac{\partial u}{\partial n}\Big\vert_{\Gamma_{+}}=u_{y}\Big\vert_{\Gamma_{+}},\qquad \psi(x)=\ds\frac{\partial u}{\partial n}\Big\vert_{\Gamma_{-}}=-u_{y}\Big\vert_{\Gamma_{-}}, \qquad
+\theta(t)=u\Big\vert_{\gamma}.
+\end{align*} 
+   Introduce the Fourier transforms of $\varphi$, $\psi$ by the formulas
+\begin{equation*}
+\tilde{\varphi}(p)=\ds\int e^{-ipx} \varphi(x)\;dx,\qquad \tilde{\psi}(p)=\ds\int e^{-ipx} \psi(x)\;dx.
+\end{equation*}
+Integrals without limits mean the integration over $\R$.
+
+\end{frame}
+\begin{frame}
+Denote ${\bf r}(t)=\Big(X(t), Y(t)\Big)$,~ ${\bf m}(t)=\Big(-\dot{Y}(t),\dot{X}(t)\Big)$.
+Passing in (\ref{GF}) to the limits as $\xi,\eta\to \gamma\text{ or } \Gamma_\pm$, and passing to the Fourier transforms of $\varphi$, $\psi$, it can be shown that    $\tilde{\varphi}(p)$, $\tilde{\psi}(p)$,  and $\theta(t)$ satisfy the following system of integral equations:
+\end{frame}
+\begin{frame}
+\begin{equation}\label{theta+}
+\theta(t)+\ds\int\limits_{-\pi}^{\pi} M(t,s) \theta(s)\; ds=\ds\int M_1(t,p)\tilde{\varphi}(p)\;dp+\ds\int M_2(t,p)\tilde{\psi}(p)\;dp
+\end{equation}
+where
+\begin{equation}\label{M1}
+M(t,s)=-\ds\frac{\varepsilon k}{2}\;\ds\frac{N'_0\Big(\varepsilon k\abs{{\bf r}(s)-{\bf r}(t)}\Big)}{\abs{{\bf r}(s)-{\bf r}(t)}}\Big({\bf r}(s)-{\bf r}(t)\Big)\cdot {\bf m}(s),
+\end{equation}
+%$N_0(r)$ is the Neumann function, 
+\begin{align}\label{KM1}
+& M_1(t,p)=\ds\frac{1}{4\pi} e^{ip\varepsilon X}\Bigg(\ds\frac{1}{\tau(p)} e^{-\tau(p)h^{-}}+\ds\frac{1}{\check{\tau}(p)} e^{-\check{\tau}(p)h^{-}}\Bigg),\,\, h^{-}=b-a-\varepsilon Y(t)\\\nonumber\\\label{KM2}
+& M_2(t,p)=\ds\frac{1}{4\pi} e^{ip\varepsilon X}\Bigg(\ds\frac{1}{\tau(p)} e^{-\tau(p)h^{+}}+\ds\frac{1}{\check{\tau}(p)} e^{-\check{\tau}(p)h^{+}}\Bigg),\,\, h^{+}=b+a+\varepsilon Y(t).
+\end{align}
+
+\end{frame}
+\begin{frame}
+
+\begin{equation}\label{tilde{var}}
+\begin{array}{lll}
+\tilde{\varphi}(p)\sinh \Big(2b\tau\Big)= \varepsilon \ds\int\limits_{-\pi}^{\pi} e^{-ip\varepsilon X}\Bigg(ip\dot{Y}\sinh \Big(h^{+} \tau\Big)+\tau\dot{X}\cosh\Big(h^{+} \tau\Big)\Bigg)\theta\;dt
+\end{array}
+\end{equation}
+
+\begin{equation}\label{tilde{psi}}
+\begin{array}{lll}
+\tilde{\psi}(p)\sinh \Big(2b\tau\Big)= \varepsilon \ds\int\limits_{-\pi}^{\pi} e^{-ip\varepsilon X}\Bigg(ip\dot{Y}\sinh \Big(h^{-} \tau\Big)-\tau\dot{X} \cosh\Big(h^{-}\tau\Big)\Bigg)\theta\;dt;
+\end{array}
+\end{equation}
+here the functions $\tau(p)$, $\check{\tau}(p)$ are the analytic continuations of $\big(p^2-k^2\big)^{1/2}$ to the complex plane $p\in \C$ with certain cuts coinciding with the arithmetical square root for $p>k$.
+For real $p$, $\tau(p)=\check{\tau}(p)=\sqrt{p^2-k^2}$ for $\abs{p}>k$ and  $\tau(p)=-\check{\tau}(p)=-i\sqrt{k^2-p^2}$ for $\abs{p}<k$. 
+
+\end{frame}
+\begin{frame}
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.27]{branch.pdf}
+\end{figure}
+\centerline{Cuts for $\tau(p)$}
+\end{frame}
+\begin{frame}
+\begin{figure}[htbp]
+\centering
+\includegraphics[scale=0.27]{bra33.pdf}
+\end{figure}
+\centerline{Cuts for $\check{\tau}(p)$}
+\end{frame}
+\begin{frame}{Connection to the exterior Neumann problem}
+Consider equation (\ref{theta+}). We   solve this equation with respect to $\theta$ and substitute its solution in (\ref{tilde{var}}), (\ref{tilde{psi}}) thus reducing our system to two equations for $\tilde\varphi$, $\tilde\psi$. Consider the kernel $M(t,s)$ (see (\ref{M1})). The function $N'_0(r)$ admits the following  expansion valid for small $r$:   
+\begin{equation*}
+N'_0(r)=\ds\frac{2}{\pi}\Bigg(\ds\frac{1}{r}-\ds\frac{r}{2}\ln\ds\frac{r}{2}+\ds\frac{r}{2}\Big(\ds\frac{1}{2}-\gamma\Big)\Bigg)+O(r^3\ln r),
+\end{equation*}
+where the $O$-symbol is analytic in $r$ and $r\ln r$.
+Hence, 
+\begin{equation}\label{Mser}
+M(t,s)=M^{(0)}(t,s)+\varepsilon^2\ln\varepsilon\; M^{(1)}\big(t,s,\varepsilon,\varepsilon\ln\varepsilon\big)+\varepsilon^2\; M^{(2)}\big(t,s,\varepsilon,\varepsilon\ln\varepsilon\big).
+\end{equation}
+\end{frame}
+\begin{frame}
+Here
+\begin{equation}\label{M1O}
+M^{(0)}=-2\ds\frac{\partial G_0\Big({\bf r}(s)-{\bf r}(t)\Big)}{\partial n} \abs{{\bf m}(s)},
+\end{equation}
+with $G_0(x,y)=\ds\frac{1}{2\pi} \ln r$,~$r=\sqrt{x^2+y^2}$ and $\partial/\partial n$ being the derivative along the inward-looking normal to $\Gamma$; the normal derivative is calculated at the point $\Big(X(s), Y(s)\Big)$. The kernels $M^{(1,2)}$ are smooth in $t$, $s$ (at least of class $C^1$) and analytic in $\varepsilon$, $\varepsilon_1=\varepsilon\ln\varepsilon$, and hence the integral operators with these kernels are bounded in $C[-\pi,\pi]$.\\
+Note that $G_0(x,y)$ is the fundamental solution of the Laplace equation and hence the operator $\hat M^{(0)}$ coincides with the integral operator for the exterior Neumann problem (\ref{Dlta}).
+It is well-known  that the operator $1+\hat{M}^{(0)}$ is invertible in $C[-\pi,\pi]$, and hence the operator $1+\hat{M}$ also is. 
+\end{frame}
+
+\begin{frame}{Reduction to two equations}
+Solving (\ref{theta+}) with respect to $\theta$ and substituting in (\ref{tilde{var}}), (\ref{tilde{psi}}), we obtain a system of two equations for $\tilde\varphi$ and $\tilde\psi$ with integral operators whose kernels are analytic in $p$. This system is solved by using the  scheme applied   to the Schr\"odinger equation and this yields our main  results since the equations for $\tilde\varphi$ and $\tilde\psi$ are {\it equivalent} to problem  (\ref{PD1}), (\ref{PD2}).
+\end{frame}
+
+\begin{frame}{Reference}
+
+Zhevandrov, P., Merzon, A., Romero Rodr\'\i guez, M.I. et al. Discrete and Embedded Trapped Modes in a Plane Quantum Waveguide with a Small Obstacle: Exact Solutions. {\it Acta Appl Math} 196, 8 (2025). https://doi.org/10.1007/s10440-025-00720-2
+
+%\centerline{ \textbf{Perturbed quantum waveguide}}
+
+
+
+%\centerline{Nazarov S  \emph{Theor Math Phys}, \textbf{167}(2011), 606--627}
+
+%\vspace{0.5cm}
+
+%\centerline{ \textbf{Timoshenko system}}
+
+
+
+%\centerline{Aya H, Cano R, Zhevandrov P  \emph{J Eng Math}, \textbf{77}(2012), 87--104}
+
+%\vspace{0.5cm}
+
+%\centerline{ \textbf{Two-layer shallow water}}
+
+
+
+%\centerline{Romero Rodr\'\i guez M I, Zhevandrov P  \emph{J Fluid Mech}, \textbf{753}(2014), 427--447}
+
+%\vspace{0.5cm}
+
+%\centerline{\textbf{One-layer cylinder}}
+
+%\centerline{Garibay F, Zhevandrov P \emph{Russ J Math Phys}, \textbf{22}(2015), 174--183}
+
+\end{frame}
+\begin{frame}
+
+
+    \includegraphics[width=\linewidth]{Prapply.pdf}
+
+\end{frame}
+
+\end{document}

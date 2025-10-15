@@ -1,0 +1,105 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{lipsum} % para texto de ejemplo
+\usepackage{amsmath,amssymb}
+\usepackage{ulem} % para \uline
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{makeidx}  % Necesario para generar el índice
+\makeindex  % Habilita la creación del índice
+\usepackage{eso-pic}
+% Márgenes y paginación
+\usepackage[a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry} % 2024
+% Encabezados y pies
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\leftmark}
+\fancyhead[LO]{\rightmark}
+% Comandos para ponente subrayado en autores
+\newcommand{\ponente}[1]{\underline{#1}}
+\let\cleardoublepage\clearpage
+\begin{document}
+\cleardoublepage
+\begin{center}
+	\textbf{\LARGE{XI COLOQUIO DE MATEM\'ATICAS APLICADAS }}\\
+    {\Large Universidad Militar Nueva Granada, Colombia - 2025 \par}
+	\vspace{0.4cm}
+\end{center}
+\section*{Título de la ponencia o del poster}
+\addcontentsline{toc}{section}{Modelado Estadístico de Incertidumbre en Sistemas Dinámicos}
+%
+\thispagestyle{plain}
+\vspace*{1cm}
+\begin{center}
+	{\large Primer Autor\textsuperscript{1}, \ponente{Autor Ponente}\textsuperscript{2}, Tercer Autor \textsuperscript{3}}\\[1em]
+\end{center}
+
+\footnotetext[1]{Universidad de la República, Uruguay. \texttt{cduarte@udelar.edu.uy}}
+\footnotetext[2]{Universidad de los Andes, Colombia. \texttt{erivas@uniandes.edu.co}}
+\footnotetext[3]{Universidade de São Paulo, Brasil. \texttt{jteixeira@usp.br}}
+
+\noindent\textbf{Resumen:}\\
+Por favor escriba aquí el resumen o abstract de su charla o poster. \textbf{Por favor NO cambie el formato a begin abstract.} El contenido de todo el documento debe ser mínimo de 2 páginas y máximo 3. 
+
+\medskip
+\noindent\textbf{Palabras Claves}: Máximo 6 palabras claves.
+
+\vspace{1em}
+\noindent\textbf{Introducción}\\
+Desde aquí puede escribir una breve descripción del contenido de su charla.
+
+La Figura~\ref{tab:comparacion_bayes} es un ejemplo para insertar figuras en el documento. \textbf{Por favor al final de la descripción de la gráfica, escirba:} Fuente: Figura realizada por el autor.
+
+
+
+\begin{figure}[h!]
+	\centering
+	% \includegraphics[width=\linewidth]{LogoColoquio2025.eps}
+	\caption{Al final de la descripción de su gráfica escriba: Fuente: Figura realizada por el autor.}
+	\label{fig:bayes_poblacion}
+\end{figure}
+
+
+
+
+
+\vspace{1em}
+\noindent\textbf{Ejemplo con tablas}\\
+La Tabla~\ref{tab:comparacion_bayes} es un ejemplo para describir las tablas en su documento.
+
+
+\begin{table}[h!]
+	\centering
+	\begin{tabular}{|p{4.2cm}|c|c|c|}
+		\hline
+		\textbf{Método} & \textbf{Precisión} & \textbf{Costo computacional} & \textbf{Incertidumbre} \\
+		\hline
+		Ajuste clásico (mínimos cuadrados) & Media & Bajo & Bajo \\
+		MCMC bayesiano & Alta & Alto & Excelente \\
+		Filtrado de partículas & Alta & Medio & Bueno \\
+		\hline
+	\end{tabular}
+	\caption{Comparación de métodos para inferencia de parámetros en sistemas dinámicos.}
+	\label{tab:comparacion_bayes}
+\end{table}
+
+\vspace{1em}
+\noindent\textbf{Conclusión}\\
+\textbf{Por favor agregar  Conclusiones} Recuerde que el documento debe tener un mínimo de 2 páginas y máximo 3. \textbf{Por favor no cambie el formato de la bibliografía, use el que se ha indicado en este archivo .TEX}
+ 
+\vspace{1em}
+\noindent\textbf{Bibliografía}
+\begin{itemize}[leftmargin=1.5em]
+	\item C. Andrieu, A. Doucet, R. Holenstein, \textit{Particle Markov chain Monte Carlo methods}, Journal of the Royal Statistical Society: Series B, \textbf{72}(3), 269--342, 2010.
+	\item M. Girolami, B. Calderhead, \textit{Riemann manifold Langevin and Hamiltonian Monte Carlo methods}, Journal of the Royal Statistical Society: Series B, \textbf{73}(2), 123--214, 2011.
+	\item H. Rue, S. Martino, N. Chopin, \textit{Approximate Bayesian inference for latent Gaussian models by using integrated nested Laplace approximations}, Journal of the Royal Statistical Society: Series B, \textbf{71}(2), 319--392, 2009.
+\end{itemize}	
+\end{document}

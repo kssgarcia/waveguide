@@ -1,0 +1,114 @@
+"""
+Helmholtz Equation Solver using DOLFINx
+
+This script solves the 2D Helmholtz equation using the DOLFINx finite element library.
+It demonstrates how to:
+- Set up a Helmholtz problem with mixed Dirichlet and Neumann boundary conditions
+- Use a plane wave solution as the exact solution for validation
+- Compute H1 and L2 error norms to assess solution accuracy
+- Export results to XDMF format for visualization
+
+The problem solved is: -∇²u - k²u = 0 with appropriate boundary conditions
+on the unit square domain.
+
+@author: kssgarcia
+"""
+# %% Helmholtz equation
+from mpi4py import MPI
+from petsc4py import PETSc
+
+import numpy as np
+
+import ufl
+from dolfinx.fem import (
+    Function,
+    assemble_scalar,
+    dirichletbc,
+    form,
+    functionspace,
+    locate_dofs_geometrical,
+)
+from dolfinx.fem.petsc import LinearProblem
+from dolfinx.io import XDMFFile
+from dolfinx.mesh import create_unit_square
+
+# Wavenumber
+k0 = 4 * np.pi
+
+# Approximation space polynomial degree
+deg = 1
+
+# Number of elements in each direction of the mesh
+n_elem = 64
+
+msh = create_unit_square(MPI.COMM_WORLD, n_elem, n_elem)
+
+is_complex_mode = np.issubdtype(PETSc.ScalarType, np.complexfloating)
+
+# Source amplitude
+A = 1
+
+# Test and trial function space
+V = functionspace(msh, ("Lagrange", deg))
+
+# Function space for exact solution - need it to be higher than deg
+V_exact = functionspace(msh, ("Lagrange", deg + 3))
+u_exact = Function(V_exact)
+
+# Define variational problem:
+u, v = ufl.TrialFunction(V), ufl.TestFunction(V)
+a = ufl.inner(ufl.grad(u), ufl.grad(v)) * ufl.dx - k0**2 * ufl.inner(u, v) * ufl.dx
+
+# solve for plane wave with mixed Dirichlet and Neumann BCs
+theta = np.pi / 4
+u_exact.interpolate(lambda x: A * np.exp(1j * k0 * (np.cos(theta) * x[0] + np.sin(theta) * x[1])))
+n = ufl.FacetNormal(msh)
+g = -ufl.dot(n, ufl.grad(u_exact))
+L = -ufl.inner(g, v) * ufl.ds
+
+
+dofs_D = locate_dofs_geometrical(
+    V, lambda x: np.logical_or(np.isclose(x[0], 0), np.isclose(x[1], 0))
+)
+u_bc = Function(V)
+u_bc.interpolate(u_exact)
+bcs = [dirichletbc(u_bc, dofs_D)]
+
+# Compute solution
+uh = Function(V)
+uh.name = "u"
+problem = LinearProblem(
+    a,
+    L,
+    bcs=bcs,
+    u=uh,
+    petsc_options={"ksp_type": "preonly", "pc_type": "lu"},
+)
+_ = problem.solve()
+assert problem.solver.getConvergedReason() > 0
+
+# Save solution in XDMF format (to be viewed in ParaView, for example)
+with XDMFFile(
+    MPI.COMM_WORLD, "./solutions/Helmholtz_dolfinx_doc_example.xdmf", "w", encoding=XDMFFile.Encoding.HDF5
+) as file:
+    file.write_mesh(msh)
+    file.write_function(uh)
+
+# H1 errors
+diff = uh - u_exact
+H1_diff = msh.comm.allreduce(
+    assemble_scalar(form(ufl.inner(ufl.grad(diff), ufl.grad(diff)) * ufl.dx)), op=MPI.SUM
+)
+H1_exact = msh.comm.allreduce(
+    assemble_scalar(form(ufl.inner(ufl.grad(u_exact), ufl.grad(u_exact)) * ufl.dx)), op=MPI.SUM
+)
+print("Relative H1 error of FEM solution:", abs(np.sqrt(H1_diff) / np.sqrt(H1_exact)))
+
+# L2 errors
+L2_diff = msh.comm.allreduce(assemble_scalar(form(ufl.inner(diff, diff) * ufl.dx)), op=MPI.SUM)
+L2_exact = msh.comm.allreduce(
+    assemble_scalar(form(ufl.inner(u_exact, u_exact) * ufl.dx)), op=MPI.SUM
+)
+print("Relative L2 error of FEM solution:", abs(np.sqrt(L2_diff) / np.sqrt(L2_exact)))
+
+# @author: kssgarcia

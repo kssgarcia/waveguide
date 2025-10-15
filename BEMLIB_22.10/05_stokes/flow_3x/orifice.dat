@@ -1,0 +1,17 @@
+Flow over an orifice of nonzero thickness
+
+1.0      viscosity
+1.0      shear rate: k
+1.0      pressure gradient: pg
+6        Gauss Legendre points: choose from 1,2,3,4,5,6,12,20
+
+2.0      depth
+1.0      opening
+10 0.2   Neop RTop
+
+64 8.0  5.0     NeW1, RTW1,   truncation level of wall #1
+10 0.2          NeW2, RTW2,
+20 5.0 5.0      NeW3, RTW3,   truncation level of wall #3
+
+1.0             wall: upper wall at x = wall
+48 8.0 5.0      NeU  RTU   truncated upper wall

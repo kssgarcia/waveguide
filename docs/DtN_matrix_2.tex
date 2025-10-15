@@ -1,0 +1,174 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+% \usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath, amssymb}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+% \decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\newcommand{\wt}[1]{\widetilde{#1}}
+\newcommand{\ol}[1]{\overline{#1}}
+
+\begin{document}
+\begin{center}
+{\Large Dirichlet-to-Neumannn operator term in matrix form}
+\end{center}
+We need to present in matrix form the following expression:
+\begin{equation}
+  \label{eq:1}
+  \int_{\Sigma_L}v \Lambda_k^+(u) dl
+\end{equation}
+where $\Lambda_k^+$ is the Dirichlet-to-Neumann (DtN) operator on the right boundary of the domain $\Sigma_L = \{(x,y)|x=L\}$. Truncated to $N$ terms, the DtN operator has the form
+\begin{equation}
+  \label{eq:2}
+  [\Lambda_k^+(u)](y) = \sum_{n=1}^N I \beta_n \langle u, \varphi_n \rangle \varphi_n(y),
+\end{equation}
+where $I$ denotes imaginary unit, $I = \sqrt{-1}$ (to be able to use $i$ as an index),
+\begin{equation}
+  \label{eq:3}
+  \beta_n = \sqrt{k^2 - \lambda_n^2},~~\lambda_n = \frac{n\pi}{H},~~n=1,2,\ldots,
+\end{equation}
+\begin{equation}
+  \label{eq:4}
+  \varphi_n(y) = \sqrt{\frac{2}{H}} \sin(\lambda_n y),
+\end{equation}
+\begin{equation}
+  \label{eq:5}
+  \langle u, \varphi_n \rangle = \int_0^H u(L,y) \varphi_n(y) dy.
+\end{equation}
+Replacing \eqref{eq:2} into \eqref{eq:1},
+\begin{align}
+  \label{eq:27}
+  \int_{\Sigma_L}v \Lambda_k^+(u) dl &= \int_0^H v(L,y) \left[\sum_{n=1}^N I \beta_n \langle u, \varphi_n \rangle \varphi_n(y)\right] dy \\
+                                     &= \sum_{n=1}^N I \beta_n \langle u, \varphi_n \rangle \int_0^H v(L,y) \phi_n(y) dy \\
+                                     &= \sum_{n=1}^N I \beta_n \langle u, \varphi_n \rangle \langle v, \varphi_n \rangle \label{eq:27b}
+\end{align}
+
+
+Let us assume the grid has $M$ nodes and let $\phi_i(x,y)$, $i=1,2, \ldots, M$, denote the node funtions. We call $\Gamma^+$ the set of the indices of the nodes that lie on $\Sigma_L$. In terms of the $\phi_i(x,y)$, the functions $v$, $u$, restricted to $\Sigma_L$, have the forms
+\begin{equation}
+  \label{eq:9}
+  v(L,y) = \sum_{i \in \Gamma^+} v_i\phi_i(L,y).
+\end{equation}
+and
+\begin{equation}
+  \label{eq:8}
+  u(L,y) = \sum_{j \in \Gamma^+} u_j\phi_j(L,y)
+\end{equation}
+Substituting \eqref{eq:9} and \eqref{eq:8} into \eqref{eq:27b},
+\begin{align}
+  \int_{\Sigma_L}v \Lambda_k^+(u) dl &= \sum_{n=1}^N I \beta_n \left\langle \sum_{j \in \Gamma^+} u_j\phi_j, \varphi_n \right\rangle
+                                       \left\langle \sum_{i \in \Gamma^+} v_i\phi_i, \varphi_n \right\rangle \\
+  &= \sum_{n=1}^N I \beta_n \sum_{j \in \Gamma^+} u_j\left\langle \phi_j, \varphi_n \right\rangle
+    \sum_{i \in \Gamma^+} v_i \left\langle \phi_i, \varphi_n \right\rangle \\
+&=  \sum_{i \in \Gamma^+} \sum_{j \in \Gamma^+} v_iu_j \sum_{n=1}^N I \beta_n \left\langle \phi_j, \varphi_n \right\rangle
+  \left\langle \phi_i, \varphi_n \right\rangle \\
+&=  \sum_{i \in \Gamma^+} \sum_{j \in \Gamma^+} v_iu_j \sum_{n=1}^N I \beta_n P_{in} P_{jn},
+\end{align}
+where
+\begin{align}
+  P_{in} &= \left\langle \phi_i, \varphi_n \right\rangle \\
+           &= \int_0^H \phi_i(y) \varphi_n(y) dy.
+\end{align}
+Using the appropriate change of indices we have
+\begin{equation}
+  \label{eq:29}
+   \int_{\Sigma_L}v \Lambda_k^+(u) dl = {\bf v}^T B {\bf u},
+ \end{equation}
+ where $B$ is the matrix with elements
+ \begin{equation}
+   \label{eq:30}
+    B_{ij} = \sum_{n=1}^N I \beta_n P_{in} P_{jn}
+ \end{equation}
+
+To calculate the matrix entries $P_{in}$ it is convenient to view the line segments between two adjacent points on $\Sigma_L$  as one-dimensional elements. Let $(L,y_e)$ and $(L,y_{e'})$, $y_e < y_{e'}$, be two adjacent points on $\Sigma_L$. We define the $e$-th one-dimensional element $\Omega_e$ as $\Omega_e = [y_e, y_{e'}]$. Therefore
+\begin{equation}
+  \label{eq:20}
+  P_{in} = \sum_{e \in \Gamma_e^+} P_{in}^{(e)},
+\end{equation}
+where
+\begin{equation}
+  \label{eq:28}
+  P_{in}^{(e)} = \int_{\Omega_e} \phi_i(y)\varphi_n(y) dy
+\end{equation}
+(dependence of the basis functions on $x$ removed for simplicity) and $\Gamma_e^+$ is the set of indices of all the elements in $\Sigma_L$. The quantitiy $P_{in}^{(e)}$ can be computed using the local coordinate $\xi$,
+\begin{equation}
+  \label{eq:yxi}
+  y(\xi) = a_e + b_e\xi,
+\end{equation}
+where
+\begin{equation}
+  \label{eq:24}
+  a_e =  \frac{1}{2}(y_{e'} + y_e)
+\end{equation}
+is the element midpoint and
+\begin{equation}
+  \label{eq:25}
+  b_e = \frac{1}{2}(y_{e'} - y_e)
+\end{equation}
+is half the element length. By the change of variable \eqref{eq:yxi}, the basis functions $\phi_e(y)$ and $\phi_{e'}(y)$ become the local basis functions
+\begin{align}
+  \wt{\phi}_1(\xi) &= \frac{1}{2}(1-\xi) \\
+  \wt{\phi}_2(\xi) &= \frac{1}{2}(1+\xi).
+\end{align}
+
+To the non-zero entries of the matrix $\left\{P_{in}^{(e)}\right\}$ correspond a local matrix $\left\{\wt{P}_{rn}^{(e)}\right\}$, $r =1,2$, with entries $\wt{P}_{rn}^{(e)} = P_{in}^{(e)}$, $i=q(e,r)$, were $q$ is the mapping from local to global coordinates. In the local coordinate, the local-matrix entries can be computed as
+\begin{equation}
+  \label{eq:23}
+  \wt{P}_{rn}^{(e)} = b_e \int_{-1}^1 \wt{\phi}_r(\xi)\sin[\lambda_n(a_e + b_e\xi)]\,d\xi,~~r = 1,2.
+\end{equation}
+The integrals above have analytical expression, leading to
+\begin{align}
+  \wt{P}_{n1}^{(e)} &= \frac{2 \, b_{e} \lambda_{n} \cos\left({\left(a_{e} - b_{e}\right)} \lambda_{n}\right) - \sin\left({\left(a_{e} + b_{e}\right)} \lambda_{n}\right) + \sin\left({\left(a_{e} - b_{e}\right)} \lambda_{n}\right)}{2 \, b_{e} \lambda_{n}^{2}} \\
+  \wt{P}_{n2}^{(e)} &= -\frac{2 \, b_{e} \lambda_{n} \cos\left({\left(a_{e} + b_{e}\right)} \lambda_{n}\right) - \sin\left({\left(a_{e} + b_{e}\right)} \lambda_{n}\right) + \sin\left({\left(a_{e} - b_{e}\right)} \lambda_{n}\right)}{2 \, b_{e} \lambda_{n}^{2}}.
+\end{align}
+
+
+
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+ \end{document}
+
+  

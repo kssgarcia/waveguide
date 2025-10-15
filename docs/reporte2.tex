@@ -1,0 +1,559 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+% \usepackage[english,spanish,activeacute]{babel}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+
+\usepackage{graphicx,array}
+\usepackage{amsmath, amssymb}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+% \decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\newcommand{\wt}[1]{\widetilde{#1}}
+\newcommand{\ol}[1]{\overline{#1}}
+
+\begin{document}
+\begin{center}
+{\Large Métodos numéricos para la ecuación de Helmholtz en guías de onda bidimensionales infinitas con obstáculos rígidos}
+\end{center}
+\section{Planteamiento del problema}
+En este trabajo, buscamos soluciones de la ecuación de Helmholtz en guías de onda bidimensionales con obstáculos, con particular interés en las soluciones de tipo modo atrapado, que describiremos más adelante.
+
+La ecuaci\'on de Helmholtz está dada por
+\begin{equation}
+  \label{eq:41}
+  \nabla^2 u + k^2 u = 0,
+\end{equation}
+donde $k$ se conoce como el n\'umero de onda. La guía de onda no obstruída se representa mediante la banda infinita del plano $S = \{(x,y)| -\infty < x < \infty,~-d \le y \le d\}$ y el obstáculo $T$ está representado por la regi\'on encerrada por una curva cerrada $\Gamma$. De modo que la gu\'ia de onda obstruída es $\Omega = S \textbackslash T$. 
+
+\section{Formas de los obstáculos}
+La frontera del obstáculo es una curva cerrada que puede expresarse como una curva paramétrica $(x(s),y(s))$ para algún parámetro $s$. Un posible parámetro es el ángulo $\theta$ de las coordenadas polares  $(\rho, \theta)$. Si el radio $\rho$ es conocido como función de $\theta$, entonces
+\begin{subequations}
+  \label{eq:1}
+  \begin{align}
+    x(\theta) &= \rho(\theta)\cos\theta \\
+    y(\theta) &= \rho(\theta)\sin\theta.
+  \end{align}
+\end{subequations}
+Como ejemplo, consideremos el cuadrado de lado igual a  $2a$ mostrado en la Fig. \ref{fig:square_polar}. Para $-\pi/4 \le \theta \le \pi/4$, como en el punto $A$ de la figura,
+\begin{equation}
+  \label{eq:37}
+  \cos\theta = \frac{a}{\rho}.
+\end{equation}
+Por tanto,
+\begin{equation}
+  \label{eq:30}
+  \rho(\theta) = \frac{a}{\cos\theta}.
+\end{equation}
+En cambio, para $\pi/4 \le \theta \le 3\pi/4$, como en el punto $B$,
+\begin{equation}
+  \label{eq:36}
+    \sin\theta = \frac{a}{\rho},
+  \end{equation}
+ lo que da
+  \begin{equation}
+    \label{eq:38}
+  \rho(\theta) = \frac{a}{\sin\theta}.    
+  \end{equation}
+Aplicando un razonamiento similar a los otros lados, obtenemos
+  \begin{equation}
+    \label{eq:39}
+    \rho(\theta) =
+    \begin{cases}
+      \frac{a}{\cos\theta},~~&-\frac{\pi}{4} \le \theta \le \frac{\pi}{4}  \\
+      \frac{a}{\sin\theta},~~&\frac{\pi}{4} < \theta \le \frac{3\pi}{4} \\
+      -\frac{a}{\cos\theta},~~&\frac{3\pi}{4} < \theta \le \frac{5\pi}{4}  \\
+      -\frac{a}{\sin\theta},~~&\frac{5\pi}{4} < \theta < \frac{7\pi}{4} 
+    \end{cases}
+  \end{equation}
+La ecuación \eqref{eq:39} junto con las ecuaciones \eqref{eq:1} forman la parametrización del cuadrado en términos del ángulo polar $\theta$.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=10cm]{./square_polar.pdf}
+  \caption{Obstáculo cuadrado de lado $2a$.}
+  \label{fig:square_polar}
+\end{figure}
+
+La parametrización en términos de $\theta$ tiene una forma simple para un obstáculo circular de radio $R$ (Fig. \ref{fig:circle_polar}). En este caso, $\rho(\theta) = R = \mathrm{constante}$, de modo que
+\begin{equation}
+  \label{eq:40}
+  (x(\theta), y(\theta)) = (R\cos\theta, R\sin\theta).
+\end{equation}
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=7cm]{./circle_polar.pdf}
+  \caption{Obstáculo circular.}
+  \label{fig:circle_polar}
+\end{figure}
+
+
+
+
+\section{Objetivos}
+\begin{itemize}
+\item Desarrollar un programa que implemente el método de elementos finitos para la ecuación de Helmholtz en una guía de onda bidimensional infinita con un obstáculo.
+Este método utilizará el operador de Dirichlet a Neumann para definir una condición de frontera que simule una guía de onda infinita fuera de un dominio acotado.
+  
+\item Desarrollar un programa que implemente el método de elementos de frontera para la ecuación de Helmholtz en una guía de onda bidimensional infinita con un obstáculo.
+Este método utiliza una representación de la solución en términos de una integral sobre la frontera del obstáculo.
+El integrando incluye la función de Green de la ecuación de Helmholtz y su gradiente.
+
+\item Desarrollar un programa que implemente el método de elementos de frontera para la ecuación de Laplace en un flujo uniforme alrededor de un obstáculo.
+Este método utiliza una representación de la solución en términos de una integral sobre la frontera del obstáculo.
+El integrando incluye la función de Green de la ecuación de Laplace y su gradiente.
+Esta solución se empleará para calcular el vector dipolar del obstáculo.
+\end{itemize}
+
+\section{Metodología}
+
+\subsection{Método de elementos finitos para la ecuación de Helmholtz y uso del operador de Dirichlet a Neumann para simular un dominio infinito fuera de una frontera}
+Nos interesa resolver numéricamente la ecuación de Helmholtz,
+\begin{equation}
+  \label{eq:9}
+  \nabla^2 u + k^2u = 0,
+\end{equation}
+en una guía de onda bidimensional infinita con un obstáculo (Fig. \ref{fig:waveguide}). Se imponen condiciones de frontera de Dirichlet homogéneas sobre los límites superior e inferior de la guía (ubicados en $y=0$ y $y=H$, respectivamente)
+\begin{equation}
+  \label{eq:10}
+  u(x,0) = u(x,H) = 0,
+\end{equation}
+y condiciones de frontera de Neumann homogéneas sobre la frontera del obstáculo $\Gamma$,
+\begin{equation}
+  \label{eq:11}
+  \frac{\partial u}{\partial n} = 0,~~(x,y) \in \Gamma.
+\end{equation}
+La frontera $\Gamma$ puede parametrizarse como $(x,y) = (f(s), g(s))$, donde $s$ es algún parámetro. Por ejemplo, supongamos que los vértices del triángulo mostrado en la Fig. \ref{fig:waveguide} están dados por $\mathbf{x}_1 = (x_1, y_1)$, $\mathbf{x}_2 = (x_2, y_2)$, and $\mathbf{x}_3 = (x_3,y_3)$, comenzando desde el vértice inferior derecho y avanzando en sentido antihorario.En ese caso, la parametrización de los puntos del lado entre $\mathbf{x}_1$ and $\mathbf{x}_2$ en términos de la longitud de arco $s$ es
+\begin{equation}
+  \label{eq:15}
+  \mathbf{x} = \mathbf{x}_1 + s\mathbf{n}_{12},
+\end{equation}
+donde $\mathbf{n}_{12}$ es el vector unitario de $\mathbf{x}_1$ a $\mathbf{x}_2$,
+\begin{equation}
+  \label{eq:26}
+  \mathbf{n}_{12} = \frac{\mathbf{x}_2 - \mathbf{x}_1}{\|\mathbf{x}_2 - \mathbf{x}_1\|} =
+  \frac{(x_2 - x_1, y_2 - y_1)}{\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}}.
+\end{equation}
+En componentes
+\begin{align}
+  x &= x_1 + s \frac{x_2 - x_1}{\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}} \\
+  y &= y_1 + s \frac{y_2 - y_1}{\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}}.
+\end{align}
+Una parametrización similar puede emplearse para los otros dos lados.
+
+Además, la solución $u$ debe permanecer acotada cuando $x \rightarrow \pm\infty$.
+
+Para la discusión que sigue, la guía se divide en tres regiones como se muestra en la Fig. \ref{fig:waveguide}: $S^+ = \{(x,y)| x > L,  0 \le y \le H\}$, $S^- = \{(x,y)| x < -L,  0 \le y \le H\}$, and $\Omega_L = \{(x,y)~\mathrm{outside}~\mathrm{the}~\mathrm{obstacle}| -L < x < L, 0 \le y \le H\}$.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=8cm]{./waveguide_rectangle_obstacle.pdf}
+  \caption{Guía de onda bidimensional infinita con un obstáculo (triángulo).
+La guía de onda se divide en tres regiones disjuntas: $\Omega_L$, $S^-$, and $S^+$.}
+  \label{fig:waveguide}
+\end{figure}
+
+Los métodos numéricos sólo pueden aplicarse a regiones acotadas, como $\Omega_L$, ya que la memoria de un computador, donde los valores discretos aproximados de $u$ se almacenan, es finita. Afortunadamente, existe una forma de definir una condición de frontera sobre el límite derecho de $\Omega_L$, $\Sigma_L = \{(x,y)|x=L\}$, que simule la existencia de la banda semi-infinita  $S^+$ a su derecha, y de manera equivalente para el límite izquierdo, $\Sigma_{-L} = \{(x,y)|x=-L\}$. El procedimiento, descrito en las referencias  \cite{ihlenburg1998finite} y \cite{chesnel2025tutorial}, se explica a continaución.
+
+El problema definid por \eqref{eq:9}, \eqref{eq:10}, y \eqref{eq:11} es equivalente al siguiente problema acoplado
+\begin{subequations}
+  \label{eq:omegaL}
+\begin{align}
+  \nabla^2 u + k^2u &= 0~~\mathrm{in}~\Omega_L \\
+  u(x,0)=u(x,H)&=0,~~-L < x < L \\
+  \frac{\partial u}{\partial n} &= 0~~\mathrm{on}~ \Gamma \\
+  u &= u_{+}~~~\mathrm{on}~ \Sigma_{+} \label{eq:cp1} \\
+  \frac{\partial u}{\partial n} &= \frac{\partial u_{+}}{\partial n}~~\mathrm{on}~\Sigma_{+}  \label{eq:cp2}\\
+    u &= u_{-}~~~\mathrm{on}~ \Sigma_{-} \\
+  \frac{\partial u}{\partial n} &= \frac{\partial u_{-}}{\partial n}~~\mathrm{on}~\Sigma_{-}
+\end{align}
+\end{subequations}
+\begin{subequations}
+  \label{eq:Sp}
+\begin{align}
+  \nabla^2 u_+ + k^2u_+ &= 0~~\mathrm{in}~S^+ \\
+  u_+(x,0)=u_+(x,H) &=0,~~x > L \\
+  u~\mathrm{is}~&\mathrm{bounded}~\mathrm{in}~S^+
+\end{align}  
+\end{subequations}
+\begin{subequations}
+  \label{eq:Sm}
+\begin{align}
+  \nabla^2 u_- + k^2u_- &= 0~~\mathrm{in}~S^- \\
+  u_-(x,0)=u_-(x,H) &=0,~~x < -L \\
+  u~\mathrm{is}~&\mathrm{bounded}~\mathrm{in}~S^-
+\end{align}  
+\end{subequations}
+
+Supongamos que $u_+ = u$ está dado en $\Sigma_L$ y que podemos resolver analíticamente el problema de Dirichlet para $u_+$ en $S^+$. Conociendo $u_+$, podemos calcular $\partial u_+/\partial n$ en $\Sigma_L$. Entonces, hemos construido un mapeo
+\begin{equation}
+  \label{eq:12}
+  \Lambda^+: \left.u_+\right|_{\Sigma_L} \rightarrow \left.\frac{\partial u_+}{\partial n}\right|_{\Sigma_L}.
+\end{equation}
+$\Lambda^+$ es un operador lineal llamado el operador Dirichlet-a-Neumann (DtN, por las siglas en inglés). Por \eqref{eq:cp1} y \eqref{eq:cp2}, el operador $\Lambda^+$ de manera equivalente mapea
+\begin{equation}
+  \label{eq:13}
+  \left.u\right|_{\Sigma_L} \rightarrow \left.\frac{\partial u}{\partial n}\right|_{\Sigma_L}.
+\end{equation}
+Análogamente, el operador DtN puede definirse sobre la frontera izquierda,
+\begin{equation}
+  \label{eq:14}
+  \Lambda^-: \left.u_-\right|_{\Sigma_{-L}} \rightarrow \left.\frac{\partial u_-}{\partial n}\right|_{\Sigma_{-L}}.  
+\end{equation}
+Usando los operadores DtN $\Lambda^{\pm}$, el problema acoplado \eqref{eq:omegaL}, \eqref{eq:Sp}, and \eqref{eq:Sm}, es equivalente al problema reducido
+\begin{subequations}
+  \label{eq:reduced}
+  \begin{align}
+    \nabla^2 u + k^2u &= 0~~\mathrm{in}~\Omega_L \\
+  u(x,0)=u(x,H)&=0,~~-L < x < L \\
+  \frac{\partial u}{\partial n} &= 0~~\mathrm{on}~ \Gamma \\
+  \frac{\partial u}{\partial n} &= \Lambda^+ u~~\mathrm{on}~\Sigma_{+} \\
+  \frac{\partial u}{\partial n} &= \Lambda^- u~~\mathrm{on}~\Sigma_{-}. 
+  \end{align}
+\end{subequations}
+El problema \eqref{eq:reduced} está definido sobre el dominio acotado $\Omega_L$, por lo que puede resolverse numéricamente. Sin embargo, para avanzar es necesario obtener una representación explícita de los operadores de Dirichlet a Neumann $\Lambda^{\pm}$. Esa representación puede basarse en la solución analítica de la ecuación de Helmholtz en la guía de onda no perturbada (sin obstáculo) $\{(x,y)| -\infty < x < \infty, 0 < y < H\}$ con condiciones de Dirichlet homogéneas $u(x,0)=u(x,H) = 0$.
+
+Mediante el método de separación de variables \cite{chesnel2025tutorial}, se encuentran las siguientes soluciones separables de la ecuación de Helmholtz en la guía no perturbada,
+\begin{equation}
+  \label{eq:1}
+  w_n^\pm(x,y) = e^{\pm i \beta_n x} \varphi_n(x),~~n=1,2,\ldots
+\end{equation}
+donde
+\begin{equation}
+  \label{eq:2}
+  \beta_n = \sqrt{k^2 - \lambda_n^2}~~\mathrm{with}~~\lambda_n = \frac{n\pi}{H},
+\end{equation}
+y
+\begin{equation}
+  \label{eq:3}
+  \varphi_n(y) = \sqrt{\frac{2}{H}}\sin(\lambda_n y).
+\end{equation}
+La solución general es una superposición de estas soluciones separables $w_n^\pm(x,y)$,
+\begin{equation}
+  \label{eq:4}
+  u(x,y) = \sum_{n=1}^\infty \left(A_n e^{i \beta_n x} + B_n e^{-i\beta_n x}\right)\varphi_n(y).
+\end{equation}
+La serie en \eqref{eq:4} puede también usarse para expresar al solución $u_+$ en la banda semi-infinita $S^+$. Sin embargo, la condición de acotamiento de $u_+$ exige eliminar los términos con $e^{-i\beta_n x}$. Por tanto, en $S^+$ la solución $u_+$ tiene la expresión analítica
+\begin{align}
+  \label{eq:5}
+  u_+(x,y) &= \sum_{n=1}^\infty A_n e^{i \beta_n x}\varphi_n(y) \\
+           &= \sum_{n=1}^\infty \wt{A}_n e^{i \beta_n (x-L)}\varphi_n(y).\label{eq:sum_wtA}
+\end{align}
+Los coeficientes $\wt{A}_n$ pueden determinarse a partir del valor conocido de $u_+$ en $\Sigma_L$, 
+\begin{equation}
+  \label{eq:upL}
+  u^+(L,y) = \sum_{m=1}^\infty \wt{A}_m \varphi_m(y).             
+\end{equation}
+y la ortogonalidad de las funciones $\varphi_n(y)$,  
+\begin{equation}
+  \label{eq:6}
+  \langle \varphi_m,\varphi_n \rangle = \int_0^H \varphi_m(y) \varphi_n(y) dy = \delta_{mn}.
+\end{equation}
+Aplicando el producto interno $\langle \cdot, \varphi_n \rangle$ en ambos lados de \eqref{eq:upL}, tenemos
+\begin{align}
+  \langle u_+, \varphi_n \rangle &= \left\langle \sum_{m=1}^\infty \wt{A}_m \varphi_m , \varphi_n \right\rangle \\
+                                 &= \sum_{m=1}^\infty \wt{A}_m \left\langle \varphi_m , \varphi_n \right\rangle \\
+                                 &= \sum_{m=1}^\infty \wt{A}_m \delta_{mn} \\                                  
+                                 &= \wt{A}_n.\label{eq:wtA}
+\end{align}
+Sustituyendo \eqref{eq:wtA} en \eqref{eq:sum_wtA}, obtenemos la siguiente forma para la solución $u_+(x,y)$ en $S^+$,
+\begin{equation}
+  \label{eq:7}
+  u_+(x,y) = \sum_{n=1}^\infty \left\langle u_+, \varphi_n\right\rangle e^{i \beta_n (x-L)}\varphi_n(y)  
+\end{equation}
+Para obtener una expresión del operador de Dirichlet a Neumann $\Lambda^+$, calculamos la derivada de \eqref{eq:7} con respecto a la normal a $\Sigma_L$,
+\begin{align}
+  \label{eq:8}
+  \left.\frac{\partial u_+}{\partial n}\right|_{\Sigma_L} &= \left.\frac{\partial u_+}{\partial x}\right|_{\Sigma_L} \\
+                                  &= \sum_{n=1}^\infty i \beta_n \left\langle u_+, \varphi_n\right\rangle \varphi_n(y)
+\end{align}
+Por tanto, el operador DtN tiene la forma
+\begin{equation}
+  \label{eq:16}
+  (\Lambda^+ u)(y) = \sum_{n=1}^\infty i \beta_n \left\langle u, \varphi_n\right\rangle \varphi_n(y),
+\end{equation}
+donde el producto interno $\left\langle u, \varphi_n\right\rangle$ se calcula sobre $\Sigma_L$,
+\begin{equation}
+  \label{eq:17}
+  \left\langle u, \varphi_n\right\rangle = \int_0^H u(L,y)\varphi_n(y) dy.
+\end{equation}
+
+\subsection{Método de elementos de frontera para la ecuación de Helmholtz en una guía de onda bidimensional infinita con un obstáculo}
+Calculamos el número de onda $k$ de los modos atrapados de la ecuación de Helmholtz
+\begin{equation}
+  \label{eq:16}
+  \nabla^2\phi + k^2\phi = 0,
+\end{equation}
+siguiendo el método descrito en la referencia \cite{linton1992integral}. Usando la fórmula de representación de Green (ver página 250 en \cite{olver2014introduction} y página 133 en \cite{newman2018marine}), la solución $\phi$ en cualquier punto $P$ puede calcularse como
+\begin{equation}
+  \label{eq:18}
+\phi(P) = \int_{\partial D} \left[ \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(P,q) 
+- G_s(P,q)\, U(q) \right] \, ds_q ,
+\end{equation}
+donde $\partial D$ es la frontera del obstáculo, $G_s(P,q)$ es la función de Green simétrica y 
+\begin{equation}
+  \label{eq:19}
+  \frac{\partial\phi}{\partial n} = U(q).
+\end{equation}
+Sobre la frontera se cumple
+\begin{equation}
+  \label{eq:20}
+  \frac{1}{2}\phi(p) = \int_{\partial D} \left[ \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(p,q) 
+- G_s(p,q)\, U(q) \right] \, ds_q.
+\end{equation}
+Para condiciones de frontera homogéneas $U(q)=0$ sobre $\partial D$, entonces
+\begin{equation}
+  \label{eq:21}
+  \frac{1}{2}\phi(p) = \int_{\partial D} \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(p,q)  \, ds_q.  
+\end{equation}
+Parametrizando $\partial D$ con coordenadas polares, $\rho(\theta)$, $0 \le \theta \le \pi$, la ecuación anterior adopta la forma
+\begin{equation}
+  \label{eq:22}
+  \frac{1}{2}\phi(\psi) = \int_{0}^{\pi} 
+\phi(\theta) \, \frac{\partial}{\partial n_q} 
+G_a(\psi,\theta)\, w(\theta) \, d\theta, 
+\quad 0 < \psi < \pi ,
+\end{equation}
+donde $\psi$ parametriza el punto de observación $p$ sobre $\partial D$, $\theta$ parametriza el punto fuente $p$ y $w(\theta) = [\rho^2(\theta) + \rho'^2(\theta)]^{1/2}$. Al discretizar $\theta$ como $\theta_j = (j-\frac{1}{2})\pi/M$, $j=1,2,\ldots,M$, la ecuación integral anterior se convierte en el sistema algebraico
+\begin{equation}
+  \label{eq:23}
+  \frac{1}{2} \phi_i = \frac{\pi}{M}\sum_{j=1}^M \phi_j K_{ij}^s,~~i=1,\ldots,M
+\end{equation}
+donde
+\begin{equation}
+  \label{eq:24}
+  K^s_{ij} =
+\begin{cases}
+\dfrac{\partial G_s(\theta_i,\theta_j)}{\partial n_q}, 
+& i \ne j, \\[1em]
+\dfrac{\partial \tilde{G}_s(\theta_i,\theta_i)}{\partial n_q} 
++ \dfrac{\rho_i \rho_i'' - \rho_i^2 - 2\rho_i'^2}{4\pi w_i^3}, 
+& i = j .
+\end{cases}
+\end{equation}
+La ecuación \eqref{eq:23} es, más precisamente, un sistema lineal homogéneo con una matriz de coeficientes $A$ de tamaño $M \times M$ cuyo elementos son
+\begin{equation}
+  \label{eq:25}
+A_{ij} =  \delta_{ij} - \frac{2\pi}{M}K^s_{ij} w_j.
+\end{equation}
+Para que el sistema tenga soluciones no triviales, el determinante de esta matriz debe ser cero. El valor de $k$ correspondiente a este determinante cero es el número de onda del modo atrapado. Se escribió un script en Python que calcula la matriz $A$ y su determinante para distintos valores de $k$. La figura \ref{fig:kd_det_circle} (panel superior) muestra $\det A$ como función de $kd$ ($d$ es la mitad de la separación entre los dos lados paralelos de la guía) para un círculo de radio $a$ con $a/d=0.5$. Se observa el cambio de signo de $\det A$. El panel inferior indica que el valor nulo de $\det A$ ocurre alrededor de $kd = 1.39131$ en concordancia con la Tabla 1 de \cite{linton1992integral}.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=8cm]{../figures/kd_det_circle.pdf}
+  \includegraphics[width=8cm]{../figures/kd_det_circle_detail.pdf}  
+  \caption{\label{fig:kd_det_circle} Determinante de $A$ como función de $kd$ para un cículo de radio $a$ con $a/d=0.5$.}
+\end{figure}
+
+El mismo script en Python se utilizó para calcular el número de onda del modo atrapado correspondiente a un obstáculo cuadrado de lado $2a$. El valor obtenido para $a/d=0.5$ fue $kd=1.32954$, también en acuerdo con la Tabla 2 de \cite{linton1992integral}.
+
+
+
+\subsection{Método de elementos de frontera para la ecuación de Laplace en un dominio exterior}
+La referencia \cite{zhevandrov2025discrete} presenta el cálculo de los modos atrapados de una guía de onda con un obstáculo. La metodología de \cite{zhevandrov2025discrete} se basa en la resolución de un problema auxiliar: identificar el potencial de velocidad producido por un flujo uniforme alrededor del obstáculo. Los resultados de \cite{zhevandrov2025discrete} se expresan en términos de las dos componentes cartesianas de los momentos dipolares asociados al potencial de velocidad sobre la frontera del obstáculo. Por tanto, para calcular dichos momentos dipolares, primero es necesario encontrar el potencial sobre la frontera. A continuación, se presenta una metodología para hacerlo.
+
+Si un fluido es incompresible, irrotacional e inviscido, el campo de velocidades ${\bf v}({\bf x})$ puede calcularse como el gradiente de un campo escalar $\phi({\bf x})$ (el potencial de velocidad),
+\begin{equation}
+  \label{eq:1}
+  {\bf v} = \nabla\phi.
+\end{equation}
+Además, el potencial de velocidad debe satisfacer la ecuación de Laplace
+\begin{equation}
+  \label{eq:2}
+  \nabla^2\phi = 0.
+\end{equation}
+El potencial $\phi$ es la suma de dos contribuciones:
+el potencial asociado al flujo uniforme $\phi^\infty$  y el potencial de perturbación $\phi^D$ producido por la presencia del obstáculo,
+\begin{equation}
+  \label{eq:3}
+  \phi = \phi^\infty + \phi^D.
+\end{equation}
+Sobre la frontera del obstáculo $\Gamma$, el potencial debe cumplir la condición de impenetrabilidad
+\begin{equation}
+  \label{eq:4}
+  \frac{\partial\phi}{\partial n} = 0,
+\end{equation}
+lo que implica que el potencial de perturbación debe satisfacer la condición de Neumann no homogénea
+\begin{equation}
+  \label{eq:5}
+  \frac{\partial\phi^D}{\partial n} = -\mathbf{n}(\mathbf{x})\cdot{\bf u},
+\end{equation}
+donde ${\bf u} = \nabla\phi^\infty$ es la velocidad del flujo uniforme.
+
+Puede demostrarse \cite{pozrikidis2002practical} que, para un punto $\mathbf{x}_0$ exterior a la frontera del obstáculo, la solución admite la representación integral
+\begin{align}
+\phi^{D}(\mathbf{x}_0) = 
+& - \int_{\Gamma} G(\mathbf{x}_0, \mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla \phi^{D}(\mathbf{x}) \right] \, dl(\mathbf{x}) \nonumber \\
+& + \int_{\Gamma} \phi^{D}(\mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}_0, \mathbf{x}) \right] \, dl(\mathbf{x}) ,\label{eq:6}
+\end{align}
+donde la integración se realiza sobre la frontera del obstáculo $\Gamma$ y $G(\mathbf{x}_0,\mathbf{x})$ es la función de Green,
+  \begin{equation}
+    \label{eq:7}
+   G(\mathbf{x}_0,\mathbf{x}) = -\frac{1}{2\pi}\ln{|\mathbf{x}-\mathbf{x}_0|}.
+  \end{equation}
+  Para un punto $\mathbf{x}_0$ sobre la frontera del obstáculo, debe incluirse un factor de dos en la ecuación integral correspondiente,
+  \begin{align}
+\phi^{D}(\mathbf{x}_0) = 
+& - 2\int_{\Gamma} G(\mathbf{x}_0, \mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla \phi^{D}(\mathbf{x}) \right] \, dl(\mathbf{x}) \nonumber \\
+& + 2\int_{\Gamma} \phi^{D}(\mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}_0, \mathbf{x}) \right] \, dl(\mathbf{x})\label{eq:7}.  \end{align}
+
+La ecuación \eqref{eq:7} puede resolverse numéricamente eligiendo un conjunto de puntos (nodos) sobre la frontera $\Gamma$ y aproximando $\Gamma$ entre dos nodos consecutivos mediante un segmento de línea recta (también pueden emplearse arcos circulares o splines cúbicos), llamado un elemento de frontera. Las integrales en \eqref{eq:7} entonces se convienten en sumas de integrales sobre los elementos y las incógnitas $\phi^D$ se suponen constantes sobre cada elemento. La expresión resultante es
+\begin{align}
+\phi^{D}_{j} 
+&- 2 \sum_{i=1}^{N} \phi^{D}_{i} 
+   \int_{E_i} \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}, \mathbf{x}^{M}_{j}) \, dl(\mathbf{x}) \nonumber \\
+&= 2 \sum_{i=1}^{N} 
+   \mathbf{u} \cdot \mathbf{n}^{(i)} 
+   \int_{E_i} G(\mathbf{x}, \mathbf{x}^{M}_{j}) \, dl(\mathbf{x}) ,~~j=1,2,\ldots,N,\label{eq:8}
+\end{align}
+donde $N$ es el número de elementos, $\phi^D_j$ es el potencial de perturbación en el punto medio $\mathbf{x}^M_j$ del elemento $j$-ésimo. La ecuación \eqref{eq:8} es un sistema lineal algebraico que puede resolverse numéricamente para determinar las incógnitas $\phi^D_j$, $j=1,2,\ldots,N$. Los detalles de este procedimiento, conocido como método de elementos de frontera (BEM, por sus siglas en inglés), pueden consultarse en la referencia \cite{pozrikidis2002practical}. Escribimos un programa en Python que implementa el BEM con elementos lineales rectos y reproduce los mismos resultados que el programa {\tt body\_2d.f} de la biblioteca {\tt BEMLIB} descrita en Ref. \cite{pozrikidis2002practical}.
+
+la Figura \ref{fig:stream} muestra las líneas de corriente [líneas tangentes al campo de velocidad $\mathbf{v}(\mathbf{x})$] del flujo calculado por nuestro programa para un obstáculo rectangular. Cada lado del rectángulo se dividió en 16 elementos. La velocidad es tangencial a la frontera del obstáculo [de acuerdo con la condición de impenetrabilidad \eqref{eq:4}] y se vuelve uniforme lejos del obstáculo, como se esperaba.
+
+\begin{figure}[h]
+  \centering
+      \includegraphics[width=16cm]{../figures/stream.pdf}
+  \caption{Líneas de corriente del flujo calculadas mediante el método de elementos de frontera para un obstáculo rectangular. Los nodos se muestran sobre el rectángulo..}
+  \label{fig:stream}
+\end{figure}
+
+\subsubsection{Comparación con una solución analítica}
+Para el caso de un obstáculo circular de radio $R$ y velocidad uniforme ${\bf u}=(u_1, u_2)$, el problema considerado [definido por las ecuaciones \eqref{eq:2} y \eqref{eq:4}] tiene la siguiente solución analítica
+\begin{equation}
+  \label{eq:27}
+  \phi(x,y) = \mathbf{u}\cdot\mathbf{x}\left(1 + \frac{R^2}{x^2+y^2}\right).
+\end{equation}
+A partir de \eqref{eq:3}, tenemos
+  \begin{equation}
+    \label{eq:28}
+    \phi^D(x,y) = \frac{R^2\mathbf{u}\cdot\mathbf{x}}{x^2 + y^2}.
+  \end{equation}
+  Sobre la frontera del círculo $x^2 + y^2 = R^2$, de modo que
+  \begin{align}
+    \phi^D(x,y) &= \mathbf{u}\cdot\mathbf{x} \\
+              &= R(u_1\cos\theta + u_2\sin\theta),    \label{eq:29}
+  \end{align}
+ donde $\theta$ es el ángulo de las coordenadas polares. En el problema considerado en la referencia \cite{zhevandrov2025discrete}, $\mathbf{u} = (0, -1)$, por lo tanto, la Eq. \eqref{eq:29} se reduce a
+  \begin{equation}
+    \label{eq:31}
+    \phi^D(x,y) = -R\sin\theta.
+  \end{equation}
+
+ La figura \ref{fig:circle_phi} muestra la coincidencia entre los valores de $\phi^D$ obtenidos numéricamente por nuestro programa en Python y el resultado analítico dado por la ecuación \eqref{eq:31}, para $R=1/2$ y cien elementos. La figura \ref{fig:circle_stream} muestra las líneas de corriente del flujo correspondientes.
+\begin{figure}[h]
+  \centering
+      \includegraphics[width=14cm]{../figures/circle_phi.pdf}
+  \caption{Potencial de velocidad de perturbación $\phi^D$ sobre la frontera de un obstáculo circular parametrizado por el ángulo polar $\theta$.}
+  \label{fig:circle_phi}
+\end{figure}
+\begin{figure}[h]
+  \centering
+      \includegraphics[width=14cm]{../figures/circle_stream.pdf}
+  \caption{Líneas de corriente del flujo alrededor de un obstáculo circular calculadas numéricamente mediante el método de elementos de frontera. Se muestran los nodos sobre el obstáculo.}
+  \label{fig:circle_stream}
+\end{figure}
+\subsubsection{Cálculo de los momentos dipolares}
+En esta sección se calculan los momentos dipolares asociados al flujo de fluido alrededor del obstáculo, empleados en Zhevandrov {\it et al}. \cite{zhevandrov2025discrete}. Cuando $\mathbf{u}=(0,-1)$, como en el ejemplo anterior, el potencial de perturbación $\phi^D$ tiene la expansión
+\begin{equation}
+  \label{eq:32}
+  \phi^D(x,y) = \mathrm{const} - \mu\frac{y}{r^2} - \nu\frac{x}{r^2} + O\left(\frac{1}{r^2}\right)
+\end{equation}
+donde los momentos dipolares $\mu$ y $\nu$ pueden calcularse como
+\begin{equation}
+  \label{eq:33}
+  \mu = \frac{1}{2\pi}\left(S - \int_\Gamma n_2\phi^D dl\right)
+\end{equation}
+y
+\begin{equation}
+  \label{eq:34}
+  \nu = -\frac{1}{2\pi}  \int_\Gamma n_1\phi^D dl,
+\end{equation}
+donde $n_1$ y $n_2$ son las componentes del vector unitario normal ${\bf n}=(n_1, n_2)$ que apunta hacia el fluido. A diferencia de nuestra convención (adoptada de la Ref. \cite{pozrikidis2002practical}, en la Ref. \cite{zhevandrov2025discrete}, el vector normal unitario apunta hacia el obstáculo. Por consiguiente, nuestras fórmulas para $\mu$ y $\nu$ presentan signos negativos adicionales respecto a las de \cite{zhevandrov2025discrete}.
+
+\subsubsection{Momentos dipolares de un obstáculo circular}
+Para un obstáculo circular, podemos usar el resultado analítico \eqref{eq:31} para calcular los momentos dipolares. Sustituyendo \eqref{eq:31} en \eqref{eq:33},
+\begin{align}
+  \label{eq:35}
+  \mu &= \frac{1}{2\pi}\left(S - \int_0^{2\pi} (R\sin\theta) (-R\sin\theta) Rd\theta\right) \\
+      &= \frac{1}{2\pi}\left(\pi R^2 + R^2\int_0^{2\pi} \sin^2\theta d\theta \right) \\
+  & = R^2.
+\end{align}
+Análogamente, sustituyendo \eqref{eq:31} en \eqref{eq:34},
+\begin{align}
+  \nu &=  -\frac{1}{2\pi}  \int_0^{2\pi} (R\cos\theta)(-R\sin\theta) R d\theta \\
+      &= \frac{R^2}{2\pi} \int_0^{2\pi} \cos\theta\,\sin\theta d\theta \\
+  &= 0.
+\end{align}
+
+También calculamos los momentos dipolares numéricamente, empleando las siguientes aproximaciones para las integrales,
+\begin{equation}
+  \label{eq:30b}
+  \mu \approx \frac{1}{2\pi}\left(S - \sum_{i=1}^N n_2^{(i)} \phi_i^D l_i\right)
+\end{equation}
+y
+\begin{equation}
+  \label{eq:36b}
+  \nu =- \frac{1}{2\pi}\sum_{i=1}^N n_1^{(i)} \phi_i^D l_i,
+\end{equation}
+donde
+$\phi^D_i$, $i=1,2,\ldots,N$, es la solución numérica mostrada en la Fig. \ref{fig:circle_phi}, $\left(n_1^{(i)}, n_2^{(i)}\right)$ es el vector unitario normal al $i$-ésimo elemento, y $l_i$ es la longitud de dicho elemento. En \eqref{eq:30b}, el área $S$ se calcula a partir de las coordenadas de los nodos mediante la fórmula del cordel (shoelace) para el área de un polígono. La Tabla \ref{tab:dipole} compara los resultados obtenidos mediante \eqref{eq:30b} y \eqref{eq:36b} con los valores analíticos para $R=1/2$. La concordancia es evidente.
+\begin{table}[h]
+  \centering
+\begin{tabular}{c|c|c}
+      & Analítico & Numérico \\ \hline
+$\mu$ &     0.25   & 0.249918          \\ \hline
+$\nu$ &     0      & $1.3 \times 10^{-17}$
+\end{tabular}  \caption{Comparación entre los momentos dipolares analíticos y numéricos}
+  \label{tab:dipole}
+\end{table}
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+ \end{document}
+
+  

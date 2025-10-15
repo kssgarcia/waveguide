@@ -1,0 +1,7 @@
+1.0   negative of the pressure gradient
+1.0   viscocity
+6     number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+0.5   ellipse major semi-axis
+0.2   ellipse minor semi-axis
+
+64    Number of elements around the ellipse

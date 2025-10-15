@@ -1,0 +1,57 @@
+1 2   Ioctaicos: 1 for octahadron, 2 for icosahedron
+1 0              Ndiv
+
+1 2 1           Ishape: 1 for spheroid, 2 for RBC
+1.00            req: capsule equivalent radius
+1.0 1.0         capsule axes ratios: b/a c/a
+0.0  0.0  0     cxp, cyp, czp: coordinates of the center
+0.00 0.00 0.0  angles: phix, phiy,phiz (in muliples of pi)
+
+6               Gauss-triangle 
+6               Gauss_Legendre
+
+1               Iflow
+
+-1.5             wall:   y position of wall
+
+1.0 0.0 0.0     triply-periodic flow: first base vector
+0.0 1.0 0.0     triply-periodic flow: second base vector
+0.0 0.0 1.0     triply-periodic flow: third base vector
+2 2             Max1 Max2
+
+1.0             shear rate
+
+1.0             vs1: viscosity of the ambient fluid
+1.0 5.0         vs2: viscosity of the capsule fluid
+
+0.0         Surface tension
+
+20.00        Modulus of elasticity
+00.75        Bending modulus of elasticity
+00.00        mean curvature of the reference shape
+
+90            solving the integral equation: max iter
+0.000001      solving the integral equation: tolerance
+0             Idfl:    Deflation enabled ?
+
+0 1         Iread from file: caps_3d.inp ?
+
+0            Normalize volume ?
+1            Isym_xy
+
+1        IRK
+0.005 0.0005      Dt: time step
+
+20          Nprint_xy
+50          Nprint_xyz
+
+0      Move: points move with total (0) or normal (1) velocity
+
+500        Number of steps
+0          STOP-STOP
+
+--------------------------------------------------
+Legend:
+
+Iflow: 1  flow in free space
+       2  flow bounded by a plane wall at y = wall

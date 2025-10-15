@@ -1,0 +1,10 @@
+1.0       viscosity
+1.0       density 
+6         number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+0.5       tube radius 
+0.0 0.0   shifted origin of particular solution
+
+0.9      wall velocity amplitude
+2.0      angular frequency
+
+16 1.00   number of elements, ratio of element lengths

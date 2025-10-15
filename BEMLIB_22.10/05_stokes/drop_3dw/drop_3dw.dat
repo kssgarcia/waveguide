@@ -1,0 +1,35 @@
+3 2 0         ndiv
+
+1.0       Drop equivanet radius
+0.750      contact angle in multiples of pi
+
+13        Gauss-triangle 
+6         Gauss_Legendre (for singular elements)
+21        Gauss-disk
+
+1.0       shear rate
+
+1.00      viscosity of ambient fluid
+0.5 1.00 0.2 1.00      viscosity of drop
+
+20.0 10.0   tinit:  initial surface tension
+
+40        solving the integral equation: maximum iterations
+0.001     solving the integral equation: tolerance
+0         Idfl     deflation ?
+
+0         Iread: from file: drop_3dw.inp
+
+0         Normalize volume ?
+1         Isym_xy
+
+2 1         Runge-Kutta: IRK
+0.005     Dt: time step
+
+20        Nprint_xy
+40        Nprint_xyz
+
+1 0         Move: total (0) or normal(1) velocity
+
+300       Number of steps
+0         STOP-STOP

@@ -1,0 +1,122 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{setspace}
+\usepackage{enumitem}
+\usepackage{lipsum} % para texto de ejemplo
+\usepackage{amsmath,amssymb}
+\usepackage{ulem} % para \uline
+\usepackage{fancyhdr}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{makeidx}  % Necesario para generar el índice
+\makeindex  % Habilita la creación del índice
+\usepackage{eso-pic}
+% Márgenes y paginación
+\usepackage[a4paper, left=2.5cm, right=2.5cm, top=2.5cm, bottom=2.5cm]{geometry} % 2024
+% Encabezados y pies
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\leftmark}
+\fancyhead[LO]{\rightmark}
+% Comandos para ponente subrayado en autores
+\newcommand{\ponente}[1]{\underline{#1}}
+\let\cleardoublepage\clearpage
+\begin{document}
+\cleardoublepage
+\begin{center}
+	\textbf{\LARGE{XI COLOQUIO DE MATEM\'ATICAS APLICADAS }}\\
+    {\Large Universidad Militar Nueva Granada, Colombia - 2025 \par}
+	\vspace{0.4cm}
+\end{center}
+\section*{Uso del operador de Dirichlet-a-Neumann para simular el comportamiento de una guía de onda plana con un obstáculo sólido}
+\addcontentsline{toc}{section}{}
+%
+\thispagestyle{plain}
+\vspace*{1cm}
+\begin{center}
+	{\large \ponente{Mar\'ia Isabel Romero R.}\textsuperscript{1}, \ponente{Alejandro Garz\'on L.}\textsuperscript{2}, Kevin Santiago Sep\'ulveda G.\textsuperscript{3}}\\[1em]
+\end{center}
+
+\footnotetext[1]{Universidad Militar Nueva Granada, Colombia. \texttt{maria.romeror@unimilitar.edu.co}}
+\footnotetext[2]{Universidad Militar Nueva Granada, Colombia. \texttt{alejandro.garzon@unimilitar.edu.co}}
+\footnotetext[2]{Universidad Militar Nueva Granada, Colombia. \texttt{kevin.sepulveda@unimilitar.edu.co}}
+
+\noindent\textbf{Resumen:}\\
+El estudio de modos normales en guías de onda resulta de gran relevancia en diversos problemas físicos, tales como la dinámica de fluidos, el electromagnetismo y la acústica. De especial inter\'es son los modos atrapados asociados a obst\'aculos en la guía de onda. Se definen como soluciones estacionarias que permanecen confinadas dentro de una región limitada sin propagarse hacia el infinito, pudiendo llegar a generar fenómenos de resonancias con posibles implicaciones en la integridad estructural. Cuando el obstáculo posee simetría respecto al eje horizontal es bastante conocida su existencia (Zhevandrov, 2021).
+
+En esta ponencia se presentar\'an los resultado obtenidos anal\'iticamente para una guía de onda cuántica expuestos en (Zhavandrov, 2025), donde se construyeron soluciones exactas y se demostró la unicidad del modo discreto, su analiticidad respecto  a un par\'ametro peque\~no que determina el tama\~no del obst\'aculo y la existencia del modo imbuído bajo simetría vertical. Adem\'as se contrastar\'an estos resultados anal\'iticos con simulaciones num\'ericas realizadas mediante el m\'etodo de elementos finitos en un dominio acotado que contiene al obst\'aculo. Para simular la continuaci\'on de la gu\'ia de onda infinita fuera del dominio, se usa el operador Dirichlet-a-Neumann que relaciona la soluci\'on num\'erica con la soluci\'on anal\'itica fuera del dominio.
+
+\medskip
+\noindent\textbf{Palabras Claves}: Gu\'ias de onda, ecuaci\'on de Helmholtz, elementos finitos, operador Dirichlet-Neumann
+
+\vspace{1em}
+\noindent\textbf{Introducción}\\
+La din\'amica del campo de inter\'es $p$ (presi\'on, campo electromagn\'etico, amplitud de probabilidad, etc.) dentro de una gu\'ia de onda es gobernada por la ecuaci\'on de onda
+\begin{equation}
+  \label{eq:1}
+  \frac{\partial^2 p}{\partial t^2} = c^2\nabla^2 p,
+\end{equation}
+que, en el caso de dependencia temporal arm\'onica $p(t,\mathbf{x}) = e^{i\omega t}u(\mathbf{x})$, se reduce a la ecuaci\'on de Helmholtz
+\begin{equation}
+  \label{eq:2}
+  \nabla^2 u + k^2 u = 0,
+\end{equation}
+donde $k = \omega/c$ es el \textit{n\'umero de onda}. En este trabajo, buscamos soluciones de la ecuaci\'on de Helmholtz (modos normales) en una gu\'ia de onda infinita bidimendional con un obst\'aculo (Fig. 1), con condiciones de frontera de Neumann homog\'eneas sobre la frontera del obst\'aculo $\Gamma$,
+\begin{equation}
+  \label{eq:3}
+  \frac{\partial u}{\partial n} = 0~~\textrm{en}~\Gamma
+\end{equation}
+y condiciones de Dirchlet homog\'eneas sobre las fronteras inferior y superior de la gu\'ia.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=8cm]{./waveguide_rectangle_obstacle.pdf}
+  \caption{Gu\'ia de onda infinita bidimensional con un obst\'aculo (tri\'angulo). Para la souci\'on num\'erica, la gu\'ia de onda se divide en tres regiones: $\Omega_L$, $S^-$, y $S^+$.} 
+  \label{fig:waveguide}
+\end{figure}
+
+\vspace{1em}
+\noindent\textbf{Metodolog\'ia}\\
+En principio, un m\'etodo num\'erico no puede aplicarse directamente a un dominio no acotado debido a que la discretizaci\'on de dicho dominio producir\'ia un n\'umero infinito de variables que no podr\'ian almacenarse en la memoria de un computador. Sin embargo, para la ecuaci\'on de Helmholtz, existe una manera de simular la gu\'ia de onda infinita usando solo el dominio acotado $\Omega_L$ de puntos tales que $-L < x < L$ (Fig. 1). En (Chesnel, 2025) e (Ihlenburg, 1998) se muestra que el problema original en la gu\'ia de onda infinita es equivalente al problema restrigido a $\Omega_L$ con las siguientes condiciones de frontera en los bordes derecho $(x=L)$ e izquierdo $(x=-L)$ de $\Omega_L$,
+\begin{equation}
+  \label{eq:4}
+  \frac{\partial u}{\partial n} = \Lambda(u)~~\mathrm{en}~x = \pm L,
+\end{equation}
+donde $\Lambda$ es el operador Dirichlet-a-Neumann que usa la soluci\'on anal\'itica en los puntos con $x>L$ o $x < -L$ ($S^+$ o $S^-$ en la Fig. 1) para calcular la derivada normal $\partial u/\partial n$. En este trabajo se us\'o el m\'etodo de elementos finitos para resolver num\'ericamente el problema equivalente restringido a $\Omega_L$.
+
+\vspace{1em}
+\noindent\textbf{Conclusión}\\
+Se calcularon anal\'iticamente modos atrapados en gu\'ias de onda bidimensionales infinitas con un obst\'aculo. Se estableci\'o una cota para la ubicaci\'on del obst\'aculo, que garantiza la existencia de un modo atrapado. Dicha cota a la vez depende de la forma del obst\'aculo, descrita por un vector de dipolo. Estos resultados anal\'iticos se compararon con simulaciones num\'ericas realizadas mediante el m\'etodo de elementos finitos en un dominio acotado, con una condici\'on de frontera que usa el operador Dirichlet-a-Neumann, para simular una gu\'ia infinita.
+
+\vspace{1em}
+\noindent\textbf{Agradecimientos}\\
+A la vicerrectoría de Investigaciones de la Universidad Militar Nueva Granada, IMP CIAS 4084.
+
+\vspace{1em}
+\noindent\textbf{Bibliografía}
+\begin{itemize}[leftmargin=1.5em]
+  \item P. Zhevandrov, A. Merzon, M.I. Romero Rodr\'iguez, and J.E. De la Paz M\'endez. \textit{Trapped modes and resonances for thin horizontal cylinders in a two-layer fluid}. Wave Motion, \textbf{106} 102800, 2021.
+  
+  \item P. Zhevandrov, A. Merzon, M.I. Romero Rodr\'iguez, and J.E. De la Paz M\'endez. \textit{Discrete and embedded trapped modes in a plane quantum waveguide with a small obstacle: exact solutions}. Acta Applicandae
+    Mathematicae, \textbf{196}(8), 1--31, 2025.
+
+  \item F. Ihlenburg, \textit{Finite element analysis of acoustic scattering}. Springer,
+1998.
+
+\item L. Chesnel.\textit{A few techniques to achieve invisibility in waveguides}.\\
+  {\tt http://www.cmapx.polytechnique.fr/\textasciitilde chesnel/Documents/Waveguides\_Invisibility.pdf}. Accessed: 2025-08-22.
+  
+\end{itemize}	
+\end{document}
+
+La teoría de los modos atrapados en guías de onda resulta de gran relevancia en diversos problemas físicos, tales como la dinámica de fluidos, el electromagnetismo y la acústica.
+
+La aparición de modos atrapados está asociada a perturbaciones en la guía de onda. Se definen como soluciones estacionarias que permanecen confinadas dentro de una región limitada sin propagarse hacia el infinito, pudiendo llegar a generar fenómenos de resonancias con posibles implicaciones en la integridad estructural. Cuando el obstáculo posee simetría respecto al eje horizontal es bastante conocida su existencia (Zhevandrov, 2021).
+
+Los resultados que se presentan en esta ponencia corresponden justamente a los obtenidos para una guía de onda cuántica expuestos en~\cite{zhevandrov2021a}\, donde se construyeron soluciones exactas y se demostró la unicidad del modo discreto, su analiticidad respecto  a los parámetros \(\varepsilon\), \(\varepsilon \ln \varepsilon\) y la existencia del modo imbuído bajo simetría vertical.
+
+Además se plantea el problema numérico para cuando la guía de onda es finita.

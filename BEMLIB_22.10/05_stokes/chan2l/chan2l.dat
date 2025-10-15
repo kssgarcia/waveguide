@@ -1,0 +1,53 @@
+1.0   h:    walls are located at y=+-h
+0.0   th0: inclination angle (in multiples of pi)
+
+6.0 4.0 97 6.28318  	L:    period
+
+-0.333333333    y0:   y position of the unperturbed interface
+
+0.10     a0: initial amplitude of the interface
+0.00     ph0: initial phase shift of the interface
+
+0.50 | 0.24528 (pi8) 0.143735 (pi4) 0.08325 (pi2) 0.05  a0c:  amplitude of the surf conc
+0.0 1.25 | 0.5893676 (pi8) 0.57630 (pi4) 0.5672735 (pi2) 1.0   ph0c: phase shift of surf conc
+
+1.0  1.0  rho1 rho2
+1.0  0.5  vs1 vs2
+
+1.00  tinit: initial surface tension
+1.00  cinit: initial Gamma
+
+0.5 0.6666   beta
+0.001        Ds: surfactant diffusivity
+
+-1.0  	V1
+ 1.0  	V2
+
+0.0  	pressure drop over one period (positive)
+
+0.0  	gac: gravity
+
+6       NGL: Gauss--Legendre quadrature
+
+48     	NSG: number of interfacial segments
+0.05   	Dt:   time step
+100    Nstep:  will stop after Nstep steps
+50.0    tend: final time
+
+20    Nprint:  will print a profile after Nprint steps
+
+1  Iread:  1 to generate, 2 to read from file: chan2l.inp
+
+0    Move: 0 for total, 1 for normal velocity
+
+1 0.25   Thmax: max angle subtended by an arc
+1 0.05   SPmin: min point separation
+1 0.20   SPmax: max point separation
+1 -0.55 0.55   thresholds
+
+
+Legend
+------
+
+method = 1	for central differences in conservation law
+         2	for backward (upwind) differences 

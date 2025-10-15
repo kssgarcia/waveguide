@@ -1,0 +1,7 @@
+1.3    RL
+10 2   Nsum Np
+
+0.0 0.9   x0, y0
+64  number of integration points
+0.1 1.1   xc yc of the circle
+0.5       circle radius

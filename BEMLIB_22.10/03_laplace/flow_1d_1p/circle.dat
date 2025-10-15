@@ -1,0 +1,8 @@
+1.0    shear rate
+1.0    viscosity
+6      number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+0.25   tube radius 
+1.0    period
+
+120 1.00     number of elements, ratio of element lengths
+

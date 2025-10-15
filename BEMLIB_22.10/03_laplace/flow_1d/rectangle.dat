@@ -1,0 +1,11 @@
+1.0   negative of the pressure gradient
+1.0   viscocity
+6     number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+1.0   semi-length of horizontal side
+0.5   semi-length of vertical side
+
+32 5.0  right  side: number of element and stretch ratio
+32 5.0  top    side: number of element and stretch ratio
+32 5.0  left   side: number of element and stretch ratio
+32 5.0  bottom side: number of element and stretch ratio
+

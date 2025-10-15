@@ -1,0 +1,5 @@
+-1.0       wall
+0.1 0.9   x0, y0
+64        number of integration points
+0.2 1.1   xc yc of the circle
+0.8       circle radius

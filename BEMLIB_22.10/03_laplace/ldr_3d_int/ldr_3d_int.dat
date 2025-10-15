@@ -1,0 +1,17 @@
+2     Ioctaicos: 1 for octahadron, 2 for icosahedron
+1 0             Ndiv
+
+0.5 0.10       b/a and c/a
+1.0           equivalent radius
+0.0 0.0 0.0   center
+
+7             mint
+6             NGL
+
+10            Number of iterations
+0.0000001     tolerance
+
+1             Iflow (1 for free space, 2 for wall)
+
+-0.8         Ign for Igf=2: wall
+1            Ign for Igf=2: Dirichlet (1) or Neumann (2)

@@ -1,0 +1,10 @@
+0    1.0    Viscosity of the drops
+0    1.0    Density of the drops
+0    0.306   Initial surface tension: tinit
+0    0.0   Initial concentration of surfactant
+0    0.0   Surfactant diffusivity: Diff
+0    0.0   Surfactant sensitivity: beta
+0    0.0   Interfacial elasticity
+
+
+When first index is 0, the properties are uniform

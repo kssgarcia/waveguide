@@ -1,0 +1,101 @@
+1 2      Iflow (see Legend)
+
+1.0    rho1:  density of the ambient fluid
+1.0    rho2:  density of the drop
+
+1.00   viscosity of ambient fluid
+0.50   viscosity of the drop
+
+1.0    initial surfactant concentration
+5.00 10.00 17.987534    initial surface tension
+
+0.4    surfactant diffusivity
+0.0    surfactant sensitivity beta
+
+0.0    interface elasticity modulus
+
+1.0    gravitational acceleration
+0.00   inclination angle theta_0 (in multples of pi)
+
+1      Integral equation: Enter 1 for direct solution,
+                                2 for iterative solution
+0.000000001 Iteration tolerance
+200      Maximum number of iterations
+2       Deflation enabled ?  (0 for no, 1 for partial, 2 for total)
+1       Iteration index: 1 for Jacobi, 2 for Gauss Siedel
+
+1.0     Shear rate         
+-1.0    Channel flow: Lower wall velocity
+1.0     Channel flow: Upper wall velocity
+1.0     Channel flow: Pressure gradient for Poiseuille flow
+
+0.00    first parameter of straining flow
+0.00    second parameter of straining flow
+
+1.0     roexp: rate of expansion
+1       mexp: method of solution
+0       mexp_foam: method of solution (KEEP AT 0)
+
+-1.5    y location of a wall
+
+1.0     h (channel semi-width)
+05      N truncation limit for summing of the channel Green's function
+1       For the channel Green's function (IQPD): 1 for zero flow rate
+                                                 0 for zero dp/dx
+1 0    Ising: designularization of the single-layer and double-layer
+6      Number of Gauss Legender quadrature points: 1,2,3,4,5,6,12,20
+
+0.25   Thmax: max angle subtended by an arc
+0.02   SPmin: min point separation
+0.20   SPmax: max point separation
+
+2.5    A file of drops: Period L
+
+0      Iread: 0 to generate, 1 to read initial shapes
+
+1          Ishape: shape index
+
+1.0        Drop axes ratio
+1.0 0.2 1.0 0.454545       req: Drop Equivalent Radius
+0.50 0.50  wobliness parameters awob,bwob
+
+0.0   Drop center xc
+0.0   Drop center yc
+
+16     NSG: number of segments
+
+1.0 0.0   a11, a12   First lattice vector
+0.50 0.866025404 0.0 1.0   a21, a22   Second lattice vector
+0         0 for direct computation; 1 for interpolation
+2 2       Max1 Max2
+
+0      Isym: 0 or 2
+0      Iadjust: flag for adjusting the time step (0,1,2)
+0.0    adjustment constant
+
+0      Normalize the drop area ? (0 for NO, 1 for Yes)
+
+50     Nprint (will print a profile after Nprint steps)
+
+2     Runge-Kutta (1 or 2)
+0.01  Dt    time step
+0     Move  (0 for total velocity, 1 for normal velocity
+
+200  Nstep   batch 1 number of steps
+0    Nstep   batch 2 number of steps:  STOP-STOP-STOP-STOP
+
+
+LEGEND
+------
+IFLOW:  0  no   
+        1  a solitary drop in straining flow 
+        2  a solitary drop in simple shear flow 
+        5  doubly-periodic array of drops in simple shear flow 
+        6  doubly-periodic expanding foam
+        10 solitary drop above a wall in ssf
+        11 a 1-periodic array of drops above a wall in simple shear flow
+        20 a 1-periodic array of drops in a channel: Couette flow 
+        21 a 1-periodic array of drops in a channel: Poiseuille flow 
+
+IMOVE = 0 move with total  velocity
+        1 move with normal velocity

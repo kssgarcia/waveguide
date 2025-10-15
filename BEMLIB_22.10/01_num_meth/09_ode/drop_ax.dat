@@ -1,0 +1,9 @@
+-1           sessile (1) or pendant (-1)
+1.0          acceleration of gravity
+3.0 0.3          surface tension
+1.0 0.4          drop density
+0.00         ambient fluid density
+1.0 0.36         drop volume
+0.5  0.75 0.25 0.5 0.90         contact angle, in multiples of pi
+32           number of points
+0.01         epsilon for shooting

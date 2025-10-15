@@ -1,0 +1,8 @@
+filename      a      epsilon    M
+-----------------------------------
+circle_k2_1   0.6    1e-1       32
+circle_k2_2   0.6    1e-2       32
+circle_k2_3   0.6    1e-3       32
+circle_k2_4   0.6    0.03162    32
+circle_k2_5   0.6    3.162e-3   32
+

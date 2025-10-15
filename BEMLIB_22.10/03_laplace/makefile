@@ -1,0 +1,40 @@
+all:
+	cd body_2d; make all
+	cd body_ax; make all
+	cd flow_1d; make all
+	cd flow_1d_1p; make all
+	cd flow_2d; make all
+	cd ldr_3d; make all
+	cd ldr_3d_ext; make all
+	cd ldr_3d_int; make all
+	cd lgf_2d; make all
+	cd lgf_3d; make all
+	cd lgf_ax; make all
+	cd lnm_3d; make all
+	cd tank_2d; make all
+clean:
+	cd body_2d; make clean
+	cd body_ax; make clean
+	cd flow_1d; make clean
+	cd flow_1d_1p; make clean
+	cd flow_2d; make clean
+	cd ldr_3d; make clean
+	cd ldr_3d_ext; make clean
+	cd ldr_3d_int; make clean
+	cd lgf_2d; make clean
+	cd lgf_3d; make clean
+	cd lgf_ax; make clean
+	cd lnm_3d; make clean
+	cd tank_2d; make clean
+purge:
+	cd body_2d; make purge
+	cd body_ax; make purge
+	cd flow_1d; make purge
+	cd flow_1d_1p; make purge
+	cd flow_2d; make purge
+	cd ldr_3d; make purge
+	cd lgf_2d; make purge
+	cd lgf_3d; make purge
+	cd lgf_ax; make purge
+	cd lnm_3d; make purge
+	cd tank_2d; make purge

@@ -1,0 +1,20 @@
+1.0    viscosity
+
+6      NGL
+
+1.0 0.0   Uprtcl:     particle translational velocity along the x axis
+0.0 1.0   Uinf:       velocity of incident flow
+
+1.0   wall:       wall is located at x = wall
+
+0.0 1.03  pg:         pressure drop per period
+1.0 0.92  sc:         tube radius
+2.0   L:         period
+5     Nsum:       for sgf_ax_1p_ct
+2     Np:         for sgf_ax_1p_ct
+
+1  Precondition system
+1  Reduce system
+
+299       Maximum number of iterations
+0.000001 Pointwise iteration tolerance

@@ -1,0 +1,11 @@
+1.0            viscosity
+6        	Gauss Legendre
+ 0.2  0.40      coordinates of first point
+ 0.0  0.10      coordinates of second point
+-0.5  0.70      coordinates of third point
+ 1.0           Omega
+
+16 5.0
+16 5.0
+16 5.0
+

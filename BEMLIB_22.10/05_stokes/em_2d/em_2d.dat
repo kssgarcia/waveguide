@@ -1,0 +1,70 @@
+20      Iflow (see Legend)
+
+1.0    rho1: density of the ambient fluid
+1.0    vs1: viscosity of the ambient fluid
+
+0.0    magnitude of the acceleration of gravity
+0.00   theta_0: channel inclination angle (in mult of pi)
+
+2      1 for direct, 2 for iterative solution
+
+0.00001  iteration tolerance
+90      Max Iter
+1       Deflation enabled ? (enter 0, 1, or 2)
+1       Jacobi (1) or Gauss Siedel (2)
+
+1.0     Shear or extensional rate
+1.0    -1.0  U1, U2
+0.0     Pressure gradient for Poiseuille flow
+
+-0.4     semi-infintie flow: wall position: y = wall
+
+1.0     channel flow: h (channel semi-width)
+20      N for Summation of the Green's function NGFww
+1       For the Green's function (IQPD): 1 for zero flow rate
+                                         0 for zero dp/dx
+1 0    ISING for single-layer and double-layer
+6      NLG
+
+0.20     Thmax
+0.01     SPmin
+0.02     SPmax
+
+1.0 0.0   a11, a12   First lattice vector
+0.0 1.0   a21, a22   Second lattice vector
+0         Iglut: compute sgf (0) or interpolate (1)
+2 2       Max1 Max2
+
+1.0   singly-periodic flow: L (period)
+
+0     Iread  (0 to generate, 1 to read data)
+
+1     Ishape (1 elliptical, 2 wobbly)
+
+0     Norm: NORMALIZE AREA ?
+
+20    NPRINT
+
+1     RUNGE
+0.01  Dt
+0     MOVE
+
+1000  NSTEPS
+0   0                              STOP-STOP-STOP-STOP
+0   0                              STOP-STOP-STOP-STOP
+0   0                              STOP-STOP-STOP-STOP
+
+-------------------------------------------------------
+LEGEND
+------
+IFLOW:  
+         1  solitary drop in straining flow 
+         2  solitary drop in simple shear flow 
+         5  doubly-periodic array of drops in simple shear flow 
+         10 solitary drop above a wall in ssf
+         11 periodic array above a wall in ssf
+         20 channel flow
+
+IMOVE = 0 move with total  velocity
+        1 move with normal velocity
+

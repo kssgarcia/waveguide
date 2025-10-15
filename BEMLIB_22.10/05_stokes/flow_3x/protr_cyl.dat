@@ -1,0 +1,16 @@
+cylindrical protrusion on a wall
+
+1.0      viscosity
+0.0      shear rate
+1.0      delta: pressure gradient
+6        Gauss Legendre
+1.0      height
+0.5      radius
+
+16 0.2      NE_top, RT_top  (top)
+32 5.0      NE_side, RT_side  (side)
+32 4.0 5.0  NeW  RTW  truncated wall
+16 0.2      Ne_base RT_base
+
+1.0          x   upper wall
+32 5.0 1.0   NeU, RTU, upper wall

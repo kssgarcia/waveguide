@@ -1,0 +1,62 @@
+1  Iflow: choose from 1 (free space) 2 (wall) 3 (3p)
+
+1 2 1   Ioctaicos: 1 for octahadron, 2 for icosahedron
+2 3 2   ndiv: discretization lebel
+
+1.00            req: drop equivalent radius
+1.0 1.0         drop axes ratios: b/a c/a
+0.0  0.0  0     cxp, cyp, czp: coordinates of the center
+0.00 0.00 0.00  phix, phiy, phiz: inclination angles (in muliples of pi)
+
+6               Gauss--triangle 
+6               Gauss--Legendre
+
+-1.5      wall:   y position of wall
+
+1.0 0.0 0.0     triply-periodic flow: first base vector
+0.0 1.0 0.0     triply-periodic flow: second base vector
+0.0 0.0 1.0     triply-periodic flow: third base vector
+2 2             Max1 Max2
+
+1.0  shrt: shear rate
+
+1.0   viscosity of the ambient fluid
+1.0 0.10  drop viscosity 
+
+5.00 6.666666666 5.00 10.00 5.00 4.166666  tinit: initial surface tension
+1.0  cinit: initial surfactant concentration
+
+0.001   D_s: surfactant diffusivity
+
+1 2   surfactant equation of state:  Isurf (1 for Henry, 2 for Langmuir)
+0.2 0.0 0.5 0.2   beta_s: surface elasticity
+0.5   psi for Langmuir
+
+1 2  Surfactant method: 1 for FVM, 2 for FEM
+
+2000       Max iterations in solving the integral equation
+0.000001   tolerance in solving the integral equation
+0 1        Idfl:    Deflation enabled ?
+
+0     Iread: Read from file: drop_3d.inp ? 1 for Yes
+
+0     Normalize volume ?
+1 0     Isym_xy
+
+2           IRK: 1 or 2
+0.01 0.0125     Dt: time step
+
+1 0    Move: total (0) or normal(1) velocity
+
+10  Nprint_xy
+20  Nprint_xyz
+
+200    Number of steps
+0      STOP-STOP
+
+--------------------------------------------------
+Legend:
+
+Iflow: 1  flow in free space
+       2  flow bounded by a plane wall at y = wall
+       3  for triply periodic flow 

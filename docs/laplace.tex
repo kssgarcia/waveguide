@@ -1,0 +1,130 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+% \usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath, amssymb}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+% \decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\newcommand{\wt}[1]{\widetilde{#1}}
+\newcommand{\ol}[1]{\overline{#1}}
+
+\begin{document}
+\begin{center}
+{\Large Solution of the Laplace equation on an exterior domain}
+\end{center}
+
+Reference \cite{zhevandrov2025discrete} presents the calculation of the trapped modes of a waveguide with an obstacle. The methodology presented in \cite{zhevandrov2025discrete} relies on the solution of an auxiliary problem: identifying the velocity potential produced by an uniform fluid flow around the obstacle. The results of \cite{zhevandrov2025discrete} are presented in terms of the two cartesian componentes of the dipole moments associated to the velocity potential over the boundary of the obstacle. Therefore, to compute those dipole moments, first we need to find the potential over the boundary. Here, we present a methodology to do so.
+
+If a fluid is inviscid, irrotational, and incompressible, the velocity field ${\bf v}({\bf x})$ can be compute as the gradient of a scalar field $\phi({\bf x})$ (the velocity potential),
+\begin{equation}
+  \label{eq:1}
+  {\bf v} = \nabla\phi.
+\end{equation}
+Moreover, the velocity potential must satisfy Laplace's equation
+\begin{equation}
+  \label{eq:2}
+  \nabla^2\phi = 0.
+\end{equation}
+The potential $\phi$ is the sum of two contributions: the potential associated to the uniform flow $\phi^\infty$ and the disturbance potential $\phi^D$ produced by the presence of the obstacle,
+\begin{equation}
+  \label{eq:3}
+  \phi = \phi^\infty + \phi^D.
+\end{equation}
+Over the boundary of the obstacle, the potential must obey the impenetrability condition
+\begin{equation}
+  \label{eq:4}
+  \frac{\partial\phi}{\partial n} = 0,
+\end{equation}
+which implies that the disturbance potential must satisfy the nonhomogeneous Neumann boundary condition
+\begin{equation}
+  \label{eq:5}
+  \frac{\partial\phi^D}{\partial n} = -\mathbf{n}(\mathbf{x})\cdot{\bf u},
+\end{equation}
+where ${\bf u} = \nabla\phi^\infty$ is the velocity of the uniform flow.
+
+It can be shown \cite{pozrikidis2002practical} that, for a point $\mathbf{x}_0$ outside the boundary of the obstacle, the solution admits the integral representation
+\begin{align}
+\phi^{D}(\mathbf{x}_0) = 
+& - \int_{C} G(\mathbf{x}_0, \mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla \phi^{D}(\mathbf{x}) \right] \, dl(\mathbf{x}) \nonumber \\
+& + \int_{C} \phi^{D}(\mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}_0, \mathbf{x}) \right] \, dl(\mathbf{x}) ,\label{eq:6}
+\end{align}
+where the integration is performed over the obstacle boundary $C$ and $G(\mathbf{x}_0,\mathbf{x})$ is the Green's function,
+  \begin{equation}
+    \label{eq:7}
+   G(\mathbf{x}_0,\mathbf{x}) = -\frac{1}{2\pi}\ln{|\mathbf{x}-\mathbf{x}_0|}.
+  \end{equation}
+  For a point $\mathbf{x}_0$ over the boundary of the obstacle, a factor of two must be included in the corresponding integral equation,
+  \begin{align}
+\phi^{D}(\mathbf{x}_0) = 
+& - 2\int_{C} G(\mathbf{x}_0, \mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla \phi^{D}(\mathbf{x}) \right] \, dl(\mathbf{x}) \nonumber \\
+& + 2\int_{C} \phi^{D}(\mathbf{x}) 
+\left[ \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}_0, \mathbf{x}) \right] \, dl(\mathbf{x})\label{eq:7}.  \end{align}
+
+Equation \eqref{eq:7} can be solved numerically by choosing a set of points (nodes) over the boundary $C$ and approximating $C$ in between two consecutive nodes by a straight line segment (other options are circular arcs of cubic splines), called a boundary element. The integrals in \eqref{eq:7} then become summations of integrals over the elements and the unknown $\phi^D$ is supposed to be constant over each element. The resulting expression is
+\begin{align}
+\phi^{D}_{j} 
+&- 2 \sum_{i=1}^{N} \phi^{D}_{i} 
+   \int_{E_i} \mathbf{n}(\mathbf{x}) \cdot \nabla G(\mathbf{x}, \mathbf{x}^{M}_{j}) \, dl(\mathbf{x}) \nonumber \\
+&= 2 \sum_{i=1}^{N} 
+   \mathbf{u} \cdot \mathbf{n}^{(i)} 
+   \int_{E_i} G(\mathbf{x}, \mathbf{x}^{M}_{j}) \, dl(\mathbf{x}) ,~~j=1,2,\ldots,N,\label{eq:8}
+\end{align}
+where $N$ is the number of elements, $\phi^D_j$ is the disturbance potential at the midpoint $\mathbf{x}^M_j$ of the $j$-th element. Equation \eqref{eq:8} is an algebraic linear system that can be solved numerically to find the unknown $\phi^D_j$, $j=1,2,\ldots,N$. The details of this procedure, known as the Boundary Element Method, can be found in Ref. \cite{pozrikidis2002practical}. Figure \ref{fig:stream} shows the streamlines [lines tangent to the velocity field $\mathbf{v}(\mathbf{x})$] of the flow computed by this method for a rectangular obstacle. Each side of the rectangle is divided into 16 elements. The velocity is tangential to the obstacle boundary [in agreement with impenetrability condition \ref{eq:4}] and becomes uniform far from the obstacle as expected.
+
+\begin{figure}[h]
+  \centering
+      \includegraphics[width=16cm]{../figures/stream.pdf}
+  \caption{Streamlines of the flow computed by the boundary element method for a rectangular obstacle. The nodes are shown over the rectangle.}
+  \label{fig:stream}
+\end{figure}
+  
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+ \end{document}
+
+  

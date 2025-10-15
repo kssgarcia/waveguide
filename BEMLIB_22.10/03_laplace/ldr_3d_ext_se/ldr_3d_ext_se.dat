@@ -1,0 +1,28 @@
+2     Ioctaicos: 1 for octahadron, 2 for icosahedron
+0 1   ndiv
+
+1.0 1.0       b/a and c/a
+1.0           equivalent radius
+0.0 0.0 0.0   center coordinates
+
+1             intm: integration method: 1 for quadrature, 2 for rule
+12 9             mint
+
+0.5           beta_ps: point source coefficient
+
+0.0 0.0 0.0   coordinates of the point source
+
+20            Number of iterations in a batch
+0.0000000001      accuracy
+
+2             Igf (1 for free space, 2 for wall)
+
+-1.5     for Iflow=2: wall
+1        for Iflow=2: Idn=1 for Dirichlet, 2 or Neumann 
+
+4         mpoly
+1     0 for evenly spaced, 1 for Lobatto
+
+-------------------
+
+0.4 0.2 0.3   coordinates of the point source

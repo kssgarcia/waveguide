@@ -1,0 +1,39 @@
+2       1 for expansion, 2 for tangential motion
+
+2    Ioctaicos: 1 for octahadron, 2 for icosahedron
+2               Ndiv
+
+1.00            req: Drop equivalent radius
+1.0 1.0         Drop axes ratios: b/a c/a
+0.0  0.0  0     Coordinates of the center: cx, cy, cz
+0.00 0.00 0.00  angles: phix, phiy,phiz (in muliples of pi)
+
+6               Gauss-triangle 
+
+1.0  cinit: initial surfactant concentration
+
+0.01   D_s: surfactant diffusivity
+
+1 2   Ismeth: 1 for finite-volume, 2 for finite-element
+
+1           Isym_xy
+
+0.02     Dt: time step
+
+1 10           Nprint_xy
+20           Nprint_xyz
+
+1 0        Move: 0 for total, 1 for normal velocity
+
+1.0    V_inf
+32     Ndiv
+
+10 200          Number of steps
+0            STOP-STOP
+
+
+--------------------------------------------------
+Legend:
+
+Iflow: 1  flow in free space
+       2  flow bounded by a plane wall at y = wall

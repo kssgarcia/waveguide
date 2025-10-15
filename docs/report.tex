@@ -1,0 +1,308 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+% \usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+% \decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+\synctex=1
+
+\begin{document}
+\begin{center}
+{\Large Waveguides with obstacles}
+\end{center}
+In this work, we will compute numerically the solutions of the Helmholtz equation for a waveguide with an obstacle, identified analytically by the principal investigator (Mar\'ia I. Romero) and collaborators in Ref. \cite{zhevandrov2025discrete}.
+
+The study of waveguides with obstacles is relevant in areas such as the reconstruction of obstacle shapes from scattering data \cite{gao2023bayesian} which is of interest in geophysics, optics and ultrasonic testing. Another topic of interest is the invisibility of obstacles (also known as cloaking) in waveguides \cite{chesnel2022acoustic,bera2021continuation,chesnel2018nonreflection}. This can be achieved with so-called metamaterials \cite{craster2024acoustic} or by manipulating the shape of regular materials \cite{chesnel2025tutorial}. Noise reduction \cite{cavalieri2019threedimensional,tajsham2025optimized}. Frequency filtering \cite{faiz2020experimental,jo2025electroelastically,wang2024enlargement}
+
+\section{The wave equation}
+We consider phenomena described by the two-dimensional wave equation
+\begin{equation}
+  \label{eq:1}
+  u_{tt}  = c^2\nabla^2u,
+\end{equation}
+where $c$ is the wave speed.
+
+The equation can be solved by the method of separation of variables, where the solution is written as the product of a function of time $w(t)$ and a function of space $v(x,y)$,
+\begin{equation}
+  \label{eq:2}
+  u(t,x,y) = w(t)v(x,y).
+\end{equation}
+Substituting \eqref{eq:2} into \eqref{eq:1} and dividing the resuting expression by $w(t)v(x,y)$, we arrive at
+\begin{equation}
+  \label{eq:3}
+  \frac{w''(t)}{w(t)} = c^2\frac{\nabla v(x,y)}{v(x,y)} = -\omega^2,
+\end{equation}
+where $\omega$ is a constant. Hence the function $w(t)$ is a solution of
+\begin{equation}
+  \label{eq:4}
+  w'' + \omega^2 w = 0,
+\end{equation}
+and $v(x,y)$ is a solution of the {\it Helmholtz equation}
+\begin{equation}
+  \label{eq:5}
+  \nabla^2 v + k^2 v = 0,
+\end{equation}
+where $k = \omega/c$.
+\subsection{Analytical solution}
+The wave equation has analytical solution in a rectagular domain spatial domain $0 \le x \le a$, $0 \le y \le b$ with different boundary conditions.
+
+\subsubsection{Dirichlet boundary conditions}
+Given an initial condition
+\begin{align}
+  u(0,x,y) &= f(x,y) \\
+  u_t(0,x,y) &= g(x,y).
+\end{align}
+and homogeneous Dirichlet boundary conditions
+\begin{align}
+  \label{eq:7}
+  u(t,x,0) &= u(t,x,b) = 0,~~0 \le x \le a \\
+  u(t,0,y) &= u(t,a,y) = 0,~~0 \le y \le b,
+\end{align}
+the solution is given by the Fourier series \cite{olver2014introduction}
+\begin{equation}
+  \label{eq:8}
+  u(t,x,y) = \sum_{m,n=1}^\infty\left[a_{m,n}\cos(\omega_{m,n}t) + b_{m,n}\sin(\omega_{m,n}t)\right]v_{m,n}(x,t).
+\end{equation}
+The functions $v_{m,n}(x,y)$ are solutions of the Helmholtz equation
+\begin{equation}
+  \label{eq:10}
+  v_{m,n}(x,y) = \sin\left(\frac{m\pi x}{a}\right)\sin\left(\frac{n\pi y}{b}\right),
+\end{equation}
+and
+\begin{equation}
+  \label{eq:12}
+  \omega_{m,n} = \pi\sqrt{\frac{m^2}{a^2} + \frac{n^2}{b^2}}.
+\end{equation}
+The coefficients can be computed as
+\begin{equation}
+  \label{eq:9}
+  a_{m,n} = \frac{\langle f, v_{m,n}\rangle}{\|v_{m,n}\|^2}~~\mathrm{and}~~
+  b_{m,n} = \frac{\langle g, v_{m,n}\rangle}{\omega_{m,n}\|v_{m,n}\|^2},
+\end{equation}
+with $\langle \cdot, \cdot \rangle$ denoting the inner product
+\begin{equation}
+  \label{eq:11}
+  \langle p,q \rangle = \int_0^a\int_0^b p(x,y)q(x,y) dx dy.
+\end{equation}
+Figure \ref{fig:dirich} shows the analytical solution (computed with a Python script) for $ a = b = 1$ and the initial condition
+\begin{align}
+  f(x,y) &= \exp\left(-100(x-1/2)^2 + (y-1/2)^2\right)\\
+  g(x,y) &= 0.     
+\end{align}
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=16cm]{../figures/analytical_dirichlet.pdf} 
+  \caption{\label{fig:dirich} Analytical solution of the wave equation}
+\end{figure}
+
+\subsubsection{Neumann boundary conditions}
+For homogeneous Neumann (no-flux) boundary conditions
+\begin{align}
+  u_x(t,x,0) &= u_x(t,x,b) = 0,~~0 \le x \le a \\
+  u_x(t,0,y) &= u_x(t,a,y) = 0,~~0 \le y \le b,  
+\end{align}
+the analytical solution has the form
+\begin{equation}
+  \label{eq:13}
+  u(t,x,y) = a_{0,0} + b_{0,0}t + \sum_{m + n \ge 1} \left[\cos(\omega_{m,n}t) + \sin(\omega_{m,n}t) \right] v_{m,n}(x,y),
+\end{equation}
+where
+\begin{equation}
+  \label{eq:6}
+  v_{m,n}(x,y) = \cos\left(\frac{m\pi x}{a} \right)\cos\left(\frac{n\pi y}{b} \right)
+\end{equation}
+and $\omega_{m,n}$ given by Eq. \eqref{eq:12} too. The coefficients can be calculated as
+\begin{equation}
+  \label{eq:14}
+  a_{m,n} = \frac{\langle f, v_{m,n} \rangle}{\|v_{m,n}\|^2}
+\end{equation}
+\begin{equation}
+  \label{eq:15}
+  b_{m,n} = \frac{\langle g, v_{m,n} \rangle}{\omega_{m,n}\|v_{m,n}\|^2}  
+\end{equation}
+with $v_{0,0}(x,y) = 1$.
+
+When the domain is one-dimensional and infinite (all of the real line), the wave equation has solutions consisting of waves that travel without changing its shape with constant speed $c$, $u(t,x) = f(x-ct)$ (this is proven by the theorem about d'Alembert's formula \cite{olver2014introduction}).  As an example, Fig. \ref{fig:f_tanh} shows the solution
+\begin{equation}
+  \label{eq:17}
+  u(t,x) = \frac{1}{2}\left(1-\tanh[2(x-ct)]\right)
+\end{equation}
+for $t=0$. Note that far from the transtion region around $x=0$, the solution satifies $u_x \approx 0$. Hence, if this function is restricted to a finite interval with no-flux boundary conditions, we expect its behavior to be preserved, as long as the transition region stays far from the boundaries. This is indeed the dynamics observed, as illustrated by Fig. \ref{fig:1D_neumann} that displays the one-dimensional analytical solution (computed with a Python script) on the finite interval $0 \le x \le 10$ for no-flux boundary conditions, $c=1$, and the initial condition
+\begin{subequations}
+  \label{eq:icond}
+\begin{align}
+  u(0,x) &= \frac{1}{2}\left(1-\tanh[2(x-2)]\right) \\
+  u_t(0,x) &= c\left(1-\tanh^2[2(x-2)]\right).
+\end{align}  
+\end{subequations}
+Note that for $0 \le t \le 0.6$, the wave propagates almost without changing its shape. Later, the wave gets reflected upward at the right boundary.
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=8cm]{../figures/f_tanh.pdf} 
+  \caption{\label{fig:f_tanh} Analytical solution of the wave equation defined by \eqref{eq:17}, $t=0$.}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=10cm]{../figures/wave_analytical_1D_neumann.pdf} 
+  \caption{\label{fig:1D_neumann} Analytical solution of the wave equation on a finite interval.}
+\end{figure}
+
+In two dimensions, the initial condition \eqref{eq:icond} corresponds to a wave with a wavefront parallel to the $y$-axis, that behaves in the same way as the one-dimensional solution. A more interesting case, is that where the wavefront is not parallel to the $y$ axis. If ${\bf n}$ is the unit vector normal to the wavefront, ${\bf n} = (\cos\theta, \sin\theta)$ with $\theta$ the angle between ${\bf n}$ and the $x$ axis, the initial condition is
+\begin{subequations}
+  \begin{align}
+    f(x,y) &= \frac{1}{2}\left(1-\tanh[2({\bf r}-{\bf r}_0)\cdot{\bf n}]\right) \\
+    g(x,y) &= c\left(1-\tanh^2[2({\bf r}-{\bf r}_0)\cdot{\bf n}]\right),
+  \end{align}
+\end{subequations}
+where ${\bf r}=(x,y)$ and ${\bf r}_0 = (x_0,y_0)$ is the pivot point of the wavefront. Figure \ref{fig:2D_neumann} depicts the solution for $\theta = 5^\circ$ (created with a Python script). Note that the straight line shape of the wavefront is distorted and the plateau behind the wavefront ($u \approx 1$) decreases near the lower boundary, $y=0$.
+
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=15cm]{../figures/wave_analytical_2D_neumann.pdf} 
+  \caption{\label{fig:2D_neumann} Analytical solution of the wave equation for Neumann boundary conditions}
+\end{figure}
+
+\subsection{Infinite domains}
+Infinite domains can be simulated by finite ones using non-reflecting boundary conditions based on the Dirichlet-to-Neumann operator (See \cite{oberai1998implementation}, Chapter 3 of \cite{ihlenburg1998finite}, and page 13 of \cite{chesnel2025tutorial}) or infinite elements (see Chapter 3 of \cite{ihlenburg1998finite}).
+
+\subsection{Finite differences solution}
+As a verification criterion for the analytical solutions, numerical solutions of the wave equation were computed by the method of finite differences. Figure \ref{fig:2D_fd_dirichlet} displays the finite differences solution of the wave equation (computed with a Python script) corresponding to the analytical solution shown in Fig. \ref{fig:dirich} for $y=1/2$ and $t=1$. Note the agreement between the two solutions.
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=8cm]{../figures/wave_fin_diff_2D_dirichlet.pdf} 
+  \caption{\label{fig:2D_fd_dirichlet} Finite differences solution of the wave equation for Dirichlet boundary conditions compared with the analytical solution.}
+\end{figure}
+
+Similarly, Figure \ref{fig:2D_fd_neumann} displays the finite differences solution of the wave equation (computed with a Python script) corresponding to the analytical solution shown in Fig. \ref{fig:2D_neumann} for $y=0$ and $t=7$. Note the agreement between the two solutions.
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=8cm]{../figures/wave_fin_diff_2D_neumann.pdf} 
+  \caption{\label{fig:2D_fd_neumann} Finite differences solution of the wave equation for Neumann boundary conditions compared with the analytical solution.}
+\end{figure}
+
+
+\subsection{Finite elements solution}
+
+\section{The Helmholtz equation}
+\subsection{Use of Green's functions in a waveguide with an obstacle}
+We compute the wave number $k$ of trapped modes of the Helmholtz equation
+\begin{equation}
+  \label{eq:16}
+  \nabla^2\phi + k^2\phi = 0,
+\end{equation}
+following the method in \cite{linton1992integral}. Using Green's representation formula (see page 250 in \cite{olver2014introduction} and page 133 in \cite{newman2018marine}), the solution $\phi$ at any point $P$ can be calculated as
+\begin{equation}
+  \label{eq:18}
+\phi(P) = \int_{\partial D} \left[ \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(P,q) 
+- G_s(P,q)\, U(q) \right] \, ds_q ,
+\end{equation}
+where $\partial D$ is the boundary of the obstacle, $G_s(P,q)$ is the symmetric Green's function and
+\begin{equation}
+  \label{eq:19}
+  \frac{\partial\phi}{\partial n} = U(q).
+\end{equation}
+Over the boundary, we have
+\begin{equation}
+  \label{eq:20}
+  \frac{1}{2}\phi(p) = \int_{\partial D} \left[ \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(p,q) 
+- G_s(p,q)\, U(q) \right] \, ds_q.
+\end{equation}
+For homogeneous boundary conditions $U(q)=0$ over $\partial D$, so
+\begin{equation}
+  \label{eq:21}
+  \frac{1}{2}\phi(p) = \int_{\partial D} \phi(q)\, 
+\frac{\partial}{\partial n_q} G_s(p,q)  \, ds_q.  
+\end{equation}
+Parametrizing $\partial D$ using polar coordinates, $\rho(\theta)$, $0 \le \theta \le \pi$, the previous equation takes the form
+\begin{equation}
+  \label{eq:22}
+  \frac{1}{2}\phi(\psi) = \int_{0}^{\pi} 
+\phi(\theta) \, \frac{\partial}{\partial n_q} 
+G_a(\psi,\theta)\, w(\theta) \, d\theta, 
+\quad 0 < \psi < \pi ,
+\end{equation}
+where $\psi$ parametrizes de observation point $p$ over $\partial D$ and $\theta$ parametrizes the source point $p$ and $w(\theta) = [\rho^2(\theta) + \rho'^2(\theta)]^{1/2}$. By discretization of $\theta$ as $\theta_j = (j-\frac{1}{2})\pi/M$, $j=1,2,\ldots,M$, the previous integral equation becomes the linear algebraic equation
+\begin{equation}
+  \label{eq:23}
+  \frac{1}{2} \phi_i = \frac{\pi}{M}\sum_{j=1}^M \phi_j K_{ij}^s,~~i=1,\ldots,M
+\end{equation}
+where
+\begin{equation}
+  \label{eq:24}
+  K^s_{ij} =
+\begin{cases}
+\dfrac{\partial G_s(\theta_i,\theta_j)}{\partial n_q}, 
+& i \ne j, \\[1em]
+\dfrac{\partial \tilde{G}_s(\theta_i,\theta_i)}{\partial n_q} 
++ \dfrac{\rho_i \rho_i'' - \rho_i^2 - 2\rho_i'^2}{4\pi w_i^3}, 
+& i = j .
+\end{cases}
+\end{equation}
+Equation \eqref{eq:23} is more exactly a homogeneous linear system with an $M \times M$ coeficient matrix $A$ with elements
+\begin{equation}
+  \label{eq:25}
+A_{ij} =  \delta_{ij} - \frac{2\pi}{M}K^s_{ij} w_j.
+\end{equation}
+In order for the system to have non-trivial solutions, the determinant of this matrix must be zero. The value of $k$ corresponding to this zero determinant is the wavenumber of the trapped mode. A Python script was written that computes the matrix $A$ and its determinant for different values of $k$. Figure \ref{fig:kd_det_circle} (top panel) displays $\det A$ as a function of $kd$ ($d$ is half the separation between the two parallel sides of the waveguide) for a circle of radius $a$ with $a/d=0.5$. Note the change of sign of $\det A$. The bottom panel shows that the zero value of $\det A$ occurrs around $kd = 1.39131$ in agreement with Table 1 of reference \cite{linton1992integral}.
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=8cm]{../figures/kd_det_circle.pdf}
+  \includegraphics[width=8cm]{../figures/kd_det_circle_detail.pdf}  
+  \caption{\label{fig:kd_det_circle} Determinant of A as a function of $kd$ for a circle of radius $a$ with $a/d=0.5$.}
+\end{figure}
+
+The Python script was also used to compute the wavenumber of the trapped mode for a square obstacle of side $2a$. The value found for $a/d=0.5$ was $kd=1.32954$, in agreement with Table 2 of Ref. \cite{linton1992integral}.
+
+
+\subsection{Finite elements}
+The solution of the Helmholtz equation by the method of finite elements is explained in Chapter 2 of reference \cite{fahy2004advanced}.
+
+\clearpage
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+ \end{document}
+
+  

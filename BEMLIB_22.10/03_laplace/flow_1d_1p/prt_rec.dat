@@ -1,0 +1,13 @@
+1.0   shear rate
+1.0   viscocity
+6     number of Gauss Legendre points; choose from 1,2,3,4,5,6,12,20
+0.60   width
+1.0   height
+1.0   period
+
+16 2.0  right  side: number of element and stretch ratio
+16 2.0  top    side: number of element and stretch ratio
+16 2.0  left   side: number of element and stretch ratio
+16 2.0  bottom side: number of element and stretch ratio
+16 2.0  bottom side: number of element and stretch ratio
+

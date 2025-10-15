@@ -1,0 +1,64 @@
+1.0      viscosity
+1.0      shear rate
+0.0      delta: pressure gradient
+0.00     x translational velocity
+0.00 -1.0     angular velocity
+6        Gauss Legendre
+0.5      radius
+0.0 1.0  centerx, centery
+
+64 10.0   circle
+
+0               Iwall (0 for no upper wall)
+2.0             wall
+12 0.2  5       right part of the upper wall
+12 5.0 -5       left part of the upper wall
+
+-2.0 2.0  xmin, xmax : streamline window
+-0.5 3.5  ymin, ymax : streamline window
+
+-2.0 0.01   streamline starting point
+-2.0 0.10   streamline starting point
+-2.0 0.20   streamline starting point
+-2.0 0.30   streamline starting point
+-2.0 0.40   streamline starting point
+-2.0 0.45   streamline starting point
+-2.0 0.47   streamline starting point
+-2.0 0.60   streamline starting point
+-2.0 0.80   streamline starting point
+-2.0 1.00   streamline starting point
+-2.0 1.20   streamline starting point
+-2.0 1.40   streamline starting point
+-2.0 1.60   streamline starting point
+-2.0 1.80   streamline starting point
+-2.0 2.00   streamline starting point
+-2.0 2.20   streamline starting point
+-2.0 2.40   streamline starting point
+-2.0 2.60   streamline starting point
+-2.0 2.80   streamline starting point
+-2.0 3.00   streamline starting point
+-2.0 3.20   streamline starting point
+-2.0 3.40   streamline starting point
+-2.0 3.60   streamline starting point
+-2.0 3.80   streamline starting point
+99 99
+
+64 80.0         first side
+64 80.0         second side
+64 80.0         third side
+64 80.0         fourth side
+
+8 5.0         first side
+8 5.0         second side
+8 5.0         third side
+8 5.0         fourth side
+
+32 2.0         first side
+32 2.0         second side
+32 2.0         third side
+32 2.0         fourth side
+
+32 5.0         first side
+32 5.0         second side
+32 5.0         third side
+32 5.0         fourth side

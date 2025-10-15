@@ -1,0 +1,18 @@
+1       number of particles
+
+4.0 4.0 | 0.5 0.5 | 4.0 4.0 0.25 0.25 | 0.5 0.5       b/a and c/a
+1.0 0.1 0.2 1.0  req:           equivalent radius
+0.0 -5.0 -4.0 -1.5 -0.75  0.0           x center coordinates
+0.80 0.85 0.80 0.65 0.664 1.0453 0.940 0.901 0.94 1.25 1.10 1.5 0.940 0.9 2.0 1.50 0.75 1.0 0.75 0.5 0.5 1.1 1.5431 1.0453 y center coordinates
+0.0 0.10          z center coordinates
+0.25 0.50 0.25 0.50 0.25 0.50 0.001 0.875 0.75 0.001 0.50              theta  (in multiples of pi)
+0.0 0.25 0.125 0.0625 0.375 0.250 0.00 0.46875 0.375 phi  (in multiples of pi)
+
+1.0 1.0 0.5 0.5 | 4.0 4.0 0.25 0.25 | 0.5 0.5       b/a and c/a
+1.0 0.1 0.2 req:           equivalent radius
+5.0 4.0 1.5 0.75 0.0           x center coordinates
+-2.0 -1.50 -0.75 -1.0 -0.75 -0.5 -0.5 1.1 1.5431 1.0453 y center coordinates
+0.0 -0.10           z center coordinates
+0.25 0.5 0.001 0.5 0.25 0.50  theta  (in multiples of pi)
+0.00 0.250 0.125 0.0625 0.375 0.250 0.00 0.46875 0.375 phi  (in multiples of pi)
+

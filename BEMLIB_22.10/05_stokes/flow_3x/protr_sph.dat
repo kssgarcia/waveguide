@@ -1,0 +1,15 @@
+Code 41, 42: Flow over a spherical protrusion on a wall
+
+1.0      viscosity
+1.0      shear rate
+0.0 -0.20    pressure gradient: delta
+6        NGL: Gauss Legendre points: Choose from 1,2,3,4,5,6,12,20
+1.0      radius of the protrusion
+0.05 0.125 1.00     semi-angle alpha (in multiples of pi)
+
+32 0.2       NE(1),RT(1)              Protrusion
+64 15.0 15   Ne(2),RT(2),trunc_wall   Truncated wall
+24 0.2       Neop RTop                Opening
+
+10.0           x = upper wall
+32 10.0 10.0   NE(3),RT(3),trunc_upper_wall

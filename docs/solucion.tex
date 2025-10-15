@@ -1,0 +1,477 @@
+\documentclass[11pt]{article}
+% \setlength{\voffset}{-2cm}
+% \setlength{\hoffset}{-2cm}
+% \setlength{\textwidth}{16cm}
+% \setlength{\textheight}{25cm}
+% \setlength{\marginparwidth}{1cm}
+\usepackage[english,spanish,activeacute]{babel}
+\usepackage{graphicx,array}
+\usepackage{amsmath}
+%\usepackage{pstricks}
+\usepackage{multicol}
+\usepackage{color}
+\usepackage{listings}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+% \usepackage[hypertexnames=false]{hyperref}
+% \pagestyle{empty}
+\decimalpoint
+
+\definecolor{darkgray}{rgb}{0.66, 0.66, 0.66}
+\definecolor{darkorange}{rgb}{1.0, 0.55, 0.0}
+\definecolor{gray}{rgb}{0.97,0.97,0.99}
+\definecolor{teal}{rgb}{0.0, 0.5, 0.5}
+\definecolor{comment}{rgb}{0.6, 0, 0.9}
+\lstdefinestyle{mystyle}{
+	language = Python,
+	backgroundcolor=\color{gray},
+	commentstyle=\color{comment},
+	keywordstyle=\bfseries\color{darkorange},
+	numberstyle=\scriptsize\color{darkgray},
+	stringstyle=\color{teal},
+	basicstyle=\scriptsize\ttfamily,%\linespread{1}
+	breakatwhitespace=false,
+	breaklines=true,
+	captionpos=t,
+	keepspaces=false,
+	numbers=left,
+	numbersep=3pt,
+	showspaces=false,
+	showstringspaces=false,
+	showtabs=false,
+	tabsize=4
+}
+\lstset{style=mystyle}
+
+
+\begin{document}
+\begin{center}
+{\Large Soluci\'on de la ecuaci\'on de onda unidimensional}
+\end{center}
+
+El estudiante debe estar en capacidad de resolver estos problemas, entender
+las diferencias en cada caso y explicar las implicaciones f\'isicas que las condiciones
+de frontera impone.
+
+\section*{Problema 1}
+\noindent Resolver la ecuaci\'on de onda unidimensional:
+\begin{equation}
+  \label{eq:onda}
+  u_{tt} - c^2 u_{xx} = 0,~~0 \le x \le 1,~~t>0
+\end{equation}
+sujeta a las condiciones de frontera (Dirichlet):
+\begin{equation}
+  \label{eq:dirich}
+  u(0,t) = u(1,t) = 0,
+\end{equation}
+y a las condiciones iniciales
+\begin{equation}
+  \label{eq:6}
+  u(x,0) = u_0(x),~~u_t(x,0)=u_1(x).
+\end{equation}
+
+{\bf Soluci\'on anal\'itica:} Se usar\'a el m\'etodo de separaci\'on de variables, en el cual se supone que la soluci\'on tiene la forma
+\begin{equation}
+  \label{eq:wv}
+  u(x,t) = w(t)v(x).
+\end{equation}
+Remplazando \eqref{eq:wv} en \eqref{eq:onda} y pasando el segundo t\'ermino a la derecha, tenemos
+\begin{equation}
+  w''(t)v(x) = c^2w(t)v''(x). \\
+\end{equation}
+Dividiendo entre $w(t)v(x)$,
+\begin{equation}
+  \label{eq:lambda}
+    \frac{w''(t)}{w(t)} = c^2\frac{v''(x)}{v(x)} = \lambda,
+\end{equation}
+donde se est\'a  indicando que para que una funci\'on de $t$ sea igual a una funci\'on de $x$, ambas funciones deben ser iguales a una constante, llamada $\lambda$. De la ecuaci\'on \eqref{eq:lambda} se deducen las ecuaciones diferenciales que deben obedecer $w(t)$ y $v(x)$,
+\begin{eqnarray}
+  \label{eq:4}
+  w'' - \lambda w  &= 0 \\
+  v'' - \frac{\lambda}{c^2}v &= 0.
+\end{eqnarray}
+Las soluciones $w(t)$ y $v(t)$ dependen del signo de $\lambda$ como se indica en el Cuadro \ref{tab:sol}
+
+
+\begin{table}[h]
+  \centering
+  \begin{tabular}{|c|c|c|c} \hline
+    $\lambda$ &  $w(t)$ & $v(x)$  \\ \hline
+    $\lambda = -\omega^2 < 0$ & $\cos(\omega t), \sin(\omega t)$ & $\cos\left(\frac{\omega x}{c}\right), \sin\left(\frac{\omega x}{c}\right)$ \\ \hline
+    $\lambda = 0$ & $1, t$ & $1, x$ \\ \hline
+    $\lambda = \omega^2 < 0$ & $e^{-\omega t}, e^{\omega t}$ & $e^{-\omega x/c}, e^{\omega x/c}$ \\ \hline
+  \end{tabular}
+  \caption{Soluciones $w(t)$ y $v(x)$.}
+  \label{tab:sol}
+\end{table}
+Las condiciones de frontera $u(0,t) = w(t)v(0) = 0$ y $u(1,t) = w(t)v(1)=0$, implican que $v(0)=v(1)=0$. Del Cuadro \ref{tab:sol}, esta condici\'on solo la satisfacen las funciones
+\begin{equation}
+  \label{eq:2}
+v_n(x) = \sin(\omega_n x/c),~~\omega_n = n\pi c,~~n=1,2,3,...
+\end{equation}
+A estas funciones corresponden soluciones de \eqref{eq:onda} de la forma
+\begin{equation}
+  \label{eq:3}
+  u_n(x,t) = \cos(n\pi c t)\sin(n\pi x),~~ \tilde{u}_n(x,t) = \sin(n\pi c t)\sin(n\pi x),~~n=1,2,3,...
+\end{equation}
+La soluci\'on general de \eqref{eq:onda} es una superposici\'on de las soluciones $u_n$ y $\tilde{u}_n$, conocida como una serie de Fourier
+\begin{equation}
+  \label{eq:5}
+  u(x,t) = \sum_{n=1}^\infty \left[b_n\cos(n\pi c t) + d_n\sin(n\pi c t)\right] \sin(n\pi x).
+\end{equation}
+Los coeficientes $b_n$ y $d_n$ se pueden calcular a partir de las condiciones iniciales,
+\begin{equation}
+  \label{eq:7}
+  u(x,0) = u_0(x) = \sum_{n=1}^\infty b_n\sin(n\pi x).
+\end{equation}
+
+\begin{equation}
+  \label{eq:7}
+  u_t(x,0) = u_1(x) = \sum_{n=1}^\infty n\pi c d_n \sin(n\pi x).
+\end{equation}
+Usando la ortogonalidad de las funciones $\sin(n\pi x)$ se tiene que
+\begin{eqnarray}
+  \label{eq:8}
+  b_n &= 2 \displaystyle\int_0^1 u_0(x)\sin(n\pi x) \\
+  d_n &= \displaystyle\frac{2}{n\pi c}\int_0^1 u_1(x)\sin(n\pi x).
+\end{eqnarray}
+
+{\bf Ejemplo:} A manera de ilustraci\'on, consideramos el caso en que $c=1$,
+\begin{equation}
+  \label{eq:9}
+  u_0(x) =
+  \begin{cases}
+    x,~~ 0 \le x \le \frac{1}{2}, \\
+    1-x,~~ \frac{1}{2} \le x \le 1
+  \end{cases}
+\end{equation}
+y $u_1(x) = 0$.
+Al evaluar las integrales se obtiene
+\begin{equation}
+  \label{eq:10}
+  b_n =
+  \begin{cases}
+    \frac{4(-1)^k}{(2k+1)^2\pi^2},~~n=2k+1 \\
+    0,~~n=2k,
+  \end{cases}
+\end{equation}
+mientras que $d_n=0$.
+Por lo tanto la soluci\'on de \eqref{eq:onda} es
+\begin{equation}
+  \label{eq:tienda}
+  u(x,t) = \frac{4}{\pi^2} \sum_{k=0}^\infty \frac{(-1)^k}{(2k+1)^2} \cos[(2k+1)\pi t] \sin[(2k+1)\pi x].
+\end{equation}
+Esta soluci\'on, con la serie truncada a 100 t\'erminos, se presenta en la Fig. \ref{fig:tienda} para varios tiempos $t$ (la soluci\'on fue calculada con el Listing \ref{code:fourier_dir}).
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=6cm]{t_0.0.pdf} 
+  \includegraphics[width=6cm]{t_0.25.pdf} \\
+  \includegraphics[width=6cm]{t_0.5.pdf} 
+  \includegraphics[width=6cm]{t_0.75.pdf} \\
+  \includegraphics[width=6cm]{t_1.0.pdf}
+  \includegraphics[width=6cm]{t_1.25.pdf}
+  \caption{Soluci\'on $u(x,t)$ presentada en la Ec. \eqref{eq:tienda}, con la serie truncada a 100 t\'erminos, para varios tiempos.}
+  \label{fig:tienda}
+\end{figure}
+
+\lstinputlisting[language=Python, caption=Soluci\'on anal\'itica de la ecuaci\'on de onda, label=code:fourier_dir]{fourier.py}
+
+
+{\bf Soluci\'on num\'erica:} La soluci\'on num\'erica se calcular\'a mediante diferencias finitas, usando la relaci\'on de recurrencia
+\begin{equation}
+  \label{eq:1}
+  {\bf u}^{(j+1)} = B{\bf u}^{(j)} - u^{(j-1)} + {\bf b}^{(j)},
+\end{equation}
+donde
+\begin{equation}
+  \label{eq:11}
+  B =
+  \begin{bmatrix}
+    2(1-\sigma^2) & \sigma^2      &                      \\
+    \sigma^2      & 2(1-\sigma^2) & \sigma^2             \\
+                  & \sigma^2      & \ddots     & \ddots  \\
+                  &               & \ddots     & \sigma^2 \\
+                  &               & \sigma^2   & 2(1-\sigma^2)
+  \end{bmatrix},
+  {\bf u}^{(j)} =
+  \begin{bmatrix}
+    u_{j,1} \\
+    u_{j,2} \\
+    \vdots \\
+    u_{j,n-2} \\
+    u_{j,n-1}
+  \end{bmatrix},
+  {\bf b}^{(j)} =
+  \begin{bmatrix}
+    \sigma^2\alpha_j \\
+    0 \\
+    \vdots \\
+    0 \\
+    \sigma^2\beta_j
+  \end{bmatrix},
+\end{equation}
+con
+\begin{equation}
+  \label{eq:12}
+  \sigma = c\Delta t/\Delta x,
+\end{equation}
+y $u_{j,m} \approx u(m\Delta x, j\Delta t)$. Para iniciar la iteraci\'on, ${\bf u}^{(0)}$ y ${\bf u}^{(1)}$ se asignan de la siguiente forma. $u_{0,m} = u_0(m\Delta x)$ y 
+\begin{equation}
+  \label{eq:13}
+  {\bf u}^{(1)} = \frac{1}{2}B{\bf u}^{(0)} + {\bf g}\Delta t + \frac{1}{2}{\bf b}^{(0)},
+\end{equation}
+donde ${\bf g}$ tiene elementos $g_m = u_1(m\Delta x)$. La Fig. \ref{fig:num} compara la soluci\'on anal\'itica con la soluci\'on  num\'erica calculada con $\Delta x=\Delta t=0.01$ usando el Listing \ref{code:onda_dirich}.
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=6cm]{num_t_0.0.pdf} 
+  \includegraphics[width=6cm]{num_t_0.25.pdf} \\
+  \includegraphics[width=6cm]{num_t_0.5.pdf} 
+  \includegraphics[width=6cm]{num_t_0.75.pdf} \\
+  \includegraphics[width=6cm]{num_t_1.0.pdf}
+  \includegraphics[width=6cm]{num_t_1.25.pdf}
+  \caption{Comparaci\'on de la soluci\'on num\'erica con la soluci\'on anal\'itica de \eqref{eq:onda}.}
+  \label{fig:num}
+\end{figure}
+
+\lstinputlisting[language=Python, caption=Soluci\'on num\'erica de la ecuaci\'on de onda, label=code:onda_dirich]{numerical.py}
+
+\clearpage
+\section*{Problema 2}
+Resolver la ecuaci\'on de onda unidimensional:
+\begin{equation}
+  \label{eq:onda_nh}
+  u_{tt} - c^2 u_{xx} = f(x,t),~~0 \le x \le 1,~~t>0
+\end{equation}
+sujeta a las condiciones de frontera (Dirichlet):
+\begin{equation}
+  \label{eq:dirich}
+  u(0,t) = u(1,t) = 0,
+\end{equation}
+y a las condiciones iniciales
+\begin{equation}
+  \label{eq:6}
+  u(x,0) = 0,~~u_t(x,0)=0.
+\end{equation}
+
+{\bf Soluci\'on anal\'itica:} Este problema puede resolverse por el m\'etodo de expansi\'on en eigenfunciones. La soluci\'on $u(x,t)$ y la funci\'on de forzamiento $f(x,t)$ pueden expresarse en t\'erminos de las eigenfuciones $v_n(x)$ as\'i
+\begin{align}
+  \label{eq:uxt}
+u(x,t) &= \displaystyle\sum_{n=1}^\infty w_n(t)v_n(x) \\
+       &= \displaystyle\sum_{n=1}^\infty w_n(t)\sin(n\pi x). 
+\end{align}
+y
+\begin{equation}
+  \label{eq:fxt}
+  f(x,t) = \sum_{n=1}^\infty F_n(t)\sin(n\pi x),
+\end{equation}
+donde
+\begin{equation}
+  \label{eq:16}
+  F_n(t) = 2 \int_0^1 f(x,t)\sin(n\pi x) dx,~~n=1,2,3,...
+\end{equation}
+
+Al remplazar \eqref{eq:uxt} y \eqref{eq:fxt} en \eqref{eq:onda_nh} tenemos
+\begin{equation}
+  \label{eq:14}
+  \sum_{n=1}^\infty \left[w''_n(t) + n^2\pi^2c^2 w_n(t)\right]\sin(n\pi x) = \sum_{n=1}^\infty F_n(t)\sin(n\pi x).
+\end{equation}
+Usando la ortogonalidad de las funciones $\sin(n\pi x)$ se llega a
+\begin{equation}
+  \label{eq:15}
+  w''_n + (n\pi c)^2 w_n = F_n(t),~~n=1,2,3,...
+\end{equation}
+La ecuaciones diferenciales ordinarias anteriores tienen soluciones 
+\begin{equation}
+  \label{eq:17}
+  w_n(t) = A_n \cos(n\pi ct) + B_n \sin(n\pi ct) + \frac{1}{n\pi c}\int_0^t \sin[n\pi c(t-s)]F_n(s)ds.
+\end{equation}
+En $t=0$,
+\begin{equation}
+  \label{eq:18}
+  u(x,0) = \sum_{n=1}^\infty w_n(0)\sin(n\pi x) = 0,
+\end{equation}
+y
+\begin{equation}
+  \label{eq:18}
+  u_t(x,0) = \sum_{n=1}^\infty w_n'(0)\sin(n\pi x) = 0,
+\end{equation}
+por lo cual $w_n(0) = w'_n(0)=0$. Las condiciones anteriores implican $A_n = B_n = 0$. Como resultado, la soluci\'on general se reduce a
+\begin{equation}
+  \label{eq:20}
+  u(x,t) = \sum_{n=1}^\infty \frac{1}{n\pi c} \sin(n\pi x) \int_0^t \sin[n\pi c(t-s)]F_n(s)ds.
+\end{equation}
+
+{\bf Ejemplo:} Supongamos que $f(x,t) = \sin(t)\sin(\pi x)$. Es decir $F_1(t) = \sin(t)$, $F_n(t) = 0$, $n=2,3,...$. En este caso la soluci\'on \eqref{eq:20} se reduce a 
+\begin{equation}
+  \label{eq:21}
+  u(x,t) =  \left[-\frac{1}{(\pi c)^3 - \pi c}\sin(\pi ct) +
+    \frac{1}{(\pi c)^2 - 1}\sin t \right] \sin(\pi x).
+\end{equation}
+
+{\bf Soluci\'on num\'erica:} La soluci\'on num\'erica se puede calcular mediante la siguiente variaci\'on de la relaci\'on de recurrencia expresada en la Eq. \eqref{eq:1},
+\begin{equation}
+  \label{eq:22}
+    {\bf u}^{(j+1)} = B{\bf u}^{(j)} + {\bf f}^{(j)}- u^{(j-1)} + {\bf b}^{(j)},
+\end{equation}
+donde ${\bf f}^{(j)}$ tiene elementos $f_{j,m} = f(m\Delta x, j\Delta t)$. La Fig. \ref{fig:num_nh_dir}, generada con el Listing \eqref{code:onda_nh_dir}, compara la soluci\'on anal\'itica \eqref{eq:21} con la soluci\'on num\'erica. 
+
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=6cm]{num_t_nh_0.0.pdf} 
+  \includegraphics[width=6cm]{num_t_nh_1.2.pdf} \\
+  \includegraphics[width=6cm]{num_t_nh_2.4.pdf} 
+  \includegraphics[width=6cm]{num_t_nh_3.6.pdf} \\
+  \includegraphics[width=6cm]{num_t_nh_4.8.pdf}
+  \includegraphics[width=6cm]{num_t_nh_6.0.pdf}
+  \caption{Comparaci\'on de la soluci\'on num\'erica con la soluci\'on anal\'itica de \eqref{eq:onda_nh}.}
+  \label{fig:num_nh_dir}
+\end{figure}
+
+\lstinputlisting[language=Python, caption=Comparaci\'on de la soluci\'on anal\'itica y la soluci\'on num\'erica de \eqref{eq:onda_nh}, label=code:onda_nh_dir]{numerical_nh_dir.py}
+
+
+\clearpage
+\section*{Problema 3}
+Resolver la ecuaci\'on de onda unidimensional:
+\begin{equation}
+  \label{eq:onda_nh_bc}
+  u_{tt} - c^2 u_{xx} = 0,~~0 \le x \le 1,~~t>0
+\end{equation}
+sujeta a las condiciones de frontera (Dirichlet):
+\begin{equation}
+  \label{eq:nh_dirich}
+  u(0,t) = g(t),~~u(1,t) = 0,
+\end{equation}
+y a las condiciones iniciales
+\begin{equation}
+  \label{eq:6}
+  u(x,0) = 0,~~u_t(x,0)=0.
+\end{equation}
+{\bf Soluci\'on anal\'itica:} La soluci\'on $u(x,t)$ puede escribirse como la suma de dos funciones
+\begin{equation}
+  \label{eq:23}
+  u(x,t) = \phi(x,t) + \psi(x,t),
+\end{equation}
+donde $\psi(x,t)$ satisface las condiciones de frontera no homog\'eneas,
+\begin{equation}
+  \label{eq:28}
+  \psi(x,0) = g(t),~~\psi(x,1) = 0,
+\end{equation}
+y, como veremos en seguida, $\phi$ es la soluci\'on de un problema con condiciones de frontera homog\'eneas. Una elecci\'on v\'alida para $\psi$ es
+\begin{equation}
+  \label{eq:31}
+  \psi(x,t) = g(t)(1-x).
+\end{equation}
+
+Remplazando \eqref{eq:23} en \eqref{eq:onda_nh_bc},
+\begin{equation}
+  \label{eq:24}
+  \phi_{tt} + \psi_{tt} - c^2(\phi_{xx} + \psi_{xx}) = 0.
+\end{equation}
+y reordenando t\'erminos,
+\begin{equation}
+  \label{eq:25}
+  \phi_{tt} - c^2\phi_{xx} = f(x,t),
+\end{equation}
+donde
+\begin{align}
+  \label{eq:26}
+  f(x,t) &= -\psi_{tt} + c^2\psi_{xx} \\
+         &= g''(t)(x-1).
+\end{align}
+
+Las condiciones de frontera de $\phi$ est\'an determinadas por las condiciones de frontera de $u(x,t)$,
+\begin{align}
+  \label{eq:27}
+  u(0,t) &= \phi(0,t) + \psi(0,t) = g(t) \\
+  u(1,t) &= \phi(1,t) + \psi(1,t) = 0.
+\end{align}
+Es decir, $\phi$ debe cumplir condiciones de frontera homog\'eneas,
+\begin{equation}
+  \label{eq:29}
+  \phi(0,t) = \phi(1,t) = 0.
+\end{equation}
+An\'alogamente, las condiciones iniciales para $\phi$ se pueden determinar con base en las condiciones iniciales de $u(x,t)$,
+\begin{align}
+  \label{eq:30}
+  u(x,0) &= \phi(x,0) + \psi(x,0) = 0 \\
+  u_t(x,0) &= \phi_t(x,0) + \psi_t(x,0) = 0.
+\end{align}
+Es decir,
+\begin{subequations}
+\label{eq:phi_ic}
+\begin{align}
+  \phi(x,0) &= -\psi(x,0) = g(0)(x-1) \\
+  \phi_t(x,0) &= -\psi_t(x,0) = g'(0)(x-1).
+\end{align}  
+\end{subequations}
+
+En resumen, $\phi$ debe cumplir el problema determinado por las ecuaciones \eqref{eq:25}, \eqref{eq:29} y \eqref{eq:phi_ic}, el cual es del mismo tipo que el Problema 2 (secci\'on anterior) y puede resolverse mediante el procedimiento presentado en esa secci\'on.
+
+{\bf Ejemplo:} Sea $g(t) = \sin(t)$. Entonces,
+
+\begin{align}
+  \label{eq:32}
+  f(x,t) &= \sin(t)(1-x) \\
+         &= \sin(t) \sum_{n=1}^\infty \frac{2}{n\pi}\sin(n\pi x).
+\end{align}
+De acuerdo con la soluci\'on del Problema 2, la funci\'on $\phi(x,t)$ tiene expansi\'on en serie de Fourier
+\begin{equation}
+  \label{eq:34}
+  \phi(x, t) = \sum_{n=1}^\infty w_n(t)\sin(n\pi x),
+\end{equation}
+donde los coeficientes $w_n(t)$ son soluciones de \eqref{eq:15} con las funciones de forzamiento $F_n(t)$ determinadas por la expansi\'on en serie de Fourier de $f(x,t)$,
+\begin{equation}
+f(x,t) = \sum_{n=1} F_n(t) \sin(n\pi x).
+\end{equation}
+Es decir
+\begin{equation}
+  \label{eq:35}
+  F_n(t) = \frac{2}{n\pi} \sin(t).
+\end{equation}
+La soluciones $w_n(t)$ pueden calcularse mediante la Ec. \eqref{eq:17}. Para hallar los coeficientes $A_n$ y $B_n$ usamos las condiciones iniciales \eqref{eq:phi_ic}, que se reducen a
+\begin{subequations}
+  \begin{align}
+    \phi(x,0) &= 0\\
+    \phi_t(x,0) &= x-1.
+  \end{align}
+\end{subequations}
+Por lo tanto $A_n = 0$ y $B_n$ se determina mediante,
+\begin{equation}
+  \label{eq:40}
+  \phi_t(x,0) = \sum_{n=1}^\infty n\pi c B_n \sin(n\pi x) = -\sum_{n=1}^\infty \frac{2}{n\pi} \sin(n\pi x),
+\end{equation}
+dando como resultado
+\begin{equation}
+  \label{eq:41}
+  B_n = -\frac{2}{(n\pi)^2 c}.
+\end{equation}
+
+En consecuencia, los coeficientes $w_n(t)$ en \eqref{eq:34} toman la forma,
+\begin{equation}
+  w_n(t) = \frac{2}{n\pi}\left[\left( -\frac{1}{n\pi c} -\frac{1}{(n\pi c)^3 - (n\pi c)} \right)\sin(n\pi ct)
+    + \frac{1}{(n\pi c)^2-1}\sin(t) \right]
+\end{equation}
+Finalmente, la soluci\'on del problema original $u(x,t)$ se obtiene remplazando \eqref{eq:34} y \eqref{eq:31} en \eqref{eq:23}
+\begin{equation}
+  \label{eq:39}
+    u(x,t) = \sin(t)(1-x) + \sum_{n=1}^\infty w_n(t) \sin(n\pi x).
+\end{equation}
+
+{\bf Soluci\'on num\'erica:} La soluci\'on num\'erica se puede calcular con la relaci\'on de recurrencia \eqref{eq:1}, con $\alpha_j = \sin(j\Delta t)$ en ${\bf b}^{(j)}$. La Fig. \ref{fig:num_nh_bc}, generada con el Listing \ref{code:num_nh_bc}, compara la soluci\'on anal\'itica con la soluci\'on num\'erica para diferentes tiempos.
+
+\begin{figure}[h]
+  \centering
+    \includegraphics[width=6cm]{num_nh_bc_t_0.0.pdf} 
+  \includegraphics[width=6cm]{num_nh_bc_t_1.2.pdf} \\
+  \includegraphics[width=6cm]{num_nh_bc_t_2.4.pdf} 
+  \includegraphics[width=6cm]{num_nh_bc_t_3.6.pdf} \\
+  \includegraphics[width=6cm]{num_nh_bc_t_4.8.pdf}
+  \includegraphics[width=6cm]{num_nh_bc_t_6.0.pdf}
+  \caption{Comparaci\'on de la soluci\'on num\'erica con la soluci\'on anal\'itica del problema determinado por \eqref{eq:onda_nh_bc}, \eqref{eq:nh_dirich} y \eqref{eq:6}.}
+  \label{fig:num_nh_bc}
+\end{figure}
+
+\lstinputlisting[language=Python, caption={Comparaci\'on de la soluci\'on anal\'itica y la soluci\'on num\'erica del problema determinado por \eqref{eq:onda_nh_bc}, \eqref{eq:nh_dirich} y \eqref{eq:6}}, label=code:num_nh_bc]{numerical_nh_bc.py}
+\end{document}
+
