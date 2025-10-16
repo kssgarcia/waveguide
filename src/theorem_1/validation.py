@@ -169,9 +169,5 @@ lines_2, labels_2 = ax2.get_legend_handles_labels()
 ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
 
 # --- Title & Styling ---
-plt.title(r"Solution Stress $\sigma_{sol}$ and Error vs $\epsilon$", fontsize=14, pad=10)
 plt.tight_layout()
 plt.show()
-# %%
-# Se demostro que el limite para la a=0.6 es de alrededor de 0.295
-# si el a disminuye el limite se presenta en un valor cada vez mayor

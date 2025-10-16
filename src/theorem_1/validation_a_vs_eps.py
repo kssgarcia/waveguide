@@ -91,25 +91,25 @@ def find_sigma(epsilon, a):
 
     return s_root
 
-def bisection_epsilon(f, a_i, epsilon_left, epsilon_right, tol=1e-6, maxiter=50):
-    fa, fb = np.real(f(epsilon_left, a_i)), np.real(f(epsilon_right, a_i))
-    if fa*fb > 0:
+def bisection_epsilon(f, a_i, epsilon_init, step=0.1, tol=1e-6, maxiter=50):
+    fa = np.real(f(epsilon_init, a_i))
+    if fa != 0:
         return None
 
+    epsilon_sol = epsilon_init-step
     for _ in range(maxiter):
-        print("----------------")
-        mid = 0.5*(epsilon_left+epsilon_right)
+        fm = np.real(f(epsilon_sol, a_i))
 
-        fm = np.real(f(mid, a_i))
-
-        if abs(fm) < tol or (epsilon_right-epsilon_left)/2 < tol:
-            return mid
-
-        if fa*fm == 0:
-            epsilon_right, fb = mid, fm
+        if fm == 0:
+            epsilon_sol -= step
         else:
-            epsilon_left, fa = mid, fm
-    return 0.5*(epsilon_left+epsilon_right)
+            epsilon_sol += step/2
+            step = step/2
+
+        if step <= tol:
+            return epsilon_sol
+
+    return epsilon_sol
 
 # ===========================================
 M = 32 # circle divisions
@@ -126,20 +126,22 @@ mu = R0**2
 a0 = (2*b/pi)*np.arctan(S/(2*pi*mu))
 
 epsilon_list = []
-for a in np.linspace(0.4, 0.7, 4):  # 4 points: 0.4, 0.5, 0.6, 0.7
-    epsilon_max = bisection_epsilon(find_sigma, a, 3.162e-4, 0.5)
+a_list = np.linspace(0.5, 0.7, 5)
+for a in a_list:  # 4 points: 0.4, 0.5, 0.6, 0.7
+    epsilon_max = bisection_epsilon(find_sigma, a, 0.5)
     print('-----------------------------------')
     print(epsilon_max)
     epsilon_list.append(epsilon_max)
 
 plt.figure(figsize=(8, 5))
-plt.plot(epsilon_list, epsilon_list, 'o-', color='tab:blue', label=r'$\sigma_{sol}$', markersize=6)
-plt.axhline(0, color='r', linewidth=1)
-plt.xlabel(r"$\epsilon$", fontsize=12)
-plt.ylabel(r"$\sigma_{sol}$", fontsize=12)
+plt.plot(a_list, epsilon_list, 'o-', color='tab:blue', markersize=6)
+
+# Add labels for each point
+for a, eps in zip(a_list, epsilon_list):
+    plt.text(a, eps, f"{eps:.3f}", fontsize=10, ha='left', va='bottom')
+
+plt.xlabel(r"$a$", fontsize=12)
+plt.ylabel(r"$\varepsilon_{max}$", fontsize=12)
 plt.grid(True, which='both', linestyle='--', alpha=0.4)
-plt.legend(loc='upper left', frameon=True)
-plt.title(r"Solution Stress $\sigma_{sol}$ vs $\epsilon$", fontsize=14, pad=10)
 plt.tight_layout()
 plt.show()
-# %%
