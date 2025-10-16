@@ -143,29 +143,35 @@ df = pd.DataFrame({
 })
 df.to_csv("kevin.csv", index=False)
 
-plt.figure()
+plt.figure(figsize=(8, 5))
 
-# First y-axis: σ_sol vs ε
-plt.plot(epsilon_list, s_list, 'o-', label=r'$\sigma_{sol}$')
-plt.axhline(0, color='r')
-plt.xlabel(r"$\epsilon$")
-plt.ylabel(r"$\sigma_{sol}$")
-plt.grid(True)
+# --- First axis: σ_sol vs ε ---
+fig, ax1 = plt.subplots(figsize=(8, 5))
 
-# Create second y-axis for the error
-ax2 = plt.gca().twinx()
-ax2.plot(epsilon_list, error_list, 's--', color='orange', label='Error')
-ax2.set_ylabel("Error", color='orange')
+color1 = 'tab:blue'
+ax1.plot(epsilon_list, s_list, 'o-', color=color1, label=r'$\sigma_{sol}$', markersize=6)
+ax1.axhline(0, color='r', linewidth=1)
+ax1.set_xlabel(r"$\epsilon$", fontsize=12)
+ax1.set_ylabel(r"$\sigma_{sol}$", color=color1, fontsize=12)
+ax1.tick_params(axis='y', labelcolor=color1)
+ax1.grid(True, which='both', linestyle='--', alpha=0.4)
 
-# Optional: handle legends from both axes
-lns1, labs1 = plt.gca().get_legend_handles_labels()
-lns2, labs2 = ax2.get_legend_handles_labels()
-plt.legend(lns1 + lns2, labs1 + labs2, loc='best')
+# --- Second axis: Error vs ε ---
+ax2 = ax1.twinx()
+color2 = 'tab:orange'
+ax2.plot(epsilon_list, error_list, 's--', color=color2, label='Error', markersize=5, linewidth=2)
+ax2.set_ylabel("Error", color=color2, fontsize=12)
+ax2.tick_params(axis='y', labelcolor=color2)
 
+# --- Combined Legend ---
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
+
+# --- Title & Styling ---
+plt.title(r"Solution Stress $\sigma_{sol}$ and Error vs $\epsilon$", fontsize=14, pad=10)
+plt.tight_layout()
 plt.show()
 # %%
 # Se demostro que el limite para la a=0.6 es de alrededor de 0.295
 # si el a disminuye el limite se presenta en un valor cada vez mayor
-
-print(error_list)
-print(error_list)
