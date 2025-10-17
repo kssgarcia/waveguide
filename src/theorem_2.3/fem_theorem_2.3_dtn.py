@@ -7,7 +7,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.sparse import lil_matrix
 from matplotlib.tri import Triangulation
-from scipy.sparse.linalg import eigsh
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import eigs, eigsh
 import src.grid_generation.gen_mesh_center_y as gen
 import dipole_theorem as dip
 
@@ -125,21 +126,7 @@ def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
 
     elif bc_type == 'mixed':
         # Example: Dirichlet on outer boundaries, Neumann on obstacle
-        dirichlet_nodes = np.concatenate([top_nodes, bottom_nodes, left_nodes, right_nodes])
-        dirichlet_nodes = np.unique(dirichlet_nodes)
-
-        all_nodes = np.arange(N)
-        interior_mask = np.ones(N, dtype=bool)
-        interior_mask[dirichlet_nodes] = False
-        interior_nodes = all_nodes[interior_mask]
-
-        # Restrict to interior + obstacle boundary system
-        A_bc = A[np.ix_(interior_nodes, interior_nodes)]
-        M_bc = M[np.ix_(interior_nodes, interior_nodes)]
-
-    elif bc_type == 'neuman_dirichlet':
-        # Example: Dirichlet on outer boundaries, Neumann on obstacle
-        dirichlet_nodes = np.concatenate([left_nodes, right_nodes])
+        dirichlet_nodes = np.concatenate([top_nodes, bottom_nodes])
         dirichlet_nodes = np.unique(dirichlet_nodes)
 
         all_nodes = np.arange(N)
@@ -155,6 +142,169 @@ def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
         raise ValueError(f"Unknown boundary condition type: {bc_type}")
 
     return A_bc, M_bc, interior_nodes
+
+def vectorized_local_matrices_1d_optimized(vertices_batch):
+    """
+    Optimized version using vectorized operations throughout
+    """
+    # Compute element lengths
+    lengths = vertices_batch[:, 1] - vertices_batch[:, 0]  # Shape: (num_elements,)
+
+    # Check for valid elements
+    if np.any(lengths <= 0):
+        raise ValueError("All elements must have positive length")
+
+    # Vectorized stiffness matrices
+    # A_local = (1/h) * [[1, -1], [-1, 1]]
+    base_stiffness = np.array([[1, -1], [-1, 1]])
+    A_local_batch = (1.0 / lengths)[:, None, None] * base_stiffness[None, :, :]
+
+    # Vectorized mass matrices
+    # M_local = (h/6) * [[2, 1], [1, 2]]
+    base_mass = np.array([[2, 1], [1, 2]])
+    M_local_batch = (lengths / 6.0)[:, None, None] * base_mass[None, :, :]
+
+    return A_local_batch, M_local_batch
+
+def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b):
+    """
+    Correctly implemented 1D FEM problem assembly
+    """
+    nodes = np.asarray(nodes)
+    side_nodes = np.asarray(side_nodes, dtype=int)
+
+    # Local index mapping for boundary nodes
+    boundary_index_map = {int(g): idx for idx, g in enumerate(side_nodes)}
+    nb = len(side_nodes)
+
+    # Find boundary edges
+    all_edges = set()
+    for tri in elements:
+        if len(tri) == 2:  # 1D elements have 2 nodes
+            edge = tuple(sorted([tri[0], tri[1]]))
+            all_edges.add(edge)
+        else:  # If still using triangular elements, extract edges
+            for a, b in [(tri[0], tri[1]), (tri[1], tri[2]), (tri[2], tri[0])]:
+                edge = tuple(sorted([a, b]))
+                all_edges.add(edge)
+
+    # Keep only edges on this side
+    side_set = set(side_nodes)
+    elements_edges = [e for e in all_edges if e[0] in side_set and e[1] in side_set]
+
+    # Initialize global matrices
+    n_dof = nb
+    A = lil_matrix((n_dof, n_dof))
+    M = lil_matrix((n_dof, n_dof))
+
+    # STEP 1: Assemble ALL elements normally (don't skip any!)
+    for (ga, gb) in elements_edges:
+        # Get node coordinates
+        node_coord = nodes[[ga, gb], 1]  # Extract y-coordinates
+
+        # Ensure proper ordering
+        if node_coord[1] < node_coord[0]:
+            ga, gb = gb, ga
+            node_coord = node_coord[::-1]
+
+        # Compute local matrices
+        A_local, M_local = vectorized_local_matrices_1d_optimized(np.array([node_coord]))
+        A_elem = A_local[0]
+        M_elem = M_local[0]
+
+        # Map to local indices
+        local_ga = boundary_index_map[ga]
+        local_gb = boundary_index_map[gb]
+        dofs = [local_ga, local_gb]
+
+        # Assemble into global matrices (ALWAYS do this)
+        for i in range(2):
+            for j in range(2):
+                A[dofs[i], dofs[j]] += A_elem[i, j]
+                M[dofs[i], dofs[j]] += M_elem[i, j]
+
+    # STEP 2: Create RHS vector
+    if isinstance(b, (int, float)):
+        rhs = np.full(n_dof, b, dtype=float)
+    else:
+        rhs = np.zeros(n_dof, dtype=float)
+
+    # STEP 3: Apply Dirichlet BCs AFTER assembly
+    # Find nodes with min/max y coordinates
+    y_coords = nodes[side_nodes, 1]
+    min_y_idx = np.argmin(y_coords)  # Local index
+    max_y_idx = np.argmax(y_coords)  # Local index
+
+    bc_nodes = [min_y_idx, max_y_idx]
+    bc_values = [0.0, 0.0]  # Homogeneous Dirichlet BCs (u = 0 at boundaries)
+
+    # Apply BCs by modifying assembled matrices
+    for node_idx, bc_val in zip(bc_nodes, bc_values):
+        # Zero out row and column
+        A[node_idx, :] = 0
+        A[:, node_idx] = 0
+        M[node_idx, :] = 0
+        M[:, node_idx] = 0
+
+        # Set diagonal and RHS
+        A[node_idx, node_idx] = 1.0
+        M[node_idx, node_idx] = 0.0  # Mass matrix should be 0 for BC nodes
+        rhs[node_idx] = bc_val
+
+    # Convert to CSR format
+    A = A.tocsr()
+    M = M.tocsr()
+
+    # For eigenvalue problem, we need to solve the generalized eigenvalue problem
+    # A * u = lambda * M * u
+    # But we need to handle the zero mass matrix entries from BCs
+
+    # Find free (non-BC) nodes for eigenvalue computation
+    free_nodes = np.setdiff1d(np.arange(n_dof), bc_nodes)
+
+    if len(free_nodes) > 0:
+        # Extract submatrices for free nodes only
+        A_free = A[np.ix_(free_nodes, free_nodes)]
+        M_free = M[np.ix_(free_nodes, free_nodes)]
+
+        # Solve eigenvalue problem on free nodes
+        if N_modes > len(free_nodes):
+            N_modes = len(free_nodes) - 1
+
+        eigvals_free, eigvecs_free = eigsh(A_free, k=N_modes, M=M_free, which='SM')
+
+        # Reconstruct full eigenvectors
+        eigvecs = np.zeros((n_dof, N_modes))
+        eigvecs[free_nodes, :] = eigvecs_free
+        eigvals = eigvals_free
+        for j in range(eigvecs.shape[1]):
+            norm = np.sqrt(eigvecs[:, j].T @ (M @ eigvecs[:, j]))
+            eigvecs[:, j] /= norm
+    else:
+        # If no free nodes, return empty arrays
+        eigvals = np.array([])
+        eigvecs = np.zeros((n_dof, 0))
+
+    return A, M, eigvals, eigvecs
+
+def assemble_DtN_corrected(nodes, elements, side_nodes, k, N_modes=10, b=1.0, eps=1e-14):
+    """
+    Assemble DtN discrete matrix define in point 4 of the chat
+    """
+    A, M, eigvals, eigvecs = assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b)
+
+    if len(eigvals) == 0:
+        # Return zero matrix if no eigenvalues found
+        nb = len(side_nodes)
+        return csr_matrix((nb, nb), dtype=complex)
+
+    V = eigvecs
+    alpha_n = np.lib.scimath.sqrt(k**2 - eigvals)
+    diag_i_alpha = 1j * alpha_n
+    VtM = (V.T @ M)
+    DtN_term = V @ (diag_i_alpha[:, None] * VtM)
+
+    return csr_matrix(DtN_term, dtype=complex)
 
 def vectorized_local_matrices(vertices_batch):
     """
@@ -190,8 +340,8 @@ def vectorized_local_matrices(vertices_batch):
 
 def solve_system(A, M, nodes, elements, boundary_nodes,
                      left_nodes, right_nodes,
-                     b=1.0,
-                     k=1.0, bc_type='mixed', verbose=True):
+                     N_modes=10, b=1.0,
+                     k=1.0, bc_type='mixed', verbose=True, eignum=1):
     """
     Solve (K - B(k)) u = k^2 M u  using Newton on (k,u).
     Inputs A, M are full assembled matrices (csr), before DtN applied.
@@ -204,6 +354,16 @@ def solve_system(A, M, nodes, elements, boundary_nodes,
     M = M.tocsr().astype(complex)
 
     A_mod = A.copy().tolil()
+
+    # assemble B at current k and subtract into A_mod
+    B_right = assemble_DtN_corrected(nodes, elements, right_nodes, k, N_modes, b)
+    if len(right_nodes) > 0:
+        A_mod[np.ix_(right_nodes, right_nodes)] -= B_right
+
+    B_left = assemble_DtN_corrected(nodes, elements, left_nodes, k, N_modes, b)
+    if len(left_nodes) > 0:
+        A_mod[np.ix_(left_nodes, left_nodes)] += B_left
+
     A_mod = A_mod.tocsr()
 
     # Reduce according to bc_type (this removes Dirichlet nodes)
@@ -216,11 +376,23 @@ def solve_system(A, M, nodes, elements, boundary_nodes,
         raise RuntimeError("No unknowns after applying BCs.")
 
     # If first iteration, get initial eigenpair from linearized problem for starting u
-    eigvals, eigvecs = eigsh(A_bc, k=10, M=M_bc, sigma=k**2)
+    # Solve small generalized eigenproblem (closest to k^2)
+    try:
+        eigvals, eigvecs = eigs(A_bc, k=eignum, M=M_bc, sigma=k**2)
+    except Exception:
+        eigvals, eigvecs = eigsh(A_bc.real, k=min(6, nred-1), M=M_bc.real, sigma=(k**2 if k!=0 else 0.0))
 
-    return interior_nodes, A_bc, M_bc, eigvals, eigvecs
+    u_red = eigvecs[:, 0]
+    # normalize: u^H M u = 1
+    u_red /= np.sqrt(np.real(u_red.conj().T @ (M_bc @ u_red)))
 
-def solve_helmholtz_eigenproblem(nodes, elements, bc_type='mixed', b=1.0, k_guess=1.0, max_iter=10, tol=1e-6):
+    # map back to full vector
+    u_full = np.zeros(A.shape[0], dtype=complex)
+    u_full[interior_nodes] = u_red
+
+    return u_full, interior_nodes, A_bc, M_bc, eigvals, eigvecs
+
+def solve_helmholtz_eigenproblem(nodes, elements, bc_type='mixed', N_modes=5, b=1.0, k_guess=1.0, max_iter=10, tol=1e-6, eignum=1):
     N = len(nodes)
     nodes_array = np.array(nodes)
     elements_array = np.array(elements)
@@ -248,13 +420,13 @@ def solve_helmholtz_eigenproblem(nodes, elements, bc_type='mixed', b=1.0, k_gues
     top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = get_boundary_nodes(nodes_array, elements_array)
     boundary_nodes = (top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes)
 
-    interior_nodes, A_bc, M_bc, eigvals, eigvecs = solve_system(
+    u_full, interior_nodes, A_bc, M_bc, eigvals, eigvecs = solve_system(
         A, M, nodes_array, elements_array, boundary_nodes,
         left_nodes=left_nodes, right_nodes=right_nodes,
-        k=k_guess, bc_type=bc_type, verbose=True
-    )
+        k=k_guess, bc_type=bc_type, verbose=True, eignum=eignum
+        )
 
-    return interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs
+    return u_full, interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs
 
 def plot_boundary_nodes(nodes, elements, boundary_nodes):
     """
@@ -297,6 +469,23 @@ def plot_boundary_nodes(nodes, elements, boundary_nodes):
     plt.tight_layout()
     plt.show()
 
+def plot_eigenmode(nodes, elements, u_full, title=None):
+    triangles = np.array(elements)
+    nodes_array = np.array(nodes)
+    x, y = nodes_array[:, 0], nodes_array[:, 1]
+    triang = Triangulation(x, y, triangles)
+    u_real = np.real(u_full)
+    fig, ax = plt.subplots(1, 1, figsize=(8,4))
+    cs = ax.tricontourf(triang, u_real, levels=50, cmap='jet')
+    ax.triplot(triang, 'k-', alpha=0.2, linewidth=0.1)
+    cbar = fig.colorbar(cs, ax=ax)
+    cbar.set_label("Re(u)")
+    if title is not None:
+        ax.set_title(title)
+    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect('equal')
+    plt.tight_layout()
+    plt.show()
+
 def plot_eigenmode_on_ax(nodes, elements, u_full, ax, title=None):
     triangles = np.array(elements)
     nodes_array = np.array(nodes)
@@ -321,11 +510,9 @@ def Lambda_n(n, b):
 
 # Enhanced main execution
 if __name__ == "__main__":
-    # We have to set epsilon to be small
-    # If a=0 and the symmetry is with respect to X axes so there is a sigma and so a k2 define
-    # If the symmetry is with respect to Y axes there is a trapped mode in a = a1*epsilon, and the trapped mode is define equal to the above case
-
-    bc_type = 'neuman_dirichlet'
+    # nodes, elements = utils.load_mesh_meshio("mesh_with_hole")
+    # nodes, elements = gen.mesh_with_perturbed_hole(lc=0.5, plot=True)
+    bc_type = 'mixed'
     L=5.0 # longitud de la guia
     b=1.0 # mitad de la altura de la guia
     xc=0.0 # posicion x del obstaculo
@@ -334,6 +521,7 @@ if __name__ == "__main__":
     epsilon = 0.001
     lc=0.01 # Controla la finura del mallado
     k_guess = 3
+    N_modes = 20
 
     mu = dip.dipole(epsilon, beta, xc, yc)
     Lambda1 = Lambda_n(1,b)
@@ -356,10 +544,10 @@ if __name__ == "__main__":
 
     # nodes, elements = gen.mesh_with_obstacle_center(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
     nodes, elements = gen.mesh_with_parametric_obstacle_even_x(L=L, b=b, xc=xc, yc=a, lc=lc, beta=beta, n_points=50, scale=epsilon, plot=True)
-    interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
-        solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, b=b, k_guess=k_guess)
 
-    # Solve eigenvalue problem
+    u_full, interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
+        solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, N_modes=N_modes, b=b, k_guess=k_guess, eignum=10)
+
     num_eigs = eigvals.shape[0]
     eigvecs = np.zeros((len(nodes), num_eigs))
     for i in range(num_eigs):
@@ -368,21 +556,20 @@ if __name__ == "__main__":
     top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = boundary_nodes
 
     # Create a figure with 10 subplots (2 rows x 5 columns)
-    fig, axes = plt.subplots(5, 2, figsize=(20, 15))
+    fig, axes = plt.subplots(num_eigs, 1, figsize=(20, 15))
     axes = axes.flatten()  # Flatten to make indexing easier
 
     for i in range(num_eigs):
         print(f"Mode {i}:")
         print(f"  k = {eigvals[i]**0.5:.6f}")
-        print(f"  k² = {eigvals[i]:.6f}")
-        print(f"  k² analytic = {k2_analytic:.6f}")
+        print(f"  k² = {eigvals[i].real:.6f}")
 
         u_full = eigvecs[:, i].real
 
         # Plot on the corresponding subplot
         ax = axes[i]
         cs = plot_eigenmode_on_ax(nodes, elements, u_full, ax,
-                                title=f"Mode {i}, k={eigvals[i]**0.5:.4f}")
+                                title=f"Mode {i}, k={eigvals[i].real**0.5:.4f}")
 
         # Add colorbar to each subplot
         cbar = fig.colorbar(cs, ax=ax)
@@ -391,5 +578,6 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
+
 
 # @author: kssgarcia

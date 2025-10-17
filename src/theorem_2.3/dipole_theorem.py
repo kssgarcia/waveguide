@@ -324,13 +324,16 @@ def dipole_moments(points, f):
     nu = -sum_nu/(2*pi)
     return mu, nu
 
-def dipole(scale, beta, xc, yc):
+def dipole(scale, beta, xc, yc, symm="x"):
     Ne = 100
     t = np.linspace(0, 2*pi, num=Ne+1)
 
-    X_long = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + xc
-    Y_long = scale * (-np.cos(t) + (beta/2)*np.cos(2*t)) + yc
-    
+    if symm=="x":
+        X_long = scale * (-np.cos(t) + (beta/2)*np.cos(2*t)) + xc
+        Y_long = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + yc
+    else:
+        X_long = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + xc
+        Y_long = scale * (-np.cos(t) + (beta/2)*np.cos(2*t)) + yc
 
     # plt.figure(2)
     # plt.clf()
