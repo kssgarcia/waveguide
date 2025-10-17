@@ -327,7 +327,7 @@ if __name__ == "__main__":
     b=1.0 # mitad de la altura de la guia
     xc=0.0 # posicion x del obstaculo
     yc=0.0 # posicion y del obstaculo
-    beta=1
+    beta=1e-2
     # r=0.2 # radio
     lc=0.01 # Controla la finura del mallado
     k_guess = 3
@@ -337,13 +337,16 @@ if __name__ == "__main__":
     Lambda2 = Lambda_n(2,b)
     sigma = epsilon**2*np.pi**3/b**3 * mu
     k2_analytic = Lambda2-sigma**2
+    a1 = -beta/12
+    a = epsilon*a1
     print(np.sqrt(k2_analytic))
+    print("a", a)
 
     det_list = []
     kb_list = np.arange(1, 4, 0.05)
 
     # nodes, elements = gen.mesh_with_obstacle_center(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
-    nodes, elements = gen.mesh_with_parametric_obstacle_even_x(L=L, b=b, xc=xc, yc=yc, lc=lc, beta=beta, n_points=50, scale=epsilon, plot=True)
+    nodes, elements = gen.mesh_with_parametric_obstacle_even_y(L=L, b=b, xc=xc, yc=a, lc=lc, beta=beta, n_points=50, scale=epsilon, plot=True)
     interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
         solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, b=b, k_guess=k_guess)
 
