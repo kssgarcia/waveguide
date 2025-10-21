@@ -149,10 +149,10 @@ plt.figure(figsize=(8, 5))
 fig, ax1 = plt.subplots(figsize=(8, 5))
 
 color1 = 'tab:blue'
-ax1.plot(epsilon_list, s_list, 'o-', color=color1, label=r'$\sigma_{sol}$', markersize=6)
+ax1.plot(epsilon_list, s_list, 'o-', color=color1, label=r'$-\log_{10}(\sigma^2)$', markersize=6)
 ax1.axhline(0, color='r', linewidth=1)
 ax1.set_xlabel(r"$\epsilon$", fontsize=12)
-ax1.set_ylabel(r"$\sigma_{sol}$", color=color1, fontsize=12)
+ax1.set_ylabel(r"$-\log_{10}(\sigma^2)$", color=color1, fontsize=12)
 ax1.tick_params(axis='y', labelcolor=color1)
 ax1.grid(True, which='both', linestyle='--', alpha=0.4)
 
