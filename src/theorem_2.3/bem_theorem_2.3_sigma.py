@@ -91,14 +91,14 @@ def bisection(f, a_i, kb_left, kb_right, tol=1e-6, maxiter=50):
     return 0.5*(kb_left+kb_right)
 
 # ===========================================
-M = 32 # circle divisions
+M = 32*2 # circle divisions
 # theta, to be used by function determinant
 theta = (np.arange(1, M+1)-0.5)*2*np.pi/M
 
 b = 1.0
 d = 2*b
 beta=1e-2
-epsilon = 0.001
+epsilon = 0.00001
 
 mu = dip.dipole(epsilon, beta, 0, 0)
 Lambda1 = pi**2 / (4 * b**2)
