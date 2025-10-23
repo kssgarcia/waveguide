@@ -537,7 +537,7 @@ if __name__ == "__main__":
     print(f"sigma_analytic={sigma_analytic}")
     print(f"k2_analytic={k2_analytic}")
     print(f"kb_analytic={kb_analytic}")
-    print("a", a)
+    print(f"a={a}")
 
     det_list = []
     kb_list = np.arange(1, 4, 0.05)

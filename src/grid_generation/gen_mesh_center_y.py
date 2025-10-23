@@ -410,7 +410,7 @@ def mesh_with_parametric_obstacle_even_x(L=5.0, b=1.0, beta=0.2, xc=0.0, yc=0.0,
         rectangle = geom.add_rectangle([-L, -b, 0.0], 2*L, 2*b)
         # Parametric obstacle (even in X, odd in Y)
         t = np.linspace(0, 2*np.pi, n_points, endpoint=False)
-        X = scale * (-np.cos(t) + (beta/2)*np.cos(2*t)) + xc
+        X = scale * (np.cos(t) - (beta/2)*np.cos(2*t)) + xc
         Y = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + yc
         obstacle_points = np.column_stack([X, Y, np.zeros_like(X)])
         # Obstacle loop
