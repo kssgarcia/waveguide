@@ -11,23 +11,24 @@ import dipole_theorem as dip
 
 pi = np.pi
 
+# For x-axis symmetry: Y(t) should be odd and X(t) should be even
 def X(t):
-    return epsilon * -np.cos(t) + (beta/2)*np.cos(2*t)
+    return epsilon * np.cos(t) - (beta / 2) * np.cos(2 * t)
 
 def Y(t):
-    return epsilon * np.sin(t) - (beta/2)*np.sin(2*t)
+    return epsilon * np.sin(t) - (beta / 2) * np.sin(2 * t)
 
-def Xp(t):
-    return epsilon * np.sin(t) - beta*np.sin(2*t)
+def Xp(t):  # first derivative of X
+    return -epsilon * np.sin(t) + beta * np.sin(2 * t)
 
-def Yp(t):
-    return epsilon * np.cos(t) - beta*np.cos(2*t)
+def Yp(t):  # first derivative of Y
+    return epsilon * np.cos(t) - beta * np.cos(2 * t)
 
-def Xpp(t):
-    return epsilon * np.cos(t) - 2*beta*np.cos(2*t)
+def Xpp(t):  # second derivative of X
+    return -epsilon * np.cos(t) + 2 * beta * np.cos(2 * t)
 
-def Ypp(t):
-    return epsilon * -np.sin(t) + 2*beta*np.sin(2*t)
+def Ypp(t):  # second derivative of Y
+    return -epsilon * np.sin(t) + 2 * beta * np.sin(2 * t)
 
 def W(t):
     return np.sqrt(Xp(t)**2 + Yp(t)**2)
@@ -98,7 +99,7 @@ theta = (np.arange(1, M+1)-0.5)*2*np.pi/M
 b = 1.0
 d = 2*b
 beta=1e-2
-epsilon = 0.01
+epsilon = 0.5
 
 mu = dip.dipole(epsilon, beta, 0, 0)
 Lambda1 = pi**2 / (4 * b**2)
@@ -118,13 +119,45 @@ print(f"s_analytic={s_analytic}")
 print(f"k2_analytic={k2_analytic}")
 print(f"kb_analytic={kb_analytic}")
 
-kb_left = math.floor(kb_analytic * 10**1) / 10**1
-kb_right = math.ceil(kb_analytic * 10**1) / 10**1
+# Expand the search interval to ensure we capture the root
+# Since kb_analytic is at the upper boundary, we need to extend the interval
+kb_left = kb_analytic - 0.1  # Slightly below the analytical value use (0.1 or 0.01)
+kb_right = kb_analytic + 0.1  # Slightly above the analytical value
 kb_test = np.linspace(kb_left, kb_right, 15)
 det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
 
+# Print determinant values to check for sign change
+print("Determinant values:", det_vals)
+
+# Check if there's a sign change in the interval
+sign_changes = False
+for i in range(len(det_vals)-1):
+    if det_vals[i] * det_vals[i+1] <= 0:
+        sign_changes = True
+        print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i+1]}")
+        # Refine the interval to where the sign change occurs
+        kb_left = kb_test[i]
+        kb_right = kb_test[i+1]
+        break
+
+if not sign_changes:
+    print("No sign change detected in the interval. Trying a wider interval.")
+    kb_left = kb_analytic - 0.2
+    kb_right = kb_analytic + 0.2
+    kb_test = np.linspace(kb_left, kb_right, 30)
+    det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
+    
+    # Check again for sign changes
+    for i in range(len(det_vals)-1):
+        if det_vals[i] * det_vals[i+1] <= 0:
+            sign_changes = True
+            print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i+1]}")
+            kb_left = kb_test[i]
+            kb_right = kb_test[i+1]
+            break
+
 f = lambda s, a: determinant(s, a)
-kb_root = bisection(f, a, kb_left, kb_right)
+kb_root = bisection(f, a, kb_left, kb_right) if sign_changes else None
 print("kb_numeric", kb_root)
 
 plt.figure()

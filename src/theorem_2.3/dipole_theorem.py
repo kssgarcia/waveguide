@@ -329,7 +329,7 @@ def dipole(scale, beta, xc, yc, symm="x"):
     t = np.linspace(0, 2*pi, num=Ne+1)
 
     if symm=="x":
-        X_long = scale * (-np.cos(t) + (beta/2)*np.cos(2*t)) + xc
+        X_long = scale * (np.cos(t) - (beta/2)*np.cos(2*t)) + xc
         Y_long = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + yc
     else:
         X_long = scale * (np.sin(t) - (beta/2)*np.sin(2*t)) + xc
