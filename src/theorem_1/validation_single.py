@@ -96,80 +96,31 @@ error_list = []
 sigma_analytic_list = []
 s_analytic_list = []
 
-for i, epsilon in enumerate(epsilon_list):
-    r0 = epsilon*R0
-    a = 0.6
-    alpha = pi * a / b  # α = π a / b
-    sigma_analytic = (epsilon**2 * pi**2) / (4 * b**3) * (pi * mu * np.sin(alpha/2)**2 - 0.5 * S * np.cos(alpha/2)**2)
-    s_analytic = - 2*np.log10(sigma_analytic)
-    k2_analytic = Lambda1 - sigma_analytic**2
-    kbpi_analytic = np.sqrt(k2_analytic)*b/pi
+epsilon = 0.35
+r0 = epsilon*R0
+a = 0.6
+alpha = pi * a / b  # α = π a / b
+sigma_analytic = (epsilon**2 * pi**2) / (4 * b**3) * (pi * mu * np.sin(alpha/2)**2 - 0.5 * S * np.cos(alpha/2)**2)
+s_analytic = - 2*np.log10(sigma_analytic)
+k2_analytic = Lambda1 - sigma_analytic**2
+kbpi_analytic = np.sqrt(k2_analytic)*b/pi
 
-    print(f"-----------------{i}-----------------")
-    print(f'a0={a0}')
-    print(f"sigma_analytic={sigma_analytic}")
-    print(f"s_analytic={s_analytic}")
-    print(f"k2_analytic={k2_analytic}")
-    print(f"kb/pi analytic={kbpi_analytic}")
+print(f'a0={a0}')
+print(f"sigma_analytic={sigma_analytic}")
+print(f"s_analytic={s_analytic}")
+print(f"k2_analytic={k2_analytic}")
+print(f"kb/pi analytic={kbpi_analytic}")
 
-    try:
-        convert = lambda s: b*np.sqrt(Lambda1 - 10**(-s))
-        f = lambda s, a: determinant(convert(s), a)
-        s_left, s_right = math.floor(s_analytic), math.ceil(s_analytic)+0.1
-        s_root = bisection(f, a, s_left, s_right)
-        s_numeric = 10**(-0.5*s_root)
-        error = np.abs((np.abs(s_root) - np.abs(s_analytic))/np.abs(s_analytic))
-    except:
-        s_root = 0
-        error = 1
+try:
+    convert = lambda s: b*np.sqrt(Lambda1 - 10**(-s))
+    f = lambda s, a: determinant(convert(s), a)
+    s_left, s_right = math.floor(s_analytic), math.ceil(s_analytic)+0.1
+    s_root = bisection(f, a, s_left, s_right)
+    s_numeric = 10**(-0.5*s_root)
+    error = np.abs((np.abs(s_root) - np.abs(s_analytic))/np.abs(s_analytic))
+except:
+    s_root = 0
+    error = 1
 
-    print("s_numeric", s_root)
-    print("error", error)
-
-    # Append results
-    s_list.append(s_root)
-    error_list.append(error)
-    sigma_analytic_list.append(sigma_analytic)
-    s_analytic_list.append(s_analytic)
-
-
-# Save everything in a CSV
-df = pd.DataFrame({
-    "epsilon": epsilon_list,
-    "sigma_analytic": sigma_analytic_list,
-    "s_analytic": s_analytic_list,
-    "s_root": s_list,
-    "error": error_list,
-})
-df.to_csv("kevin.csv", index=False)
-
-plt.figure(figsize=(8, 5))
-
-# --- First axis: σ_sol vs ε ---
-fig, ax1 = plt.subplots(figsize=(8, 5))
-
-color1 = 'tab:blue'
-color3 = 'tab:green'
-ax1.plot(epsilon_list, s_list, 'o-', color=color1, label=r'$s_{sol}$', markersize=6)
-ax1.plot(epsilon_list, s_analytic_list, 'o-', color=color3, label=r'$s_{analytic}$', markersize=6)
-ax1.axhline(0, color='r', linewidth=1)
-ax1.set_xlabel(r"$\epsilon$", fontsize=12)
-ax1.set_ylabel(r"$-\log_{10}(\sigma^2)$", color=color1, fontsize=12)
-ax1.tick_params(axis='y', labelcolor=color1)
-ax1.grid(True, which='both', linestyle='--', alpha=0.4)
-
-# --- Second axis: Error vs ε ---
-ax2 = ax1.twinx()
-color2 = 'tab:orange'
-ax2.plot(epsilon_list, error_list, 's--', color=color2, label='Error', markersize=5, linewidth=2)
-ax2.set_ylabel("Error", color=color2, fontsize=12)
-ax2.tick_params(axis='y', labelcolor=color2)
-
-# --- Combined Legend ---
-lines_1, labels_1 = ax1.get_legend_handles_labels()
-lines_2, labels_2 = ax2.get_legend_handles_labels()
-ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
-
-# --- Title & Styling ---
-plt.tight_layout()
-plt.show()
+print("s_numeric", s_root)
+print("error", error)

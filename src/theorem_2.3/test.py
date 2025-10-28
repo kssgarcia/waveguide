@@ -99,67 +99,118 @@ theta = (np.arange(1, M+1)-0.5)*2*np.pi/M
 b = 1.0
 d = 2*b
 beta=1e-2
-epsilon = 1e-4
+# epsilon = 1e-4
 
-mu = dip.dipole(epsilon, beta, 0, 0)
-Lambda1 = pi**2 / (4 * b**2)
-Lambda2 = pi**2 * 2**2 / (4 * b**2)
-sigma_analytic = epsilon**2*(np.pi**3/b**3) * mu
-s_analytic = - 2*np.log10(sigma_analytic)
-k2_analytic = Lambda2 - sigma_analytic**2
-kb_analytic = np.sqrt(k2_analytic)*b
-# a1 = -beta/12
-# a = epsilon*a1
-a = 0
+kb_roots = []
+kb_analytics = []
+for epsilon in np.linspace(1e-4, 0.1,20):
+    mu = dip.dipole(epsilon, beta, 0, 0)
+    Lambda1 = pi**2 / (4 * b**2)
+    Lambda2 = pi**2 * 2**2 / (4 * b**2)
+    sigma_analytic = epsilon**2*(np.pi**3/b**3) * mu
+    s_analytic = - 2*np.log10(sigma_analytic)
+    k2_analytic = Lambda2 - sigma_analytic**2
+    kb_analytic = np.sqrt(k2_analytic)*b
+    a = 0
 
-print("Lambda1,Lambda2", Lambda1, Lambda2)
-print("kb_min,kb_max", np.sqrt(Lambda1-sigma_analytic**2)*b, np.sqrt(Lambda2-sigma_analytic**2)*b)
-print(f"sigma_analytic={sigma_analytic}")
-print(f"s_analytic={s_analytic}")
-print(f"k2_analytic={k2_analytic}")
-print(f"kb_analytic={kb_analytic}")
+    print("Lambda1,Lambda2", Lambda1, Lambda2)
+    print("kb_min,kb_max", np.sqrt(Lambda1-sigma_analytic**2)*b, np.sqrt(Lambda2-sigma_analytic**2)*b)
+    print(f"sigma_analytic={sigma_analytic}")
+    print(f"s_analytic={s_analytic}")
+    print(f"k2_analytic={k2_analytic}")
+    print(f"kb_analytic={kb_analytic}")
 
-# Expand the search interval to ensure we capture the root
-# Since kb_analytic is at the upper boundary, we need to extend the interval
-kb_left = kb_analytic - 0.1  # Slightly below the analytical value use (0.1 or 0.01)
-kb_right = kb_analytic + 0.1  # Slightly above the analytical value
-kb_test = np.linspace(kb_left, kb_right, 15)
-det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
-
-# Print determinant values to check for sign change
-print("Determinant values:", det_vals)
-
-# Check if there's a sign change in the interval
-sign_changes = False
-for i in range(len(det_vals)-1):
-    if det_vals[i] * det_vals[i+1] <= 0:
-        sign_changes = True
-        print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i+1]}")
-        # Refine the interval to where the sign change occurs
-        kb_left = kb_test[i]
-        kb_right = kb_test[i+1]
-        break
-
-if not sign_changes:
-    print("No sign change detected in the interval. Trying a wider interval.")
-    kb_left = kb_analytic - 0.2
-    kb_right = kb_analytic + 0.2
-    kb_test = np.linspace(kb_left, kb_right, 30)
+    # Expand the search interval to ensure we capture the root
+    # Since kb_analytic is at the upper boundary, we need to extend the interval
+    kb_left = kb_analytic - 0.1  # Slightly below the analytical value use (0.1 or 0.01)
+    kb_right = kb_analytic + 0.1  # Slightly above the analytical value
+    kb_test = np.linspace(kb_left, kb_right, 15)
     det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
-    
-    # Check again for sign changes
+    # Print determinant values to check for sign change
+    print("Determinant values:", det_vals)
+
+    # Check if there's a sign change in the interval
+    sign_changes = False
     for i in range(len(det_vals)-1):
         if det_vals[i] * det_vals[i+1] <= 0:
             sign_changes = True
             print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i+1]}")
+            # Refine the interval to where the sign change occurs
             kb_left = kb_test[i]
             kb_right = kb_test[i+1]
             break
 
-f = lambda s, a: determinant(s, a)
-kb_root = bisection(f, a, kb_left, kb_right) if sign_changes else None
-print("kb_numeric", kb_root)
+    if not sign_changes:
+        print("No sign change detected in the interval. Trying a wider interval.")
+        kb_left = kb_analytic - 0.2
+        kb_right = kb_analytic + 0.2
+        kb_test = np.linspace(kb_left, kb_right, 30)
+        det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
+        
+        # Check again for sign changes
+        for i in range(len(det_vals)-1):
+            if det_vals[i] * det_vals[i+1] <= 0:
+                sign_changes = True
+                print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i+1]}")
+                kb_left = kb_test[i]
+                kb_right = kb_test[i+1]
+                break
 
+    f = lambda s, a: determinant(s, a)
+    kb_root = bisection(f, a, kb_left, kb_right) if sign_changes else None
+    kb_roots.append(kb_root)
+    kb_analytics.append(kb_analytic)
+    print("kb_numeric", kb_root)
+
+
+# %%
+plt.figure()
+plt.plot(np.linspace(1e-4, 0.1, 20), kb_roots, 'o-')
+plt.axhline(0, color='r')
+plt.xlabel("$\varepsilon$")
+plt.ylabel("kb")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+# %%
+# Convert to numpy array and replace None with 0
+kb_roots = np.array([0 if v is None else v for v in kb_roots])
+
+# Compute error
+error = np.abs(kb_roots - kb_analytics)/kb_analytics*100
+error[0:2] = 1
+
+# X-axis values
+eps = np.linspace(1e-4, 0.1, 20)
+
+# Plot kb_roots and kb_analytics
+fig, ax1 = plt.subplots()
+
+ax1.plot(eps, kb_roots, 'o-', label="kb_roots")
+ax1.axhline(0, color='r', linestyle='--')
+ax1.set_xlabel(r"$\varepsilon$")
+ax1.set_ylabel("kb")
+ax1.grid(True)
+
+# Second y-axis for the error
+ax2 = ax1.twinx()
+ax2.plot(eps, error, 's--', color='orange', label="Error")
+ax2.set_ylabel("Error |kb_roots - kb_analytics|", color='orange')
+
+# Combine legends
+lines, labels = ax1.get_legend_handles_labels()
+lines2, labels2 = ax2.get_legend_handles_labels()
+ax1.legend(lines + lines2, labels + labels2, loc='best')
+
+plt.tight_layout()
+plt.show()
+
+# Print results
+print("kb_analytics:", kb_analytics)
+print("kb_roots:", kb_roots)
+print("Error:", error)
+
+# %%
 plt.figure()
 plt.plot(kb_test, det_vals, 'o-')
 plt.axhline(0, color='r')
