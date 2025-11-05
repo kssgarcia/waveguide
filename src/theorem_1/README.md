@@ -8,7 +8,7 @@
 
 Este repositorio contiene la implementación numérica para la validación del Teorema 2.1 de [1], que predice la existencia de modos atrapados en una guía de ondas bidimensional con un obstáculo pequeño.
 
-Utilizando el Método de Elementos de Frontera (BEM), calculamos los valores propios de la ecuación de Helmholtz para diferentes posiciones del obstáculo y parámetros de perturbación ε. El objetivo principal es determinar el valor máximo de ε, denotado ε_máx, para el cual el teorema se cumple. Además, analizamos cómo ε_máx depende de la altura _a_ del obstáculo.
+Utilizando el Método de Elementos de Frontera (BEM), calculamos los valores propios de la ecuación de Helmholtz para diferentes posiciones del obstáculo y parámetros de perturbación ε. El objetivo principal es determinar el valor máximo de ε, denotado ε*máx, para el cual el teorema se cumple. Además, analizamos cómo ε_máx depende de la altura \_a* del obstáculo.
 
 ## Estructura del Repositorio
 
@@ -17,6 +17,7 @@ Utilizando el Método de Elementos de Frontera (BEM), calculamos los valores pro
 - **`validation.py`** : Validación principal del teorema usando la transformación logarítmica _s = -2log₁₀(σ)_
 - **`validation_kb.py`** : Validación del teorema utilizando el parámetro _kb_
 - **`validation_a_vs_eps.py`** : Análisis de la relación entre la altura del obstáculo _a_ y el parámetro de perturbación _ε_
+- **`validation_multiple.py`** : Validación del teorema para multiple valores de $a$.
 
 ### Utilidades
 
