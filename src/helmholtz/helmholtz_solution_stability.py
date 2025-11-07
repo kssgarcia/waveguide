@@ -324,51 +324,47 @@ def Lambda_n(n, b):
 # Enhanced main execution
 if __name__ == "__main__":
     epsilon = 1e-1
-    # bc_type = 'neuman_walls'
-    bc_type = 'dirichlet_walls'
+    bc_type = 'neuman_walls'
+    # bc_type = 'dirichlet_walls'
     L=5.0 # longitud de la guia
     b=1.0 # mitad de la altura de la guia
-    xc=0 # posicion x del obstaculo
+    xc=1.9/2 # posicion x del obstaculo
     yc=0.0 # posicion y del obstaculo
     beta=1
-    r=0.3 # radio
-    lc=0.005 # Controla la finura del mallado
-    k_guess = 3
-    mode_index = 0
+    r=0.4 # radio
+    k_guess = 4.6
 
     det_list = []
     kb_list = np.arange(1, 4, 0.05)
 
-    nodes, elements = gen.mesh_with_obstacle_center(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
-    # nodes, elements = gen.mesh_with_parametric_obstacle_even_x(L=L, b=b, xc=xc, yc=yc, lc=lc, beta=beta, n_points=50, scale=epsilon)
-    # nodes, elements = gen.mesh_with_two_obstacle(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc, plot=True)
-
-    interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
-        solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, b=b, k_guess=k_guess)
-
-    # Solve eigenvalue problem
-    num_eigs = eigvals.shape[0]
-    eigvecs = np.zeros((len(nodes), num_eigs))
-    for i in range(num_eigs):
-        eigvecs[interior_nodes, i] = eigvecs_reduced[:, i]
-
-    top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = boundary_nodes
-
-    # Create a figure with 10 subplots (2 rows x 5 columns)
     fig, axes = plt.subplots(5, 2, figsize=(20, 15))
     axes = axes.flatten()  # Flatten to make indexing easier
 
-    for i in range(num_eigs):
-        print(f"Mode {i}:")
-        print(f"  k = {eigvals[i]**0.5:.6f}")
-        print(f"  k² = {eigvals[i]:.6f}")
+    for i, lc in enumerate(np.linspace(0.5, 0.01, 10)):
+        # nodes, elements = gen.mesh_with_obstacle_center(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
+        # nodes, elements = gen.mesh_with_parametric_obstacle_even_x(L=L, b=b, xc=xc, yc=yc, lc=lc, beta=beta, n_points=50, scale=epsilon)
+        nodes, elements = gen.mesh_with_two_obstacle(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
 
-        u_full = eigvecs[:, i].real
+        interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
+            solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, b=b, k_guess=k_guess)
 
-        # Plot on the corresponding subplot
+        # Solve eigenvalue problem
+        num_eigs = eigvals.shape[0]
+        eigvecs = np.zeros((len(nodes), num_eigs))
+        for i in range(num_eigs):
+            eigvecs[interior_nodes, i] = eigvecs_reduced[:, i]
+
+        top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = boundary_nodes
+
+        mode_index = 3
         ax = axes[i]
-        cs = plot_eigenmode_on_ax(nodes, elements, u_full, ax,
-                                title=f"Mode {i}, k={eigvals[i]**0.5:.4f}")
+        u_full = eigvecs[:, mode_index].real
+
+        # Plot the selected eigenmode
+        cs = plot_eigenmode_on_ax(
+            nodes, elements, u_full, ax,
+            title=f"N elements: {elements.shape[0]}, k={eigvals[mode_index]**0.5:.4f}"
+        )
 
         # Add colorbar to each subplot
         cbar = fig.colorbar(cs, ax=ax)
@@ -377,19 +373,5 @@ if __name__ == "__main__":
 
     plt.tight_layout()
     plt.show()
-
-    u_full = eigvecs[:, mode_index].real
-    fig, ax = plt.subplots(figsize=(8, 6))
-    cs = plot_eigenmode_on_ax(
-        nodes, elements, u_full, ax,
-        title=f"N elements: {elements.shape[0]}, k={eigvals[mode_index]**0.5:.4f}"
-    )
-    cbar = fig.colorbar(cs, ax=ax)
-    cbar.set_label("Re(u)", fontsize=10)
-    cbar.ax.tick_params(labelsize=8)
-
-    plt.tight_layout()
-    plt.show()
-
 
 # @author: kssgarcia
