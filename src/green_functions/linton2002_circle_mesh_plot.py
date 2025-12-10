@@ -47,11 +47,10 @@ class Helmholtz:
 
     def initialize_mesh(self):
         L=5.0
-        a=0.0
         xc=0.0
         lc=0.1
 
-        nodes, elements = gen.mesh_with_obstacle_center(L=L, b=self.b, a=a, xc=xc, yc=self.yc, r=self.r, lc=lc)
+        nodes, elements = gen.mesh_with_obstacle_center(L=L, b=self.b, xc=xc, yc=self.yc, r=self.r, lc=lc)
         return nodes, elements
 
     # --- Contour functions ---

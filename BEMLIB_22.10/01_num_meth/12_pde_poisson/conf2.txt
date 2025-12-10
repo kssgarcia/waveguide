@@ -1,2 +1,0 @@
-conf2: Driver for solving the Poisson equation
-conf2_bump: Driver for shear flow over a bumpy wall

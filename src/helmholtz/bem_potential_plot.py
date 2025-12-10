@@ -100,8 +100,6 @@ kb_root = bisection(f, a, kb_left, kb_right)
 print("kb_numeric", kb_root)
 print("kb_numeric", kb_root/pi)
 
-# %% After computing trapped mode k value
-
 def plot_solution_mesh(node_sol):
     triangles = elements  # shape (num_triangles, 3)
     triang = tri.Triangulation(nodes[:,0], nodes[:,1], triangles)
@@ -109,22 +107,22 @@ def plot_solution_mesh(node_sol):
     plt.figure(figsize=(10, 4))  # Wider aspect ratio like the reference
 
     # Create symmetric levels around 0
-    vmax = np.max(np.abs(node_sol))
+    node_sol_real = np.real(node_sol)
+    vmax = np.max(np.abs(node_sol_real))
     levels = np.linspace(-vmax, vmax, 50)
 
     # Plot with diverging colormap
-    plt.tricontourf(triang, node_sol, levels=levels, cmap='RdBu_r', extend='both')
+    plt.tricontourf(triang, node_sol_real, levels=levels, cmap='RdBu_r', extend='both')
     cbar = plt.colorbar(label='u(x,y)')
     cbar.ax.tick_params(labelsize=10)
 
     # Optional: add contour lines for clarity
-    plt.tricontour(triang, node_sol, levels=10, colors='black', linewidths=0.5, alpha=0.3)
+    plt.tricontour(triang, node_sol_real, levels=10, colors='black', linewidths=0.5, alpha=0.3)
 
     plt.xlabel('x', fontsize=12)
     plt.ylabel('y', fontsize=12)
-    plt.title('Numerical solution of u(x,y)', fontsize=12)
     plt.axis('equal')
-    plt.xlim(-5, 5)  # Adjust based on your domain
+    plt.xlim(-2, 2)  # Adjust based on your domain
     plt.ylim(-1.5, 1.5)
     plt.tight_layout()
     plt.show()
@@ -151,7 +149,7 @@ def Gn_internal( x, y, theta):
     def Gy_reg(x, y, xi, eta):
         return (G_reg(x, y, xi, eta+epsilon) - G_reg(x, y, xi, eta-epsilon))/(2*epsilon)
 
-    if abs(np.sqrt((x - xi)**2 + (y - eta)**2)) > 1e-2:
+    if np.sqrt((x - xi)**2 + (y - eta)**2) > 1e-2:
         return xi_p*Gy(x, y, xi, eta) - eta_p*Gx(x, y, xi, eta)
     else:
         r_2prime = rho_pp(theta)
@@ -185,13 +183,19 @@ nodes_sol = np.zeros(nodes.shape[0])
 for idx, node in enumerate(nodes):
     x_i = node[0]
     y_i = node[1]
+    # Skip nodes inside the circular obstacle (avoid singular evaluation)
+    if (x_i - xc)**2 + (y_i - a)**2 <= (r0 + 1e-6)**2:
+        nodes_sol[idx] = 0.0
+        continue
+
     sol = 0
 
     for j in range(M):
         try:
             sol += phi_x[j] * Gn_internal(x_i, y_i, theta[j])
         except:
-            sol += 0
+            pass
 
-    nodes_sol[idx] = sol
+    # Include quadrature weight for boundary integral (uniform in theta)
+    nodes_sol[idx] = (2*np.pi/M) * sol
 plot_solution_mesh(nodes_sol)
