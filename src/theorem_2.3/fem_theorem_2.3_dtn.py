@@ -1,16 +1,18 @@
 # %%
-import sys
 import os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..'))
+import sys
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.sparse import lil_matrix
-from matplotlib.tri import Triangulation
-from scipy.sparse import csr_matrix
-from scipy.sparse.linalg import eigs, eigsh
-import src.grid_generation.gen_mesh_center_y as gen
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+
 import dipole_theorem as dip
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.tri import Triangulation
+from scipy.sparse import csr_matrix, lil_matrix
+from scipy.sparse.linalg import eigs, eigsh
+
+import src.grid_generation.gen_mesh_center_y as gen
+
 
 def find_boundary_edges(elements):
     """
@@ -24,7 +26,7 @@ def find_boundary_edges(elements):
         edges = [
             tuple(sorted([element[0], element[1]])),
             tuple(sorted([element[1], element[2]])),
-            tuple(sorted([element[2], element[0]]))
+            tuple(sorted([element[2], element[0]])),
         ]
 
         for edge in edges:
@@ -34,6 +36,7 @@ def find_boundary_edges(elements):
     boundary_edges = {edge for edge, count in edge_count.items() if count == 1}
 
     return boundary_edges
+
 
 def get_boundary_nodes(nodes, elements, tol=1e-10):
     """
@@ -69,10 +72,18 @@ def get_boundary_nodes(nodes, elements, tol=1e-10):
     boundary_x = x[boundary_nodes]
     boundary_y = y[boundary_nodes]
 
-    on_left = (np.abs(boundary_x - x_min) < tol) & (boundary_y > y_min + tol) & (boundary_y < y_max - tol)
-    on_right = (np.abs(boundary_x - x_max) < tol) & (boundary_y > y_min + tol) & (boundary_y < y_max - tol)
-    on_bottom = np.abs(boundary_y - y_min) < tol   # y = -1.0
-    on_top = np.abs(boundary_y - y_max) < tol      # y = 1.0
+    on_left = (
+        (np.abs(boundary_x - x_min) < tol)
+        & (boundary_y > y_min + tol)
+        & (boundary_y < y_max - tol)
+    )
+    on_right = (
+        (np.abs(boundary_x - x_max) < tol)
+        & (boundary_y > y_min + tol)
+        & (boundary_y < y_max - tol)
+    )
+    on_bottom = np.abs(boundary_y - y_min) < tol  # y = -1.0
+    on_top = np.abs(boundary_y - y_max) < tol  # y = 1.0
 
     # Get node indices for outer boundaries
     top_nodes = boundary_nodes[on_top]
@@ -87,7 +98,8 @@ def get_boundary_nodes(nodes, elements, tol=1e-10):
 
     return top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes
 
-def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
+
+def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type="mixed"):
     """
     Apply boundary conditions to the system matrices
 
@@ -104,9 +116,11 @@ def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
     top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = boundary_nodes
     N = A.shape[0]
 
-    if bc_type == 'dirichlet_all':
+    if bc_type == "dirichlet_all":
         # Apply Dirichlet BC (u=0) on all boundaries
-        all_boundary_nodes = np.concatenate([top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes])
+        all_boundary_nodes = np.concatenate(
+            [top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes]
+        )
         dirichlet_nodes = np.unique(all_boundary_nodes)
 
         all_nodes = np.arange(N)
@@ -118,13 +132,13 @@ def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
         A_bc = A[np.ix_(interior_nodes, interior_nodes)]
         M_bc = M[np.ix_(interior_nodes, interior_nodes)]
 
-    elif bc_type == 'neumann_all':
+    elif bc_type == "neumann_all":
         # Apply Neumann BC (natural BC, no modification needed)
         interior_nodes = np.arange(N)
         A_bc = A
         M_bc = M
 
-    elif bc_type == 'mixed':
+    elif bc_type == "mixed":
         # Example: Dirichlet on outer boundaries, Neumann on obstacle
         dirichlet_nodes = np.concatenate([top_nodes, bottom_nodes])
         dirichlet_nodes = np.unique(dirichlet_nodes)
@@ -142,6 +156,7 @@ def apply_boundary_conditions(A, M, nodes, boundary_nodes, bc_type='mixed'):
         raise ValueError(f"Unknown boundary condition type: {bc_type}")
 
     return A_bc, M_bc, interior_nodes
+
 
 def vectorized_local_matrices_1d_optimized(vertices_batch):
     """
@@ -165,6 +180,7 @@ def vectorized_local_matrices_1d_optimized(vertices_batch):
     M_local_batch = (lengths / 6.0)[:, None, None] * base_mass[None, :, :]
 
     return A_local_batch, M_local_batch
+
 
 def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b):
     """
@@ -198,7 +214,7 @@ def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b
     M = lil_matrix((n_dof, n_dof))
 
     # STEP 1: Assemble ALL elements normally (don't skip any!)
-    for (ga, gb) in elements_edges:
+    for ga, gb in elements_edges:
         # Get node coordinates
         node_coord = nodes[[ga, gb], 1]  # Extract y-coordinates
 
@@ -208,7 +224,9 @@ def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b
             node_coord = node_coord[::-1]
 
         # Compute local matrices
-        A_local, M_local = vectorized_local_matrices_1d_optimized(np.array([node_coord]))
+        A_local, M_local = vectorized_local_matrices_1d_optimized(
+            np.array([node_coord])
+        )
         A_elem = A_local[0]
         M_elem = M_local[0]
 
@@ -271,7 +289,7 @@ def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b
         if N_modes > len(free_nodes):
             N_modes = len(free_nodes) - 1
 
-        eigvals_free, eigvecs_free = eigsh(A_free, k=N_modes, M=M_free, which='SM')
+        eigvals_free, eigvecs_free = eigsh(A_free, k=N_modes, M=M_free, which="SM")
 
         # Reconstruct full eigenvectors
         eigvecs = np.zeros((n_dof, N_modes))
@@ -287,11 +305,16 @@ def assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b
 
     return A, M, eigvals, eigvecs
 
-def assemble_DtN_corrected(nodes, elements, side_nodes, k, N_modes=10, b=1.0, eps=1e-14):
+
+def assemble_DtN_corrected(
+    nodes, elements, side_nodes, k, N_modes=10, b=1.0, eps=1e-14
+):
     """
     Assemble DtN discrete matrix define in point 4 of the chat
     """
-    A, M, eigvals, eigvecs = assemble_fem_1d_problem_corrected(nodes, elements, side_nodes, k, N_modes, b)
+    A, M, eigvals, eigvecs = assemble_fem_1d_problem_corrected(
+        nodes, elements, side_nodes, k, N_modes, b
+    )
 
     if len(eigvals) == 0:
         # Return zero matrix if no eigenvalues found
@@ -301,10 +324,11 @@ def assemble_DtN_corrected(nodes, elements, side_nodes, k, N_modes=10, b=1.0, ep
     V = eigvecs
     alpha_n = np.lib.scimath.sqrt(k**2 - eigvals)
     diag_i_alpha = 1j * alpha_n
-    VtM = (V.T @ M)
+    VtM = V.T @ M
     DtN_term = V @ (diag_i_alpha[:, None] * VtM)
 
     return csr_matrix(DtN_term, dtype=complex)
+
 
 def vectorized_local_matrices(vertices_batch):
     """
@@ -315,7 +339,9 @@ def vectorized_local_matrices(vertices_batch):
 
     # Add column of ones for transformation matrices
     ones = np.ones((num_elements, 3, 1))
-    mat_batch = np.concatenate([ones, vertices_batch], axis=2)  # Shape: (num_elements, 3, 3)
+    mat_batch = np.concatenate(
+        [ones, vertices_batch], axis=2
+    )  # Shape: (num_elements, 3, 3)
 
     # Compute areas for all elements
     det_batch = np.linalg.det(mat_batch)
@@ -338,10 +364,22 @@ def vectorized_local_matrices(vertices_batch):
 
     return A_local_batch, M_local_batch
 
-def solve_system(A, M, nodes, elements, boundary_nodes,
-                     left_nodes, right_nodes,
-                     N_modes=10, b=1.0,
-                     k=1.0, bc_type='mixed', verbose=True, eignum=1):
+
+def solve_system(
+    A,
+    M,
+    nodes,
+    elements,
+    boundary_nodes,
+    left_nodes,
+    right_nodes,
+    N_modes=10,
+    b=1.0,
+    k=1.0,
+    bc_type="mixed",
+    verbose=True,
+    eignum=1,
+):
     """
     Solve (K - B(k)) u = k^2 M u  using Newton on (k,u).
     Inputs A, M are full assembled matrices (csr), before DtN applied.
@@ -367,7 +405,9 @@ def solve_system(A, M, nodes, elements, boundary_nodes,
     A_mod = A_mod.tocsr()
 
     # Reduce according to bc_type (this removes Dirichlet nodes)
-    A_bc, M_bc, interior_nodes = apply_boundary_conditions(A_mod, M, nodes, boundary_nodes, bc_type)
+    A_bc, M_bc, interior_nodes = apply_boundary_conditions(
+        A_mod, M, nodes, boundary_nodes, bc_type
+    )
     A_bc = A_bc.tocsr().astype(complex)
     M_bc = M_bc.tocsr().astype(complex)
 
@@ -380,7 +420,9 @@ def solve_system(A, M, nodes, elements, boundary_nodes,
     try:
         eigvals, eigvecs = eigs(A_bc, k=eignum, M=M_bc, sigma=k**2)
     except Exception:
-        eigvals, eigvecs = eigsh(A_bc.real, k=min(6, nred-1), M=M_bc.real, sigma=(k**2 if k!=0 else 0.0))
+        eigvals, eigvecs = eigsh(
+            A_bc.real, k=min(6, nred - 1), M=M_bc.real, sigma=(k**2 if k != 0 else 0.0)
+        )
 
     u_red = eigvecs[:, 0]
     # normalize: u^H M u = 1
@@ -392,7 +434,18 @@ def solve_system(A, M, nodes, elements, boundary_nodes,
 
     return u_full, interior_nodes, A_bc, M_bc, eigvals, eigvecs
 
-def solve_helmholtz_eigenproblem(nodes, elements, bc_type='mixed', N_modes=5, b=1.0, k_guess=1.0, max_iter=10, tol=1e-6, eignum=1):
+
+def solve_helmholtz_eigenproblem(
+    nodes,
+    elements,
+    bc_type="mixed",
+    N_modes=5,
+    b=1.0,
+    k_guess=1.0,
+    max_iter=10,
+    tol=1e-6,
+    eignum=1,
+):
     N = len(nodes)
     nodes_array = np.array(nodes)
     elements_array = np.array(elements)
@@ -417,16 +470,27 @@ def solve_helmholtz_eigenproblem(nodes, elements, bc_type='mixed', N_modes=5, b=
     M = M.tocsr()
 
     # Boundary nodes
-    top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = get_boundary_nodes(nodes_array, elements_array)
+    top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes = (
+        get_boundary_nodes(nodes_array, elements_array)
+    )
     boundary_nodes = (top_nodes, bottom_nodes, left_nodes, right_nodes, obstacle_nodes)
 
     u_full, interior_nodes, A_bc, M_bc, eigvals, eigvecs = solve_system(
-        A, M, nodes_array, elements_array, boundary_nodes,
-        left_nodes=left_nodes, right_nodes=right_nodes,
-        k=k_guess, bc_type=bc_type, verbose=True, eignum=eignum
-        )
+        A,
+        M,
+        nodes_array,
+        elements_array,
+        boundary_nodes,
+        left_nodes=left_nodes,
+        right_nodes=right_nodes,
+        k=k_guess,
+        bc_type=bc_type,
+        verbose=True,
+        eignum=eignum,
+    )
 
     return u_full, interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs
+
 
 def plot_boundary_nodes(nodes, elements, boundary_nodes):
     """
@@ -443,31 +507,62 @@ def plot_boundary_nodes(nodes, elements, boundary_nodes):
     fig, ax = plt.subplots(1, 1, figsize=(12, 4))  # Wider to give more space
 
     # Plot mesh
-    ax.triplot(triang, 'k-', alpha=0.3, linewidth=0.5)
+    ax.triplot(triang, "k-", alpha=0.3, linewidth=0.5)
 
     # Plot different boundary types with different colors
     if len(top_nodes) > 0:
-        ax.scatter(x[top_nodes], y[top_nodes], c='red', s=30, label='Top boundary', zorder=5)
+        ax.scatter(
+            x[top_nodes], y[top_nodes], c="red", s=30, label="Top boundary", zorder=5
+        )
     if len(bottom_nodes) > 0:
-        ax.scatter(x[bottom_nodes], y[bottom_nodes], c='blue', s=30, label='Bottom boundary', zorder=5)
+        ax.scatter(
+            x[bottom_nodes],
+            y[bottom_nodes],
+            c="blue",
+            s=30,
+            label="Bottom boundary",
+            zorder=5,
+        )
     if len(left_nodes) > 0:
-        ax.scatter(x[left_nodes], y[left_nodes], c='green', s=30, label='Left boundary', zorder=5)
+        ax.scatter(
+            x[left_nodes],
+            y[left_nodes],
+            c="green",
+            s=30,
+            label="Left boundary",
+            zorder=5,
+        )
     if len(right_nodes) > 0:
-        ax.scatter(x[right_nodes], y[right_nodes], c='orange', s=30, label='Right boundary', zorder=5)
+        ax.scatter(
+            x[right_nodes],
+            y[right_nodes],
+            c="orange",
+            s=30,
+            label="Right boundary",
+            zorder=5,
+        )
     if len(obstacle_nodes) > 0:
-        ax.scatter(x[obstacle_nodes], y[obstacle_nodes], c='purple', s=30, label='Obstacle boundary', zorder=5)
+        ax.scatter(
+            x[obstacle_nodes],
+            y[obstacle_nodes],
+            c="purple",
+            s=30,
+            label="Obstacle boundary",
+            zorder=5,
+        )
 
     ax.set_title("Boundary Node Classification")
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
     ax.grid(True, alpha=0.3)
 
     # Place legend outside the plot, on the right
-    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 
     plt.tight_layout()
     plt.show()
+
 
 def plot_eigenmode(nodes, elements, u_full, title=None):
     triangles = np.array(elements)
@@ -475,16 +570,19 @@ def plot_eigenmode(nodes, elements, u_full, title=None):
     x, y = nodes_array[:, 0], nodes_array[:, 1]
     triang = Triangulation(x, y, triangles)
     u_real = np.real(u_full)
-    fig, ax = plt.subplots(1, 1, figsize=(8,4))
-    cs = ax.tricontourf(triang, u_real, levels=50, cmap='jet')
-    ax.triplot(triang, 'k-', alpha=0.2, linewidth=0.1)
+    fig, ax = plt.subplots(1, 1, figsize=(8, 4))
+    cs = ax.tricontourf(triang, u_real, levels=50, cmap="jet")
+    ax.triplot(triang, "k-", alpha=0.2, linewidth=0.1)
     cbar = fig.colorbar(cs, ax=ax)
     cbar.set_label("Re(u)")
     if title is not None:
         ax.set_title(title)
-    ax.set_xlabel("x"); ax.set_ylabel("y"); ax.set_aspect('equal')
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_aspect("equal")
     plt.tight_layout()
     plt.show()
+
 
 def plot_eigenmode_on_ax(nodes, elements, u_full, ax, title=None):
     triangles = np.array(elements)
@@ -493,42 +591,44 @@ def plot_eigenmode_on_ax(nodes, elements, u_full, ax, title=None):
     triang = Triangulation(x, y, triangles)
     u_real = np.real(u_full)
 
-    cs = ax.tricontourf(triang, u_real, levels=50, cmap='jet')
-    ax.triplot(triang, 'k-', alpha=0.2, linewidth=0.1)
+    cs = ax.tricontourf(triang, u_real, levels=50, cmap="jet")
+    ax.triplot(triang, "k-", alpha=0.2, linewidth=0.1)
 
     if title is not None:
         ax.set_title(title, fontsize=10)
     ax.set_xlabel("x", fontsize=8)
     ax.set_ylabel("y", fontsize=8)
-    ax.set_aspect('equal')
+    ax.set_aspect("equal")
     ax.tick_params(labelsize=7)
 
     return cs
 
+
 def Lambda_n(n, b):
-    return np.pi**2*n**2/(4*b**2)
+    return np.pi**2 * n**2 / (4 * b**2)
+
 
 # Enhanced main execution
 if __name__ == "__main__":
     # nodes, elements = utils.load_mesh_meshio("mesh_with_hole")
     # nodes, elements = gen.mesh_with_perturbed_hole(lc=0.5, plot=True)
-    bc_type = 'mixed'
-    L=5.0 # longitud de la guia
-    b=1.0 # mitad de la altura de la guia
-    xc=0.0 # posicion x del obstaculo
-    yc=0.0 # posicion y del obstaculo
-    beta=1e-2
+    bc_type = "mixed"
+    L = 5.0  # longitud de la guia
+    b = 1.0  # mitad de la altura de la guia
+    xc = 0.0  # posicion x del obstaculo
+    yc = 0.0  # posicion y del obstaculo
+    beta = 1e-2
     epsilon = 0.001
-    lc=0.01 # Controla la finura del mallado
+    lc = 0.01  # Controla la finura del mallado
     k_guess = 3
     N_modes = 20
 
     mu = dip.dipole(epsilon, beta, xc, yc)
-    Lambda1 = Lambda_n(1,b)
-    Lambda2 = Lambda_n(2,b)
-    sigma_analytic = epsilon**2*np.pi**3/b**3 * mu
-    k2_analytic = Lambda2-sigma_analytic**2
-    kb_analytic = np.sqrt(k2_analytic)*b
+    Lambda1 = Lambda_n(1, b)
+    Lambda2 = Lambda_n(2, b)
+    sigma_analytic = epsilon**2 * np.pi**3 / b**3 * mu
+    k2_analytic = Lambda2 - sigma_analytic**2
+    kb_analytic = np.sqrt(k2_analytic) * b
     # a1 = -beta/12
     # a = epsilon*a1
     a = 0
@@ -543,10 +643,21 @@ if __name__ == "__main__":
     kb_list = np.arange(1, 4, 0.05)
 
     # nodes, elements = gen.mesh_with_obstacle_center(L=L, b=b, xc=xc, yc=yc, r=r, lc=lc)
-    nodes, elements = gen.mesh_with_parametric_obstacle_even_x(L=L, b=b, xc=xc, yc=a, lc=lc, beta=beta, n_points=50, scale=epsilon, plot=True)
+    nodes, elements = gen.mesh_with_parametric_obstacle_even_x(
+        L=L, b=b, xc=xc, yc=a, lc=lc, beta=beta, n_points=50, scale=epsilon, plot=True
+    )
 
-    u_full, interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = \
-        solve_helmholtz_eigenproblem(nodes, elements, bc_type=bc_type, N_modes=N_modes, b=b, k_guess=k_guess, eignum=10)
+    u_full, interior_nodes, boundary_nodes, A_bc, M_bc, eigvals, eigvecs_reduced = (
+        solve_helmholtz_eigenproblem(
+            nodes,
+            elements,
+            bc_type=bc_type,
+            N_modes=N_modes,
+            b=b,
+            k_guess=k_guess,
+            eignum=10,
+        )
+    )
 
     num_eigs = eigvals.shape[0]
     eigvecs = np.zeros((len(nodes), num_eigs))
@@ -561,15 +672,20 @@ if __name__ == "__main__":
 
     for i in range(num_eigs):
         print(f"Mode {i}:")
-        print(f"  k = {eigvals[i]**0.5:.6f}")
+        print(f"  k = {eigvals[i] ** 0.5:.6f}")
         print(f"  k² = {eigvals[i].real:.6f}")
 
         u_full = eigvecs[:, i].real
 
         # Plot on the corresponding subplot
         ax = axes[i]
-        cs = plot_eigenmode_on_ax(nodes, elements, u_full, ax,
-                                title=f"Mode {i}, k={eigvals[i].real**0.5:.4f}")
+        cs = plot_eigenmode_on_ax(
+            nodes,
+            elements,
+            u_full,
+            ax,
+            title=f"Mode {i}, k={eigvals[i].real ** 0.5:.4f}",
+        )
 
         # Add colorbar to each subplot
         cbar = fig.colorbar(cs, ax=ax)
