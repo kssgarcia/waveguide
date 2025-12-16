@@ -16,32 +16,29 @@ pi = np.pi
 
 # For x-axis symmetry: Y(t) should be odd and X(t) should be even
 def X(t):
-    return epsilon * np.cos(t) - (beta / 2) * np.cos(2 * t)
-
+    return epsilon * (np.cos(t) - (beta / 2) * np.cos(2 * t))
 
 def Y(t):
-    return epsilon * np.sin(t) - (beta / 2) * np.sin(2 * t)
+    return epsilon * (np.sin(t) - (beta / 2) * np.sin(2 * t))
 
 
-def Xp(t):  # first derivative of X
-    return -epsilon * np.sin(t) + beta * np.sin(2 * t)
+def Xp(t):
+    return epsilon * (-np.sin(t) + beta * np.sin(2 * t))
 
 
-def Yp(t):  # first derivative of Y
-    return epsilon * np.cos(t) - beta * np.cos(2 * t)
+def Xpp(t):
+    return epsilon * (-np.cos(t) + 2 * beta * np.cos(2 * t))
 
 
-def Xpp(t):  # second derivative of X
-    return -epsilon * np.cos(t) + 2 * beta * np.cos(2 * t)
+def Yp(t):
+    return epsilon * (np.cos(t) - beta * np.cos(2 * t))
 
 
-def Ypp(t):  # second derivative of Y
-    return -epsilon * np.sin(t) + 2 * beta * np.sin(2 * t)
-
+def Ypp(t):
+    return epsilon * (-np.sin(t) + 2 * beta * np.sin(2 * t))
 
 def W(t):
     return np.sqrt(Xp(t) ** 2 + Yp(t) ** 2)
-
 
 def Gn_w(psi, theta, G, G_reg):
     x, y = X(psi), Y(psi)
