@@ -53,7 +53,7 @@
 Este informe presenta la validación numérica del Teorema~2.1 de~\cite{Zhevandrov2025}, que predice la existencia de modos atrapados en una guía de ondas bidimensional con un obstáculo pequeño. Utilizando el Método de Elementos de Frontera (BEM), calculamos los valores propios de la ecuación de Helmholtz para diferentes posiciones del obstáculo y parámetros de perturbación $\varepsilon$. El objetivo principal es determinar el valor máximo de $\varepsilon$, denotado $\varepsilon_{\max}$, para el cual el teorema se cumple. Además, analizamos cómo $\varepsilon_{\max}$ depende de la altura $a$ del obstáculo.
 \end{abstract}
 
-\section{Introducción}
+\section{Introducción}\label{sec:introduccion}
 
 Los modos atrapados son oscilaciones localizadas que pueden ocurrir en guías de ondas infinitas debido a la presencia de obstáculos o irregularidades geométricas, ya sea en el fondo o en las paredes de la guía.
 
@@ -61,11 +61,13 @@ La existencia de modos atrapados es de gran interés teórico y práctico. En el
 
 Este informe se enfoca en la validación numérica del Teorema~2.1 de~\cite{Zhevandrov2025}, que proporciona una expresión asintótica para el desplazamiento del valor propio asociado con el modo atrapado en función del parámetro $\varepsilon$ (tamaño del obstáculo) y la altura $a$ de su posición vertical. La validación se realiza mediante el Método de Elementos de Frontera (BEM), técnica especialmente adecuada para dominios no acotados como las guías de ondas infinitas.
 
-La estructura del documento es la siguiente: la Sección~2 presenta el marco teórico necesario sobre fenómenos de propagación de ondas en guías confinadas, guías de ondas con obstáculos rígidos, modos atrapados, métodos numéricos para problemas de valores propios, y los fundamentos del Método de Elementos de Frontera. La Sección~3 describe la formulación completa del problema, incluyendo la caracterización matemática de los modos atrapados, la descripción geométrica, el enunciado del Teorema~2.1 y los objetivos del estudio. La Sección~4 detalla la metodología del BEM aplicada al problema, con énfasis en la formulación de la ecuación integral, discretización, técnicas de transformación logarítmica para análisis de estabilidad numérica, la determinación de $\varepsilon_{\max}$ y la validación del método BEM comparando con resultados reportados en la literatura. Los resultados de los cálculos de modos atrapados y el análisis de la dependencia de $\varepsilon_{\max}$ con respecto a la altura del obstáculo se presentan en la Sección~6, y las conclusiones finales se exponen en la Sección~6.
+La estructura del documento es la siguiente: la Sección~\ref{sec:marco_teorico} presenta el marco teórico necesario sobre fenómenos de propagación de ondas en guías confinadas, modos atrapados y métodos numéricos para problemas de valores propios en guías de ondas, con especial énfasis en el Método de Elementos de Frontera. La Sección~\ref{sec:formulacion} describe la formulación matemática completa del problema, incluyendo la descripción geométrica, la caracterización de los modos atrapados, el enunciado del Teorema~2.1 que proporciona la expresión asintótica para el valor propio, y los objetivos específicos del estudio. La Sección~\ref{sec:metodologia} detalla la implementación del BEM aplicada al problema, con énfasis en la formulación de la ecuación integral, discretización numérica, técnicas de transformación logarítmica para análisis de estabilidad, la determinación de $\varepsilon_{\max}$ y la validación del método comparando con resultados reportados en la literatura. Los resultados de los cálculos de modos atrapados y el análisis de la dependencia de $\varepsilon_{\max}$ con respecto a la altura del obstáculo se presentan en la Sección~\ref{sec:resultados}. Finalmente, las conclusiones y perspectivas futuras se exponen en la Sección~\ref{sec:conclusion}.
 
-\section{Marco Teórico}
+\section{Marco Teórico}\label{sec:marco_teorico}
 
-\subsection{Fenómenos de Propagación de Ondas en Guías Confinadas}
+En esta sección presentamos los fundamentos teóricos necesarios para comprender el problema de modos atrapados en guías de ondas. Comenzamos con una descripción general de los fenómenos de propagación en guías confinadas y el efecto de obstáculos rígidos. Posteriormente, introducimos el concepto de modos atrapados y su caracterización matemática. Finalmente, revisamos los métodos numéricos disponibles para resolver este tipo de problemas, con énfasis en el Método de Elementos de Frontera que será empleado en este estudio.
+
+\subsection{Fenómenos de Propagación de Ondas en Guías Confinadas}\label{subsec:propagacion}
 
 Las guías de ondas son estructuras geométricas que confinan la propagación de ondas en direcciones transversales permitiendo propagación a lo largo de una dirección principal.
 
@@ -88,19 +90,25 @@ Estos fenómenos tienen aplicaciones practicas significativas en ingeniería mec
 
 \end{enumerate}
 
-\subsection{Guías de Ondas con Obstáculos Rígidos}
+Estas aplicaciones motivan el estudio sistemático de cómo los obstáculos afectan los modos de propagación en guías de ondas, particularmente cuando dichos obstáculos satisfacen condiciones de frontera rígida.
+
+\subsection{Guías de Ondas con Obstáculos Rígidos}\label{subsec:obstaculos_rigidos}
 
 Las \textbf{guías de ondas con obstáculos rígidos} constituyen un problema fundamental en la propagación de ondas con aplicaciones extensas en acústica industrial, electromagnetismo y dinámica de fluidos. Un guía de ondas típica consiste en un canal infinito (o semi-infinito) limitado por paredes absorbentes, también pueden ser rígidas, en cuyo interior se introduce un obstáculo que altera la propagación de las ondas \cite{Linton2008, Pagneux2007, Khallaf2000}.
 
 Los modos de propagación en una guía de ondas se clasifican en dos categorías principales según su relación con la frecuencia de corte: \textbf{modos propagativos} y \textbf{modos evanescentes}. Los modos propagativos tienen números de onda reales y transportan energía a lo largo de la guía. Los modos evanescentes poseen números de onda complejos y decaen exponencialmente a lo largo de la dirección de propagación, sin contribuir al transporte neto de energía a distancias grandes \cite{Pagneux2007}.
 
+Más allá de estos dos tipos de modos, existe una tercera categoría de gran interés teórico y práctico: los modos atrapados, que analizamos en detalle a continuación.
+
 \subsection{Modos Atrapados: Concepto y Caracterización}\label{subsec:trapped_modes}
 
 Los \textbf{modos atrapados} son soluciones localizadas especiales de la ecuación de Helmholtz que decaen exponencialmente en ambas direcciones a lo largo de la guía de ondas. A diferencia de los modos propagativos ordinarios, los modos atrapados existen solo en frecuencias específicas determinadas por la geometría del obstáculo y las condiciones de frontera \cite{Zhevandrov2025, Khallaf2000}.
 
-La existencia de modos atrapados bajo pequeñas perturbaciones es un resultado profundo en la teoría de operadores diferenciales. Evans \emph{et al.} \cite{Evans1994} demostraron que para obstáculos suficientemente simétricos en una guía de ondas, siempre existe al menos un modo atrapado. Esta línea de investigación ha sido ampliada mediante el uso de métodos de perturbación asintótica. Autores como \cite{Zhevandrov2019, Zhevandrov2025} han desarrollado formalismos que no solo predicen la aparición de modos atrapados ante la introducción de obstáculos pequeños, sino que proporcionan expresiones analíticas explícitas para calcular los valores propios asociados. Estos trabajos abordan tanto la aparición de autovalores discretos (Ver \cite{Zhevandrov2025}, Sec. 4) bajo perturbaciones geométricas como el caso más complejo de los modos embebidos en el espectro continuo . Estos trabajos abordan tanto la aparición de autovalores discretos (\cite{Zhevandrov2025} Sec 5).
+La existencia de modos atrapados bajo pequeñas perturbaciones es un resultado profundo en la teoría de operadores diferenciales. Evans \emph{et al.} \cite{Evans1994} demostraron que para obstáculos suficientemente simétricos en una guía de ondas, siempre existe al menos un modo atrapado. Esta línea de investigación ha sido ampliada mediante el uso de métodos de perturbación asintótica. Autores como \cite{Zhevandrov2019, Zhevandrov2025} han desarrollado formalismos que no solo predicen la aparición de modos atrapados ante la introducción de obstáculos pequeños, sino que proporcionan expresiones analíticas explícitas para calcular los valores propios asociados. Estos trabajos abordan tanto la aparición de autovalores discretos bajo perturbaciones geométricas (Ver \cite{Zhevandrov2025}, Secs. 4-5) como el caso más complejo de los modos embebidos en el espectro continuo.
 
-\subsection{Métodos Numéricos para Problemas de Valores Propios en Guías de Ondas}
+Para validar estas predicciones teóricas y estudiar casos más complejos, es necesario emplear métodos numéricos apropiados, que revisamos en la siguiente subsección.
+
+\subsection{Métodos Numéricos para Problemas de Valores Propios en Guías de Ondas}\label{subsec:metodos_numericos}
 
 La solución numérica de problemas de valores propios asociados con ecuaciones diferenciales parciales en dominios complejos requiere seleccionar técnicas numéricas apropiadas según las características específicas del problema (Ver \cite{FahyWalker2004}, Sec. 2). Por ejemplo, si se busca obtener soluciones con mayor precisión en la representación del dominio y por lo tanto resultados, resulta más conveniente emplear BEM; mientras que si se necesita mayor versatilidad para manejar distintas condiciones de frontera y geometrías más generales, es preferible utilizar FEM. Estas ideas se desarrollan con más detalle en las secciones siguientes.
 
@@ -124,7 +132,7 @@ Las ventajas principales del BEM para el presente problema son:
 
 La función de Green para una guía de ondas con paredes Dirichlet en $y = \pm b$ se construye mediante el método de imágenes, garantizando que se cumplan las condiciones de frontera en las paredes sin necesidad de discretizar esas fronteras \cite{Linton1992}.
 
-\subsubsection{Método de Coincidencia de Modos (Mode-Matching)}
+\subsubsection{Método de Coincidencia de Modos (Mode-Matching)}\label{subsubsec:mode_matching}
 
 El método de coincidencia de modos es un enfoque alternativo basado en expandir el campo de onda en términos de modos propios de la guía de ondas no perturbada. En regiones donde la geometría es uniforme, el campo se expresa como:
 
@@ -138,7 +146,7 @@ En discontinuidades o en presencia de obstáculos, se imponen condiciones de coi
 
 El mode-matching es computacionalmente más eficiente que FEM para geometrías 2D simples pero es más restrictivo en cuanto a complejidad geométrica.
 
-\subsubsection{Método de Elementos Finitos (FEM)}
+\subsubsection{Método de Elementos Finitos (FEM)}\label{subsubsec:fem}
 
 El Método de Elementos Finitos (FEM) es una técnica de discretización ampliamente utilizada para resolver ecuaciones diferenciales parciales en dominios de geometría compleja. En el contexto de guías de ondas, el FEM permite formular el problema directamente en dos dimensiones sobre la sección transversal, lo que reduce significativamente el costo computacional al evitar la resolución explícita del problema tridimensional \cite{Finnveden2012, Dostart2017}.
 
@@ -153,7 +161,9 @@ Las ventajas del FEM incluyen:
 
 No obstante, cuando el dominio es no acotado o semiinfinito, es necesario truncar artificialmente la región de cálculo. Para ello se emplean técnicas como las Perfectly Matched Layers (PML), que absorben la energía sin generar reflexiones espurias, o los operadores de Dirichlet-to-Neumann (DtN), que representan de manera exacta el comportamiento en el infinito \cite{Casenavea2014}.
 
-\subsection{Fundamentos del Método de Elementos de Frontera}
+Dado que nuestro problema involucra una guía de ondas infinita con un obstáculo rígido, el Método de Elementos de Frontera resulta particularmente apropiado. A continuación describimos sus fundamentos teóricos y las razones que motivan su selección para este estudio.
+
+\subsection{Fundamentos del Método de Elementos de Frontera}\label{subsec:fund_bem}
 
 El Método de Elementos de Frontera \cite{Pozrikidis2002} (BEM, por sus siglas en inglés) es una técnica numérica particularmente efectiva para resolver ecuaciones diferenciales parciales en dominios no acotados, como es el caso de las guías de ondas. A diferencia de los métodos de dominio completo como elementos finitos o diferencias finitas, el BEM reduce la dimensionalidad del problema al discretizar únicamente la frontera del dominio, lo que resulta en sistemas de menor tamaño y mayor eficiencia computacional.
 
@@ -174,13 +184,39 @@ La ventaja principal del BEM en este contexto es que:
     \mathbf{A}(k) \mathbf{u} = \mathbf{0},
     \]
     y $\mathbf{A}(k)$ es singular solo para los valores de $k$ que corresponden a modos atrapados.
-    \item La discretización de la ecuación integral conduce a un sistema algebraico cuyo determinante debe anularse en los valores propios. Esto se demuestra en la subsección \ref{sub:formulation}.
+    \item La discretización de la ecuación integral conduce a un sistema algebraico cuyo determinante debe anularse en los valores propios. Los detalles de esta formulación se presentan en la Sección~\ref{sec:metodologia}.
 
 \end{itemize}
 
-\section{Formulación del Problema}
+Habiendo establecido los fundamentos teóricos necesarios, procedemos ahora a formular matemáticamente el problema específico que se abordará en este estudio.
 
-\subsection{Modos atrapados}
+\section{Formulación del Problema}\label{sec:formulacion}
+
+En esta sección presentamos la formulación matemática completa del problema estudiado. Comenzamos describiendo la geometría del sistema y las condiciones de frontera. Posteriormente, introducimos la caracterización matemática de los modos atrapados mediante el problema de valores propios asociado. Finalmente, enunciamos el Teorema~2.1 de~\cite{Zhevandrov2025}, que proporciona una expresión asintótica para el valor propio del modo atrapado, y establecemos los objetivos específicos de validación numérica.
+
+\subsection{Descripción Geométrica y Condiciones de Frontera}\label{subsec:descripcion_geometrica}
+
+Consideramos una guía de ondas bidimensional de ancho $2b$, con paredes ubicadas en $y = \pm b$. El obstáculo es un círculo de radio $r = R_0\varepsilon$ donde $R_0 = 1$ y $\varepsilon \ll 1$ es el parámetro de perturbación.
+
+Los parámetros geométricos clave son:
+\begin{itemize}
+    \item $b$: semi-ancho de la guía de ondas (distancia desde el eje central hasta cada pared)
+    \item $a$: posición vertical del centro del obstáculo, medida desde la línea central $y=0$ de la guía
+    \item $r = \varepsilon$: radio del obstáculo circular
+    \item $\alpha = \frac{\pi a}{b}$: posición normalizada del obstáculo
+    \item $\varepsilon$: parámetro de perturbación, que mide la magnitud del obstáculo respecto al ancho de la guía. Se asume que $\varepsilon \ll 1$, permitiendo realizar análisis asintóticos y estudiar cómo la presencia de un obstáculo pequeño afecta la existencia de modos atrapados en la guía de ondas.
+\end{itemize}
+
+Como se observa en la Figura~\ref{fig:geo}, cuando $a$ aumenta, el centro del obstáculo se acerca a la pared superior ($y=b$). Para valores pequeños de $a$, el obstáculo está cerca del eje central de la guía.
+
+\begin{figure}[h!]
+    \centering
+    \includegraphics[width=0.6\textwidth]{images/geo_problema.jpeg}
+    \caption{Geometría del problema.}
+    \label{fig:geo}
+\end{figure}
+
+\subsection{Caracterización Matemática de Modos Atrapados}\label{subsec:modos_atrapados}
 
 Matemáticamente, un modo atrapado es un valor propio del operador de Helmholtz (considerado como un problema de valores propios generalizado) que satisface:
 
@@ -204,32 +240,11 @@ Durante el procedimiento numérico es útil recordar que cada modo propagativo e
 
 Este criterio permite distinguir entre modos propagativos y modos evanescentes, lo cual resulta práctico al interpretar la convergencia del método numérico y al identificar posibles modos atrapados. No se profundiza en esta estructura modal, ya que aquí se utiliza únicamente como referencia operativa para guiar el proceso de simulación.
 
+Para valores de $\varepsilon$ suficientemente pequeños, el Teorema~2.1 de~\cite{Zhevandrov2025} proporciona una predicción analítica explícita de la existencia y propiedades de estos modos atrapados, que presentamos a continuación.
 
-\subsection{Descripción Geométrica}
+\subsection{Enunciado del Teorema 2.1}\label{subsec:teorema_2_1}
 
-Consideramos una guía de ondas bidimensional de ancho $2b$, con paredes ubicadas en $y = \pm b$. El obstáculo es un círculo de radio $r = R_0\varepsilon$ donde $R_0 = 1$ y $\varepsilon \ll 1$ es el parámetro de perturbación.
-
-Los parámetros geométricos clave son:
-\begin{itemize}
-    \item $b$: semi-ancho de la guía de ondas (distancia desde el eje central hasta cada pared)
-    \item $a$: posición vertical del centro del obstáculo, medida desde la línea central $y=0$ de la guía
-    \item $r = \varepsilon$: radio del obstáculo circular
-    \item $\alpha = \frac{\pi a}{b}$: posición normalizada del obstáculo
-    \item $\varepsilon$: parámetro de perturbación, que mide la magnitud del obstáculo respecto al ancho de la guía. Se asume que $\varepsilon \ll 1$, permitiendo realizar análisis asintóticos y estudiar cómo la presencia de un obstáculo pequeño afecta la existencia de modos atrapados en la guía de ondas.
-\end{itemize}
-
-Como se observa en la Figura~\ref{fig:geo}, cuando $a$ aumenta, el centro del obstáculo se acerca a la pared superior ($y=b$). Para valores pequeños de $a$, el obstáculo está cerca del eje central de la guía.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.6\textwidth]{images/geo_problema.jpeg}
-    \caption{Geometría del problema.}
-    \label{fig:geo}
-\end{figure}
-
-\subsection{Enunciado del Teorema 2.1}
-
-El Teorema~2.1 de~\cite{Zhevandrov2025} proporciona una descripción asintótica del valor propio del modo atrapado para \(\varepsilon\) pequeño.
+El Teorema~2.1 de~\cite{Zhevandrov2025} proporciona una descripción asintótica del valor propio del modo atrapado para \(\varepsilon\) pequeño, estableciendo condiciones precisas sobre la posición del obstáculo para garantizar la existencia del modo.
 
 \begin{theorem}[Teorema 2.1 de~\cite{Zhevandrov2025}]
 Para $\varepsilon$ suficientemente pequeño, existe un valor $a = a^* = a_0^* + \mathcal{O}(\varepsilon)$ tal que el problema de Helmholtz descrito en la Sección~\ref{subsec:trapped_modes} posee un único modo atrapado en el intervalo $[0, \Lambda_1]$ si $a > a^*$. Si $a \le a^*$, no existen modos atrapados en este intervalo. El valor propio correspondiente es analítico en $\varepsilon$ y $\varepsilon_1 = \varepsilon \ln \varepsilon$, y está dado por $k^2 = \Lambda_1 - \sigma^2$, donde
@@ -249,7 +264,7 @@ De manera intuitiva, el teorema indica que:
 
 Para simplificar, en este estudio consideramos \(R_0 = 1\), de modo que \(\mu = 1\), \(S = \pi\) y \(r = \varepsilon\).
 
-\subsection{Objetivo del Estudio}
+\subsection{Objetivo del Estudio}\label{subsec:objetivo_estudio}
 
 El objetivo de este informe es utilizar el Método de Elementos de Frontera (BEM) para validar el Teorema~2.1 de~\cite{Zhevandrov2025}. Para ello, se busca estudiar el comportamiento asintótico del valor propio asociado al modo atrapado al variar el parámetro de perturbación $\varepsilon$ dentro de un intervalo determinado.
 
@@ -262,7 +277,9 @@ Específicamente, buscamos:
 \end{enumerate}
 
 
-\section{Metodología}
+\section{Metodología}\label{sec:metodologia}
+
+En esta sección describimos la implementación numérica del Método de Elementos de Frontera (BEM) para calcular los valores propios asociados a los modos atrapados. Comenzamos con la formulación integral del problema y su discretización. Posteriormente, presentamos la técnica de transformación logarítmica empleada para mejorar el análisis de estabilidad numérica. Finalmente, describimos el procedimiento para determinar $\varepsilon_{\max}$ y validamos la implementación del método comparando con resultados reportados en la literatura.
 
 \subsection{Formulación del Método de Elementos de Frontera} \label{sub:formulation}
 
@@ -327,7 +344,7 @@ con $\delta_{ij}$ siendo la delta de Kronecker.
 \end{equation}
 Numéricamente, implementamos un algoritmo de búsqueda que varía $k$ en un intervalo de interés y detecta los cruces por cero del determinante.
 
-\subsection{Técnica de Transformación Logarítmica para Análisis de Estabilidad Numérica}
+\subsection{Técnica de Transformación Logarítmica para Análisis de Estabilidad Numérica}\label{subsec:transformacion_log}
 
 Para mejorar la visualización y estabilidad numérica cuando $\sigma$ varía en varios órdenes de magnitud, introducimos la transformación logarítmica:
 
@@ -345,7 +362,7 @@ Esta transformación es especialmente útil porque:
 \item Permite una mejor evaluación visual del comportamiento asintótico.
 \end{itemize}
 
-\subsection{Determinación de $\varepsilon_{\max}$}
+\subsection{Determinación de $\varepsilon_{\max}$}\label{subsec:eps_max}
 
 Para valores fijos de $a$ y $b$, se varía $\varepsilon$ dentro de un rango dado y se resuelve el sistema BEM para cada caso, explorando un intervalo de $k$ en torno a $k_{\text{analytic}}$. Cuando se cumple $\det(A) = 0$, se calcula
 \begin{equation}
@@ -355,13 +372,13 @@ y se compara con la predicción analítica $\sigma_{\text{analytic}}$ del Teorem
 
 El teorema se considera válido mientras exista un modo atrapado (es decir, $\sigma_{\text{sol}}$ está definido) y la discrepancia relativa con $\sigma_{\text{analytic}}$ sea pequeña. El mayor valor de $\varepsilon$ que cumple esta condición se denota $\varepsilon_{\max}$ y marca el límite de validez de la aproximación asintótica.
 
-\subsection{Validación del método BEM}\label{sec:validacion}
+\subsection{Validación del Método BEM}\label{subsec:validacion_bem}
 
-Se valida la implementación del método BEM comparando con resultados reportados en \cite{articleMA1}. El objetivo es verificar la precisión del método propio al identificar los valores de $k$ que generan modos atrapados en guías de onda con obstáculos rígidos.
+Antes de aplicar el método al problema de validación del Teorema~2.1, es esencial verificar la correctitud de la implementación numérica. Para ello, se valida el método BEM comparando con resultados reportados en \cite{articleMA1} para casos bien establecidos en la literatura.
 
-\subsection*{Obstáculo rígido y condiciones de Dirichlet}
+\subsubsection{Comparación con Resultados de Referencia}
 
-Se considera una guía con un único obstáculo rígido y condición de Dirichlet en el contorno del obstáculo. La Tabla \ref{tab:caso_2_t1} compara los valores de $k$ entre la referencia y la implementación propia. En la Figura \ref{fig:bem_potential} se evidencia la solución $u(x,y)$ para el caso de $r=0.1$ con $k=3.1296$.
+Se considera una guía con un único obstáculo rígido y condición de Dirichlet en el contorno del obstáculo, configuración ampliamente estudiada en la literatura. La Tabla~\ref{tab:caso_2_t1} compara los valores de $k$ obtenidos con nuestra implementación BEM frente a los reportados en~\cite{articleMA1}. La Figura~\ref{fig:bem_potential} muestra la solución numérica $u(x,y)$ obtenida con nuestro método para el caso representativo de $r=0.1$, donde se obtiene $k=3.1296$.
 
 \begin{figure}[h!]
     \centering
@@ -388,7 +405,11 @@ $r$ & $k$ (BEM, \cite{articleMA1}) & $k$ (BEM propio)  \\ \hline
 
 Los resultados muestran excelente concordancia entre la implementación propia y los valores reportados en la literatura, validando así la correcta implementación del método BEM para la detección de modos atrapados en guías de onda con obstáculos rígidos.
 
-\section{Resultados}
+\section{Resultados}\label{sec:resultados}
+
+En esta sección presentamos los resultados de la validación numérica del Teorema~2.1 de~\cite{Zhevandrov2025}. Primero comparamos las soluciones numéricas obtenidas mediante BEM con las predicciones analíticas del teorema para diferentes valores del parámetro de perturbación $\varepsilon$. Posteriormente, analizamos cómo varía el valor máximo $\varepsilon_{\max}$ en función de la posición vertical $a$ del obstáculo, explorando el rango de validez de la aproximación asintótica.
+
+\subsection{Comparación entre Soluciones Numéricas y Analíticas}\label{subsec:comparacion_sol}
 
 \begin{figure}[h!]
     \centering
@@ -414,15 +435,25 @@ Los resultados muestran excelente concordancia entre la implementación propia y
 
 En la Figura~\ref{fig:sol} presentamos la comparación entre los resultados numéricos y analíticos. La curva azul representa la solución numérica $s_{\text{sol}}$ con $a = 0.6$ y $b = 1$, obtenida mediante el Método de Elementos de Frontera (BEM). Se fija $b = 1$ para trabajar en un sistema adimensional, tomando el ancho de la guía como unidad de referencia, lo que simplifica la formulación del problema. La posición vertical $a = 0.6$ se selecciona como un valor intermedio que permite observar claramente la existencia del modo atrapado al variar $\varepsilon$, en la Figura~\ref{fig:sol_2} se muestra el caso para otros valores de $a$. Los puntos donde $s_{\text{sol}} = 0$ indican que no se encontró ningún modo atrapado. La curva naranja muestra el error relativo entre los valores numéricos y analíticos, $s_{\text{sol}}$ y $s_{\text{analytic}}$, respectivamente. El valor máximo para el cual el teorema se cumple es aproximadamente $\varepsilon_{\max} \approx 0.3$. Las soluciones numérica y analítica exhiben fuerte concordancia para valores pequeños de $\varepsilon$. La desviación se vuelve notable para $\varepsilon > 0.3$, sugiriendo que la expansión asintótica derivada en el Teorema~2.1 permanece válida hasta $\varepsilon_{\max} \approx 0.3$.
 
-Adicionalmente, la dependencia del valor crítico $\varepsilon_{\max}$ con respecto a la altura del obstáculo $a$, ilustrada en la Figura~\ref{fig:sol_a_vs_eps}, revela que aumentar $a$ conduce a una disminución en $\varepsilon_{\max}$. Esto implica que posiciones más altas del obstáculo restringen la existencia de modos atrapados, afectando tanto su localización como su estabilidad dentro de la guía de ondas.
+\subsection{Dependencia de $\varepsilon_{\max}$ con la Altura del Obstáculo}\label{subsec:eps_max_vs_a}
 
-\section{Conclusión}
+La dependencia del valor crítico $\varepsilon_{\max}$ con respecto a la altura del obstáculo $a$, ilustrada en la Figura~\ref{fig:sol_a_vs_eps}, revela una tendencia clara: aumentar $a$ conduce a una disminución monotónica en $\varepsilon_{\max}$. Esto implica que posiciones más altas del obstáculo restringen el rango de validez de la aproximación asintótica, afectando tanto la localización como la estabilidad de los modos atrapados dentro de la guía de ondas. Este comportamiento es consistente con la física del problema, ya que al acercar el obstáculo a la pared superior, la geometría efectiva que sostiene el modo atrapado se ve comprometida.
 
-Hemos analizado la existencia de modos atrapados en una guía de ondas con un obstáculo pequeño utilizando tanto métodos numéricos (BEM) como analíticos asintóticos. Los resultados muestran excelente concordancia para valores pequeños de $\varepsilon$, confirmando la validez de la expansión asintótica derivada en el Teorema~2.1.
+\section{Conclusión}\label{sec:conclusion}
 
-La dependencia de $\varepsilon_{\max}$ con respecto a la altura $a$ del obstáculo revela que aumentar $a$ reduce el máximo $\varepsilon$ permitido para el cual existen modos atrapados. Una posible hipótesis a esto es que al acercar el obstáculo a la pared la guía, esta pierda la geometría efectiva, la cual sostiene el modo atrapado, incluso podemos esperar que si $a \to b$ no existe ningún valor de $\varepsilon$ que genere un modo atrapado.
+Este trabajo ha presentado una validación numérica el Teorema~2.1 de~\cite{Zhevandrov2025}, que predice la existencia de modos atrapados en guías de ondas bidimensionales con obstáculos pequeños. Mediante la implementación del Método de Elementos de Frontera (BEM), hemos calculado numéricamente los valores propios asociados a los modos atrapados para diferentes configuraciones geométricas.
 
-En general, estos hallazgos proporcionan una guía cuantitativa clara para predecir la existencia y estabilidad de modos atrapados en guías de ondas con diferentes posiciones y tamaños de obstáculos.
+Los principales hallazgos del estudio son:
+
+\begin{enumerate}
+    \item La implementación del BEM fue validada exitosamente mediante comparación con resultados reportados en la literatura~\cite{articleMA1}, confirmando la precisión del método para detectar modos atrapados en guías con obstáculos rígidos.
+
+    \item Las soluciones numéricas exhiben excelente concordancia con las predicciones analíticas del Teorema~2.1 para valores pequeños del parámetro de perturbación $\varepsilon$. Para el caso específico de $a=0.6$ y $b=1$, la aproximación asintótica permanece válida hasta $\varepsilon_{\max} \approx 0.3$.
+
+    \item El análisis de la dependencia de $\varepsilon_{\max}$ con respecto a la posición vertical $a$ del obstáculo revela una relación inversa: aumentar $a$ reduce sistemáticamente el rango de valores de $\varepsilon$ para los cuales existen modos atrapados. Este comportamiento sugiere que al acercar el obstáculo a la pared superior de la guía, la geometría efectiva que sostiene el modo atrapado se ve comprometida. En el límite $a \to b$, se espera que no exista ningún valor de $\varepsilon$ que genere un modo atrapado.
+\end{enumerate}
+
+En conjunto, estos hallazgos proporcionan una guía cuantitativa clara para predecir la existencia y estabilidad de modos atrapados en guías de ondas con diferentes posiciones y tamaños de obstáculos, validando la teoría de perturbaciones asintóticas desarrollada en~\cite{Zhevandrov2025}.
 
 
 \bibliographystyle{unsrt}

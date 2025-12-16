@@ -122,12 +122,12 @@ theta = (np.arange(1, M + 1) - 0.5) * 2 * np.pi / M
 
 b = 1.0
 d = 2 * b
-beta = 1e-2
-epsilon = 0.00001
+beta = 0.01
+epsilon = 0.5
 
-mu = dip.dipole(epsilon, beta, 0, 0)
-Lambda1 = pi**2 / (4 * b**2)
-Lambda2 = pi**2 * 2**2 / (4 * b**2)
+mu, nu = dip.dipole(epsilon, beta, 0, 0, "x")
+Lambda1 = (pi/(2*b))**2
+Lambda2 = (pi/b)**2
 sigma_analytic = epsilon**2 * (np.pi**3 / b**3) * mu
 s_analytic = -2 * np.log10(sigma_analytic)
 k2_analytic = Lambda2 - sigma_analytic**2

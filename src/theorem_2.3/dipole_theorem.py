@@ -396,4 +396,4 @@ def dipole(scale, beta, xc, yc, symm="x"):
 
     mu, nu = dipole_moments(P_long[:, :-1], f)
 
-    return mu
+    return mu, nu
