@@ -124,7 +124,7 @@ theta = (np.arange(1, M + 1) - 0.5) * 2 * np.pi / M
 b = 1.0
 d = 2 * b
 beta = 0.1
-epsilon = 0.1
+epsilon = 0.01
 
 mu, nu = dip.dipole(beta, 0, 0, "x")
 print("mu,nu",mu,nu)
