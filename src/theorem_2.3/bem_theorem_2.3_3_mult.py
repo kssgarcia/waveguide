@@ -124,74 +124,94 @@ theta = (np.arange(1, M + 1) - 0.5) * 2 * np.pi / M
 b = 1.0
 d = 2 * b
 beta = 0.1
-epsilon = 0.05
 
-mu, nu = dip.dipole(beta, 0, 0, "x")
-print("mu,nu",mu,nu)
-Lambda1 = (pi/(2*b))**2
-Lambda2 = (pi/b)**2
-sigma_analytic = epsilon**2 * (np.pi**3 / b**3) * mu
-s_analytic = -2 * np.log10(sigma_analytic)
-k2_analytic = Lambda2 - sigma_analytic**2
-kb_analytic = np.sqrt(k2_analytic) * b
-# a1 = -beta/12
-# a = epsilon*a1
-a = 0
+epsilon_list = np.linspace(0.01, 0.2, 10)
+kb_numeric_list = []
+kb_analytic_list = []
+sigma_analytic_list = []
+error_list = []
 
-print("Lambda1,Lambda2", Lambda1, Lambda2)
-# print(
-#     "kb_min,kb_max",
-#     np.sqrt(Lambda1 - sigma_analytic**2) * b,
-#     np.sqrt(Lambda2 - sigma_analytic**2) * b,
-# )
-print(f"sigma_analytic={sigma_analytic}")
-print(f"s_analytic={s_analytic}")
-print(f"k2_analytic={k2_analytic}")
-print(f"kb_analytic={kb_analytic}")
+for epsilon in epsilon_list:
+    mu, nu = dip.dipole(beta, 0, 0, "x")
+    Lambda1 = (pi/(2*b))**2
+    Lambda2 = (pi/b)**2
+    sigma_analytic = epsilon**2 * (np.pi**3 / b**3) * mu
+    s_analytic = -2 * np.log10(sigma_analytic)
+    k2_analytic = Lambda2 - sigma_analytic**2
+    kb_analytic = np.sqrt(k2_analytic) * b
+    a = 0
 
-kb_left = kb_analytic - 0.1  
-kb_right = kb_analytic + 0.1  
-kb_test = np.linspace(kb_left, kb_right, 15)
-det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
+    kb_analytic_list.append(kb_analytic)
+    sigma_analytic_list.append(sigma_analytic)
 
-# Print determinant values to check for sign change
-print("Determinant values:", det_vals)
-
-sign_changes = False
-for i in range(len(det_vals) - 1):
-    if det_vals[i] * det_vals[i + 1] <= 0:
-        sign_changes = True
-        print(f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i + 1]}")
-        kb_left = kb_test[i]
-        kb_right = kb_test[i + 1]
-        break
-
-if not sign_changes:
-    print("No sign change detected in the interval. Trying a wider interval.")
-    kb_left = kb_analytic - 0.2
-    kb_right = kb_analytic + 0.2
-    kb_test = np.linspace(kb_left, kb_right, 30)
+    kb_left = kb_analytic - 0.001 
+    kb_right = kb_analytic + 0.001
+    kb_test = np.linspace(kb_left, kb_right, 15)
     det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
 
+    sign_changes = False
     for i in range(len(det_vals) - 1):
         if det_vals[i] * det_vals[i + 1] <= 0:
             sign_changes = True
-            print(
-                f"Sign change detected between kb={kb_test[i]} and kb={kb_test[i + 1]}"
-            )
             kb_left = kb_test[i]
             kb_right = kb_test[i + 1]
             break
 
-f = lambda s, a: determinant(s, a)
-kb_root = bisection(f, a, kb_left, kb_right) if sign_changes else None
-print("kb_numeric", kb_root)
+    if not sign_changes:
+        kb_left = kb_analytic - 0.2
+        kb_right = kb_analytic + 0.2
+        kb_test = np.linspace(kb_left, kb_right, 30)
+        det_vals = [np.real(determinant(kb, a)) for kb in kb_test]
 
-plt.figure()
-plt.plot(kb_test, det_vals, "o-")
-plt.axhline(0, color="r")
-plt.xlabel("$kb$")
-plt.ylabel("Re[det A]")
-plt.grid(True)
+        for i in range(len(det_vals) - 1):
+            if det_vals[i] * det_vals[i + 1] <= 0:
+                sign_changes = True
+                kb_left = kb_test[i]
+                kb_right = kb_test[i + 1]
+                break
+
+    f = lambda s, a: determinant(s, a)
+    kb_root = bisection(f, a, kb_left, kb_right) if sign_changes else None
+    print("kb_numeric", kb_root)
+
+    error = np.abs((np.abs(kb_root) - np.abs(kb_analytic))/np.abs(kb_analytic))
+
+    kb_numeric_list.append(kb_root)
+    error_list.append(error)
+
+# %%
+print(kb_analytic_list)
+print(kb_numeric_list)
+print(sigma_analytic_list)
+print(error_list)
+# %%
+plt.figure(figsize=(8, 5))
+
+# --- First axis: σ_sol vs ε ---
+fig, ax1 = plt.subplots(figsize=(8, 5))
+
+color1 = 'tab:blue'
+color3 = 'tab:green'
+ax1.plot(epsilon_list, kb_numeric_list, 'o-', color=color1, label=r'$kb_{sol}$', markersize=6)
+ax1.plot(epsilon_list, kb_analytic_list, 'o-', color=color3, label=r'$kb_{analytic}$', markersize=6)
+ax1.axhline(0, color='r', linewidth=1)
+ax1.set_xlabel(r"$\epsilon$", fontsize=12)
+ax1.set_ylabel(r"$kb$", color=color1, fontsize=12)
+ax1.tick_params(axis='y', labelcolor=color1)
+ax1.grid(True, which='both', linestyle='--', alpha=0.4)
+
+# --- Second axis: Error vs ε ---
+ax2 = ax1.twinx()
+color2 = 'tab:orange'
+ax2.plot(epsilon_list, error_list, 's--', color=color2, label='Error', markersize=5, linewidth=2)
+ax2.set_ylabel("Error", color=color2, fontsize=12)
+ax2.tick_params(axis='y', labelcolor=color2)
+
+# --- Combined Legend ---
+lines_1, labels_1 = ax1.get_legend_handles_labels()
+lines_2, labels_2 = ax2.get_legend_handles_labels()
+ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
+
+# --- Title & Styling ---
 plt.tight_layout()
 plt.show()
