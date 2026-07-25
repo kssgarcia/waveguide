@@ -189,29 +189,17 @@ plt.figure(figsize=(8, 5))
 
 # --- First axis: σ_sol vs ε ---
 fig, ax1 = plt.subplots(figsize=(8, 5))
-
 color1 = 'tab:blue'
 color3 = 'tab:green'
+
 ax1.plot(epsilon_list, kb_numeric_list, 'o-', color=color1, label=r'$kb_{sol}$', markersize=6)
 ax1.plot(epsilon_list, kb_analytic_list, 'o-', color=color3, label=r'$kb_{analytic}$', markersize=6)
-ax1.axhline(0, color='r', linewidth=1)
 ax1.set_xlabel(r"$\epsilon$", fontsize=12)
-ax1.set_ylabel(r"$kb$", color=color1, fontsize=12)
-ax1.tick_params(axis='y', labelcolor=color1)
+ax1.set_ylabel(r"$kb$", fontsize=12)
 ax1.grid(True, which='both', linestyle='--', alpha=0.4)
 
-# --- Second axis: Error vs ε ---
-ax2 = ax1.twinx()
-color2 = 'tab:orange'
-ax2.plot(epsilon_list, error_list, 's--', color=color2, label='Error', markersize=5, linewidth=2)
-ax2.set_ylabel("Error", color=color2, fontsize=12)
-ax2.tick_params(axis='y', labelcolor=color2)
+ax1.legend(loc='upper left', frameon=True)
 
-# --- Combined Legend ---
-lines_1, labels_1 = ax1.get_legend_handles_labels()
-lines_2, labels_2 = ax2.get_legend_handles_labels()
-ax1.legend(lines_1 + lines_2, labels_1 + labels_2, loc='upper left', frameon=True)
-
-# --- Title & Styling ---
 plt.tight_layout()
+plt.savefig(f"./old_kb_comparison.png", dpi=200)
 plt.show()
