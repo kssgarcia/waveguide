@@ -90,7 +90,7 @@ class Config:
     shape_beta: float = 0.10
 
     # Small, interpretable first experiment.
-    epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09, 0.11)
+    epsilon_values: tuple[float, ...] = (0.5, 0.7, 0.9, 1.1)
 
     # BEM / Green function.
     lattice_terms: int = 200
