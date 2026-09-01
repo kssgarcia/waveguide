@@ -83,10 +83,10 @@ import csv
 import math
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -97,7 +97,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import dipole_theorem as dip
 import lattice_sums as lattice
-
 
 PI = np.pi
 
@@ -330,7 +329,7 @@ def kb_cutoff_2(config: Config) -> float:
     return math.sqrt(lambda_2(config)) * config.b
 
 
-@lru_cache(maxsize=None)
+@cache
 def dipole_moments(shape_beta: float) -> tuple[float, float]:
     mu, nu = dip.dipole(shape_beta, 0.0, 0.0, "y")
     return float(mu), float(nu)
@@ -409,7 +408,9 @@ def geometry_symmetry_residual(config: Config) -> tuple[float, float]:
     )
 
 
-def symmetry_conditions_verified(config: Config) -> tuple[bool, float, float, float, float]:
+def symmetry_conditions_verified(
+    config: Config,
+) -> tuple[bool, float, float, float, float]:
     x_odd, y_even = geometry_symmetry_residual(config)
     mu, nu = dipole_moments(config.shape_beta)
     passed = bool(
@@ -649,9 +650,9 @@ def first_propagating_component(
         field = reconstruct_field(
             x, y_values, boundary_vector, theta, epsilon, config, G
         )
-        coefficient = np.sum(
-            physical_weights * field * np.conjugate(phi_1)
-        ) / norm_phi_squared
+        coefficient = (
+            np.sum(physical_weights * field * np.conjugate(phi_1)) / norm_phi_squared
+        )
 
         projected_norm = abs(coefficient) * math.sqrt(norm_phi_squared)
         field_norm = float(math.sqrt(np.sum(physical_weights * np.abs(field) ** 2)))
@@ -888,7 +889,9 @@ def optimize_a_for_M(
 def run_placement_optimization(
     epsilon: float,
     config: Config,
-) -> tuple[list[PlacementOptimizationRow], float, list[tuple[int, np.ndarray, np.ndarray]]]:
+) -> tuple[
+    list[PlacementOptimizationRow], float, list[tuple[int, np.ndarray, np.ndarray]]
+]:
     history: list[PlacementOptimizationRow] = []
     profiles: list[tuple[int, np.ndarray, np.ndarray]] = []
     previous_a: float | None = None
@@ -1018,8 +1021,7 @@ def build_uniqueness_grid(epsilon: float, config: Config) -> np.ndarray:
     factors = np.array([0.15, 0.25, 0.5, 0.75, 1.0, 1.5, 2.5, 5.0])
     local_delta = delta_asym * factors
     local_delta = local_delta[
-        (local_delta > config.upper_cutoff_delta_floor)
-        & (local_delta < (lam2 - lam1))
+        (local_delta > config.upper_cutoff_delta_floor) & (local_delta < (lam2 - lam1))
     ]
     local = config.b * np.sqrt(lam2 - local_delta)
 
@@ -1220,14 +1222,17 @@ def validate_epsilon(
     spectral_ok, nonradiating_ok = fixed_a_bic_is_resolved(mesh_rows, config)
     final_mesh = mesh_rows[-1]
 
-    tuned_rprop = max(final_mesh.propagating_ratio_left, final_mesh.propagating_ratio_right)
+    tuned_rprop = max(
+        final_mesh.propagating_ratio_left, final_mesh.propagating_ratio_right
+    )
     reduction = leading_rprop / max(tuned_rprop, 1.0e-30)
 
     scan, scan_values, additional = whole_band_uniqueness_screen(
         epsilon, a_bic, final_mesh.kb, config
     )
     additional_resolved = [
-        c for c in additional
+        c
+        for c in additional
         if c.persistent_nonradiating and not c.matches_expected_bic
     ]
     uniqueness_ok = len(additional_resolved) == 0
@@ -1245,10 +1250,7 @@ def validate_epsilon(
     asymptotic_ok = error_sigma <= config.relative_sigma_error_tolerance
 
     unique_bic = bool(
-        symmetry_ok
-        and placement_scaling_ok
-        and nonradiating_ok
-        and uniqueness_ok
+        symmetry_ok and placement_scaling_ok and nonradiating_ok and uniqueness_ok
     )
 
     result = ValidationResult(
@@ -1370,7 +1372,19 @@ def plot_summary(
     scaled = np.array([r.delta_a_over_epsilon2 for r in results])
     r0 = np.array([r.leading_a_propagating_ratio for r in results])
     rbic = np.array([r.tuned_a_propagating_ratio for r in results])
+    kb_asym = np.array([r.kb_asymptotic for r in results])
+    kb_num = np.array([r.kb_numerical for r in results])
     sigma_error = np.array([r.relative_error_sigma for r in results])
+
+    plt.figure(figsize=(7, 4.5))
+    plt.plot(eps, kb_num, "o-", label=r"$kb_{\mathrm{BEM}}$")
+    plt.plot(eps, kb_asym, "s--", label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "kb_vs_epsilon.png", dpi=180)
+    plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, a0, "s--", label=r"$a_{\mathrm{asym}}=\varepsilon a_1$")
@@ -1425,22 +1439,14 @@ def print_result(result: ValidationResult, config: Config) -> None:
     print(f"  a_asym = epsilon*a1      = {result.a_asymptotic:+.10e}")
     print(f"  a_BIC (numerical)        = {result.a_bic:+.10e}")
     print(f"  Delta a                  = {result.delta_a:+.6e}")
-    print(
-        f"  Delta a / epsilon^2      = {result.delta_a_over_epsilon2:+.8f}"
-    )
+    print(f"  Delta a / epsilon^2      = {result.delta_a_over_epsilon2:+.8f}")
     print(
         f"  O(epsilon^2) search consistency: "
         f"{'PASS' if result.tuned_placement_consistent_with_O_epsilon2 else 'FAIL'}"
     )
-    print(
-        f"  Rprop at leading a       = {result.leading_a_propagating_ratio:.3e}"
-    )
-    print(
-        f"  Rprop at tuned a_BIC     = {result.tuned_a_propagating_ratio:.3e}"
-    )
-    print(
-        f"  radiation reduction      = {result.radiation_reduction_factor:.2e}x"
-    )
+    print(f"  Rprop at leading a       = {result.leading_a_propagating_ratio:.3e}")
+    print(f"  Rprop at tuned a_BIC     = {result.tuned_a_propagating_ratio:.3e}")
+    print(f"  radiation reduction      = {result.radiation_reduction_factor:.2e}x")
     print(
         f"  spectral BIC resolved    = "
         f"{'PASS' if result.expected_bic_resolved else 'FAIL'}"
@@ -1487,7 +1493,9 @@ def main() -> None:
     print(f"b = {config.b}")
     print(f"beta = {config.shape_beta}")
     if config.a1_override is None:
-        print(f"a1 used = -beta/12 = {a1_leading(config):.12e} [small-beta approximation]")
+        print(
+            f"a1 used = -beta/12 = {a1_leading(config):.12e} [small-beta approximation]"
+        )
     else:
         print(f"a1 used = {a1_leading(config):.12e} [full/override value]")
     print(f"mu = {mu:.12e}")
@@ -1544,9 +1552,7 @@ def main() -> None:
             result.a_bic,
             output_directory,
         )
-        plot_full_band_scan(
-            epsilon, scan, scan_values, result, output_directory
-        )
+        plot_full_band_scan(epsilon, scan, scan_values, result, output_directory)
 
     write_dataclass_csv(output_directory / "summary.csv", summary)
     write_dataclass_csv(output_directory / "placement_optimization.csv", all_placement)

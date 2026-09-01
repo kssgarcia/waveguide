@@ -68,10 +68,10 @@ import csv
 import math
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -83,7 +83,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 import dipole_theorem as dip
 import lattice_sums as lattice
-
 
 PI = np.pi
 
@@ -100,7 +99,10 @@ class Config:
     shape_beta: float = 0.10
 
     # Same first experiment used for the x-symmetric case.
-    epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09, 0.11)
+    epsilon_values: tuple[float, ...] = (
+        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
+        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+    )
 
     # BEM / Green function.
     lattice_terms: int = 200
@@ -250,7 +252,7 @@ def kb_cutoff_2(config: Config) -> float:
     return math.sqrt(lambda_2(config)) * config.b
 
 
-@lru_cache(maxsize=None)
+@cache
 def dipole_moments(shape_beta: float) -> tuple[float, float]:
     """Return (mu,nu) for the unscaled y-symmetric reference obstacle."""
     mu, nu = dip.dipole(shape_beta, 0.0, 0.0, "y")
@@ -637,14 +639,12 @@ def first_propagating_component(
             G,
         )
 
-        coefficient = np.sum(
-            physical_weights * field * np.conjugate(phi_1)
-        ) / norm_phi_squared
+        coefficient = (
+            np.sum(physical_weights * field * np.conjugate(phi_1)) / norm_phi_squared
+        )
 
         projected_norm = abs(coefficient) * math.sqrt(norm_phi_squared)
-        field_norm = float(
-            math.sqrt(np.sum(physical_weights * np.abs(field) ** 2))
-        )
+        field_norm = float(math.sqrt(np.sum(physical_weights * np.abs(field) ** 2)))
         ratio = float(projected_norm / max(field_norm, 1.0e-30))
 
         diagnostics[f"ratio_{label}"] = ratio
@@ -715,7 +715,9 @@ def refine_expected_mode_for_M(
         options={"xatol": config.minimizer_xatol},
     )
     if not result.success:
-        raise RuntimeError(f"Expected-BIC minimization failed for M={M}: {result.message}")
+        raise RuntimeError(
+            f"Expected-BIC minimization failed for M={M}: {result.message}"
+        )
 
     kb = float(result.x)
     sv_min, boundary_vector, theta, G = spectral_state(kb, epsilon, M, config)
@@ -818,7 +820,9 @@ def run_expected_branch_refinement(
     return rows
 
 
-def expected_bic_is_resolved(rows: list[RefinementRow], config: Config) -> tuple[bool, bool]:
+def expected_bic_is_resolved(
+    rows: list[RefinementRow], config: Config
+) -> tuple[bool, bool]:
     """
     Return (spectral_mode_resolved, nonradiating_bic_verified).
 
@@ -842,10 +846,7 @@ def expected_bic_is_resolved(rows: list[RefinementRow], config: Config) -> tuple
     converged = final_change <= config.mesh_sigma_relative_tolerance
 
     spectral_resolved = bool(
-        final.minimum_is_interior
-        and near_singular
-        and deep_minimum
-        and converged
+        final.minimum_is_interior and near_singular and deep_minimum and converged
     )
 
     propagation_ok = (
@@ -890,16 +891,12 @@ def build_uniqueness_grid(epsilon: float, config: Config) -> np.ndarray:
     local_factors = np.array([0.15, 0.25, 0.5, 0.75, 1.0, 1.5, 2.5, 5.0])
     local_delta = delta_asym * local_factors
     local_delta = local_delta[
-        (local_delta > config.upper_cutoff_delta_floor)
-        & (local_delta < (lam2 - lam1))
+        (local_delta > config.upper_cutoff_delta_floor) & (local_delta < (lam2 - lam1))
     ]
     local = config.b * np.sqrt(lam2 - local_delta)
 
     grid = np.concatenate([linear, logarithmic, local])
-    grid = grid[
-        (grid > kb1 + 0.5 * config.lower_cutoff_kb_margin)
-        & (grid < kb2)
-    ]
+    grid = grid[(grid > kb1 + 0.5 * config.lower_cutoff_kb_margin) & (grid < kb2)]
     return np.unique(np.sort(grid))
 
 
@@ -997,9 +994,7 @@ def whole_band_uniqueness_screen(
         )
 
         kb_shift = (
-            abs(kb_f - kb_c)
-            if np.isfinite(kb_c) and np.isfinite(kb_f)
-            else math.nan
+            abs(kb_f - kb_c) if np.isfinite(kb_c) and np.isfinite(kb_f) else math.nan
         )
 
         if np.isfinite(kb_f) and len(vector_f) > 0:
@@ -1049,14 +1044,15 @@ def whole_band_uniqueness_screen(
         )
 
         max_prop = max(ratio_left, ratio_right) if np.isfinite(ratio_left) else math.nan
-        parity_res = min(even_residual, odd_residual) if np.isfinite(even_residual) else math.nan
+        parity_res = (
+            min(even_residual, odd_residual) if np.isfinite(even_residual) else math.nan
+        )
         parity_label = (
-            "even" if np.isfinite(even_residual) and even_residual <= odd_residual else "odd"
+            "even"
+            if np.isfinite(even_residual) and even_residual <= odd_residual
+            else "odd"
         )
-        print(
-            f"      kb(M={config.uniqueness_scan_M})={kb_c:.12f}, "
-            f"sv_min={sv_c:.3e}"
-        )
+        print(f"      kb(M={config.uniqueness_scan_M})={kb_c:.12f}, sv_min={sv_c:.3e}")
         print(
             f"      kb(M={config.uniqueness_refine_M})={kb_f:.12f}, "
             f"sv_min={sv_f:.3e}, drop={drop_f:.2e}, "
@@ -1073,7 +1069,9 @@ def whole_band_uniqueness_screen(
 # ---------------------------------------------------------------------------
 
 
-def symmetry_conditions_verified(config: Config) -> tuple[bool, float, float, float, float]:
+def symmetry_conditions_verified(
+    config: Config,
+) -> tuple[bool, float, float, float, float]:
     x_odd_residual, y_even_residual = geometry_symmetry_residual(config)
     mu, nu = dipole_moments(config.shape_beta)
 
@@ -1088,8 +1086,7 @@ def symmetry_conditions_verified(config: Config) -> tuple[bool, float, float, fl
 def placement_condition_verified(epsilon: float, config: Config) -> tuple[bool, float]:
     residual = placement_residual(epsilon, config)
     passed = bool(
-        residual <= config.placement_tolerance
-        and obstacle_fits_guide(epsilon, config)
+        residual <= config.placement_tolerance and obstacle_fits_guide(epsilon, config)
     )
     return passed, residual
 
@@ -1129,10 +1126,7 @@ def validate_epsilon(
     uniqueness_screen_passed = len(additional_resolved) == 0
 
     unique_bic_verified = bool(
-        symmetry_ok
-        and placement_ok
-        and nonradiating_bic
-        and uniqueness_screen_passed
+        symmetry_ok and placement_ok and nonradiating_bic and uniqueness_screen_passed
     )
 
     result = ValidationResult(
@@ -1228,12 +1222,16 @@ def plot_refinement(
     plt.title(rf"BIC mesh refinement, $\varepsilon={epsilon:.2f}$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_directory / f"refinement_sigma_epsilon_{epsilon:.2f}.png", dpi=180)
+    plt.savefig(
+        output_directory / f"refinement_sigma_epsilon_{epsilon:.2f}.png", dpi=180
+    )
     plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.semilogy(M, sv_min, "o-")
-    plt.axhline(config.near_singular_tolerance, linestyle="--", label="diagnostic tolerance")
+    plt.axhline(
+        config.near_singular_tolerance, linestyle="--", label="diagnostic tolerance"
+    )
     plt.xlabel(r"$M$")
     plt.ylabel(r"$s_{\min}(A(k_*))$")
     plt.title(rf"Near-singularity, $\varepsilon={epsilon:.2f}$")
@@ -1254,7 +1252,9 @@ def plot_refinement(
     plt.title(rf"Open-channel cancellation, $\varepsilon={epsilon:.2f}$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_directory / f"refinement_propagation_epsilon_{epsilon:.2f}.png", dpi=180)
+    plt.savefig(
+        output_directory / f"refinement_propagation_epsilon_{epsilon:.2f}.png", dpi=180
+    )
     plt.close()
 
     # Pure diagnostic: for a simple eigenstate of the y-reflection-symmetric
@@ -1266,9 +1266,10 @@ def plot_refinement(
     plt.ylabel(r"best y-axis reflection-parity residual")
     plt.title(rf"y-axis reflection diagnostic, $\varepsilon={epsilon:.2f}$")
     plt.tight_layout()
-    plt.savefig(output_directory / f"refinement_parity_epsilon_{epsilon:.2f}.png", dpi=180)
+    plt.savefig(
+        output_directory / f"refinement_parity_epsilon_{epsilon:.2f}.png", dpi=180
+    )
     plt.close()
-
 
 
 def plot_summary(
@@ -1279,10 +1280,25 @@ def plot_summary(
     eps = np.array([row.epsilon for row in results])
     sigma_asym = np.array([row.sigma_asymptotic for row in results])
     sigma_num = np.array([row.sigma_numerical for row in results])
+    kb_asym = np.array([row.kb_asymptotic for row in results])
+    kb_num = np.array([row.kb_numerical for row in results])
     error = np.array([row.relative_error_sigma for row in results])
     prop = np.array(
-        [max(row.propagating_ratio_left, row.propagating_ratio_right) for row in results]
+        [
+            max(row.propagating_ratio_left, row.propagating_ratio_right)
+            for row in results
+        ]
     )
+
+    plt.figure(figsize=(7, 4.5))
+    plt.plot(eps, kb_num, "o-", label=r"$kb_{\mathrm{BEM}}$")
+    plt.plot(eps, kb_asym, "s--", label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "kb_vs_epsilon.png", dpi=180)
+    plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, sigma_num, "o-", label=r"$\sigma_{\mathrm{BEM}}$")
@@ -1352,8 +1368,7 @@ def print_result(result: ValidationResult, config: Config) -> None:
     )
     print(f"  additional resolved BICs: {result.additional_resolved_bics}")
     print(
-        f"  uniqueness screen: "
-        f"{'PASS' if result.uniqueness_screen_passed else 'FAIL'}"
+        f"  uniqueness screen: {'PASS' if result.uniqueness_screen_passed else 'FAIL'}"
     )
     print(
         f"  exactly one resolved BIC in [Lambda_1,Lambda_2): "
@@ -1385,7 +1400,6 @@ def print_result(result: ValidationResult, config: Config) -> None:
     )
 
 
-
 def main() -> None:
     config = CONFIG
     output_directory = Path(config.output_directory)
@@ -1401,10 +1415,7 @@ def main() -> None:
     print(f"nu = {nu:.12e}")
     print(f"X-odd residual  = {x_odd_res:.3e}")
     print(f"Y-even residual = {y_even_res:.3e}")
-    print(
-        f"Theorem shape symmetry conditions: "
-        f"{'PASS' if symmetry_ok else 'FAIL'}"
-    )
+    print(f"Theorem shape symmetry conditions: {'PASS' if symmetry_ok else 'FAIL'}")
     print(f"Lambda_1 = {lambda_1(config):.12f}")
     print(f"Lambda_2 = {lambda_2(config):.12f}")
     print(f"sqrt(Lambda_1) b = {kb_cutoff_1(config):.12f}")
@@ -1434,7 +1445,9 @@ def main() -> None:
         )
         print(f"  predicted kb = {kb_asym:.12f}")
         print(f"  predicted sigma = {sigma_asym:.8e}")
-        print(f"  predicted kb gap to sqrt(Lambda_2) = {kb_cutoff_2(config) - kb_asym:.3e}")
+        print(
+            f"  predicted kb gap to sqrt(Lambda_2) = {kb_cutoff_2(config) - kb_asym:.3e}"
+        )
 
         result, refinement, scan, scan_values, additional = validate_epsilon(
             epsilon, config
@@ -1461,10 +1474,7 @@ def main() -> None:
         "Interval screened: Lambda_1 < k^2 < Lambda_2 "
         "(excluding tiny numerical layers at the cutoffs)."
     )
-    print(
-        f"Unique non-radiating BIC checks passed: "
-        f"{unique_passed}/{len(summary)}"
-    )
+    print(f"Unique non-radiating BIC checks passed: {unique_passed}/{len(summary)}")
     print(
         f"Leading asymptotic sigma within "
         f"{config.relative_sigma_error_tolerance:.1%}: "
@@ -1474,7 +1484,9 @@ def main() -> None:
     for row in summary:
         max_prop = max(row.propagating_ratio_left, row.propagating_ratio_right)
         parity_res = min(row.yaxis_even_residual, row.yaxis_odd_residual)
-        parity_label = "even" if row.yaxis_even_residual <= row.yaxis_odd_residual else "odd"
+        parity_label = (
+            "even" if row.yaxis_even_residual <= row.yaxis_odd_residual else "odd"
+        )
         print(
             f"  epsilon={row.epsilon:.3f}: a={row.a:.6e}, "
             f"BIC={'PASS' if row.unique_bic_verified else 'FAIL'}, "

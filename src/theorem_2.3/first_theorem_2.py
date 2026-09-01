@@ -41,9 +41,9 @@ import csv
 import math
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -52,7 +52,6 @@ from scipy.optimize import minimize_scalar
 # Same project import convention used by the previous scripts.
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice
-
 
 PI = np.pi
 
@@ -64,7 +63,10 @@ class Config:
     a: float = 0.6
 
     # Keep the first experiment small and interpretable.
-    epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09, 0.11)
+    epsilon_values: tuple[float, ...] = (
+        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
+        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+    )
 
     # BEM / Green function.
     lattice_terms: int = 200
@@ -180,9 +182,7 @@ def critical_height_leading_order(config: Config) -> float:
     """Leading a_0* for a circle with R0=1, mu=1, S=pi."""
     mu = 1.0
     area = PI
-    return (2.0 * config.b / PI) * math.atan(
-        math.sqrt(area / (2.0 * PI * mu))
-    )
+    return (2.0 * config.b / PI) * math.atan(math.sqrt(area / (2.0 * PI * mu)))
 
 
 def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]:
@@ -192,8 +192,7 @@ def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]
     area = PI
 
     bracket = (
-        PI * mu * math.sin(alpha / 2.0) ** 2
-        - 0.5 * area * math.cos(alpha / 2.0) ** 2
+        PI * mu * math.sin(alpha / 2.0) ** 2 - 0.5 * area * math.cos(alpha / 2.0) ** 2
     )
     sigma = epsilon**2 * PI**2 / (4.0 * config.b**3) * bracket
 
@@ -365,7 +364,9 @@ def expected_mode_bracket(epsilon: float, config: Config) -> tuple[float, float]
 
     # Larger delta means smaller k, hence left/right are reversed in delta.
     delta_far = min(delta_asym * config.expected_delta_upper_factor, lam1 * 0.95)
-    delta_near = max(delta_asym * config.expected_delta_lower_factor, config.cutoff_delta_floor)
+    delta_near = max(
+        delta_asym * config.expected_delta_lower_factor, config.cutoff_delta_floor
+    )
 
     left = kb_from_delta(delta_far, config)
     right = kb_from_delta(delta_near, config)
@@ -399,7 +400,9 @@ def refine_expected_mode_for_M(
         options={"xatol": config.minimizer_xatol},
     )
     if not result.success:
-        raise RuntimeError(f"Expected-mode minimization failed for M={M}: {result.message}")
+        raise RuntimeError(
+            f"Expected-mode minimization failed for M={M}: {result.message}"
+        )
 
     kb = float(result.x)
     sigma_min = smallest_singular_value(kb, epsilon, M, config)
@@ -477,10 +480,7 @@ def expected_mode_is_resolved(rows: list[RefinementRow], config: Config) -> bool
     converged = final_change <= config.mesh_sigma_relative_tolerance
 
     return bool(
-        final.minimum_is_interior
-        and near_singular
-        and deep_minimum
-        and converged
+        final.minimum_is_interior and near_singular and deep_minimum and converged
     )
 
 
@@ -513,7 +513,9 @@ def build_uniqueness_grid(epsilon: float, config: Config) -> np.ndarray:
     # represented in the full-band diagnostic plot.
     local_factors = np.array([0.15, 0.25, 0.5, 0.75, 1.0, 1.5, 2.5, 5.0])
     local_delta = delta_asym * local_factors
-    local_delta = local_delta[(local_delta > config.cutoff_delta_floor) & (local_delta < lam1)]
+    local_delta = local_delta[
+        (local_delta > config.cutoff_delta_floor) & (local_delta < lam1)
+    ]
     local = config.b * np.sqrt(lam1 - local_delta)
 
     grid = np.concatenate([linear, logarithmic, local])
@@ -642,8 +644,7 @@ def whole_band_uniqueness_screen(
         )
 
         print(
-            f"      kb(M={config.uniqueness_scan_M})={kb_c:.12f}, "
-            f"sigma_min={sv_c:.3e}"
+            f"      kb(M={config.uniqueness_scan_M})={kb_c:.12f}, sigma_min={sv_c:.3e}"
         )
         print(
             f"      kb(M={config.uniqueness_refine_M})={kb_f:.12f}, "
@@ -684,7 +685,9 @@ def validate_epsilon(
     asymptotic_ok = error_sigma <= config.relative_sigma_error_tolerance
 
     scan, scan_values, additional = whole_band_uniqueness_screen(epsilon, config)
-    additional_resolved = [candidate for candidate in additional if candidate.persistent]
+    additional_resolved = [
+        candidate for candidate in additional if candidate.persistent
+    ]
     uniqueness_screen_passed = len(additional_resolved) == 0
     unique_mode_verified = expected_resolved and uniqueness_screen_passed
 
@@ -760,12 +763,16 @@ def plot_refinement(
     plt.title(rf"Mesh refinement, $\varepsilon={epsilon:.2f}$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_directory / f"refinement_sigma_epsilon_{epsilon:.2f}.png", dpi=180)
+    plt.savefig(
+        output_directory / f"refinement_sigma_epsilon_{epsilon:.2f}.png", dpi=180
+    )
     plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.semilogy(M, sigma_min, "o-")
-    plt.axhline(CONFIG.near_singular_tolerance, linestyle="--", label="diagnostic tolerance")
+    plt.axhline(
+        CONFIG.near_singular_tolerance, linestyle="--", label="diagnostic tolerance"
+    )
     plt.xlabel(r"$M$")
     plt.ylabel(r"$\sigma_{\min}(A(k_*))$")
     plt.title(rf"Near-singularity under refinement, $\varepsilon={epsilon:.2f}$")
@@ -779,7 +786,19 @@ def plot_summary(results: list[ValidationResult], output_directory: Path) -> Non
     eps = np.array([row.epsilon for row in results])
     sigma_asym = np.array([row.sigma_asymptotic for row in results])
     sigma_num = np.array([row.sigma_numerical for row in results])
+    kb_asym = np.array([row.kb_asymptotic for row in results])
+    kb_num = np.array([row.kb_numerical for row in results])
     error = np.array([row.relative_error_sigma for row in results])
+
+    plt.figure(figsize=(7, 4.5))
+    plt.plot(eps, kb_num, "o-", label=r"$kb_{\mathrm{BEM}}$")
+    plt.plot(eps, kb_asym, "s--", label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "kb_vs_epsilon.png", dpi=180)
+    plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, sigma_num, "o-", label=r"$\sigma_{\mathrm{BEM}}$")
@@ -793,7 +812,9 @@ def plot_summary(results: list[ValidationResult], output_directory: Path) -> Non
 
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, error, "o-")
-    plt.axhline(CONFIG.relative_sigma_error_tolerance, linestyle="--", label="5% tolerance")
+    plt.axhline(
+        CONFIG.relative_sigma_error_tolerance, linestyle="--", label="5% tolerance"
+    )
     plt.xlabel(r"$\varepsilon$")
     plt.ylabel(r"relative error in $\sigma$")
     plt.legend()
@@ -810,8 +831,7 @@ def print_result(result: ValidationResult, config: Config) -> None:
     )
     print(f"  additional resolved modes: {result.additional_resolved_modes}")
     print(
-        f"  uniqueness screen: "
-        f"{'PASS' if result.uniqueness_screen_passed else 'FAIL'}"
+        f"  uniqueness screen: {'PASS' if result.uniqueness_screen_passed else 'FAIL'}"
     )
     print(
         f"  exactly one resolved discrete mode: "
@@ -853,10 +873,7 @@ def main() -> None:
     print(f"b = {config.b}")
     print(f"a = {config.a}")
     print(f"leading-order a0* = {a0_star:.12f}")
-    print(
-        f"geometric condition a > a0*: "
-        f"{'PASS' if config.a > a0_star else 'FAIL'}"
-    )
+    print(f"geometric condition a > a0*: {'PASS' if config.a > a0_star else 'FAIL'}")
     print(f"Lambda_1 = {lambda_1(config):.12f}")
     print(f"sqrt(Lambda_1) b = {kb_cutoff(config):.12f}")
     print(f"epsilons = {config.epsilon_values}")
@@ -901,8 +918,7 @@ def main() -> None:
     print("\n=== FINAL SUMMARY ===")
     print("Interval screened: 0 < k^2 < Lambda_1")
     print(
-        f"Existence + no additional resolved modes: "
-        f"{uniqueness_passed}/{len(summary)}"
+        f"Existence + no additional resolved modes: {uniqueness_passed}/{len(summary)}"
     )
     print(
         f"Leading asymptotic sigma within "
