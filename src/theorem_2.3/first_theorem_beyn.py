@@ -4,9 +4,9 @@ import csv
 import math
 import os
 import sys
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +16,6 @@ from scipy.optimize import minimize_scalar
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice
 
-
 PI = np.pi
 
 
@@ -25,7 +24,10 @@ class Config:
     # Geometry.
     b: float = 1.0
     a: float = 0.6
-    epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09, 0.11)
+    epsilon_values: tuple[float, ...] = (
+        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
+        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+    )
 
     # Green function / BEM.
     lattice_terms: int = 200
@@ -257,9 +259,7 @@ def critical_height_leading_order(config: Config) -> float:
     """Leading a_0* for a circle with R0=1, mu=1, S=pi."""
     mu = 1.0
     area = PI
-    return (2.0 * config.b / PI) * math.atan(
-        math.sqrt(area / (2.0 * PI * mu))
-    )
+    return (2.0 * config.b / PI) * math.atan(math.sqrt(area / (2.0 * PI * mu)))
 
 
 def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]:
@@ -269,8 +269,7 @@ def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]
     area = PI
 
     bracket = (
-        PI * mu * math.sin(alpha / 2.0) ** 2
-        - 0.5 * area * math.cos(alpha / 2.0) ** 2
+        PI * mu * math.sin(alpha / 2.0) ** 2 - 0.5 * area * math.cos(alpha / 2.0) ** 2
     )
     sigma = epsilon**2 * PI**2 / (4.0 * config.b**3) * bracket
 
@@ -737,16 +736,13 @@ def cluster_real_candidates(
     return [sum(cluster) / len(cluster) for cluster in clusters]
 
 
-
 def cluster_near_contour_seeds(
     eigenvalues: np.ndarray,
     rows: list[BeynEigenvalueRow],
     config: Config,
 ) -> list[complex]:
     values = [
-        complex(eigenvalues[row.raw_index])
-        for row in rows
-        if row.near_contour_seed
+        complex(eigenvalues[row.raw_index]) for row in rows if row.near_contour_seed
     ]
     if not values:
         return []
@@ -768,8 +764,7 @@ def primary_raw_eigenvalue(eigenvalues: np.ndarray, config: Config) -> complex |
 
     values = [complex(z) for z in eigenvalues]
     near_real = [
-        z for z in values
-        if abs(z.imag) <= max(config.beyn_real_axis_tolerance, 1.0e-4)
+        z for z in values if abs(z.imag) <= max(config.beyn_real_axis_tolerance, 1.0e-4)
     ]
     pool = near_real if near_real else values
     cutoff = kb_cutoff(config)
@@ -879,7 +874,8 @@ def run_beyn_convergence_study(
 
     base_levels = list(config.beyn_quadrature_levels)
     adaptive_levels = [
-        int(nq) for nq in config.beyn_adaptive_quadrature_levels
+        int(nq)
+        for nq in config.beyn_adaptive_quadrature_levels
         if int(nq) > max(base_levels, default=0)
     ]
     levels = base_levels + adaptive_levels
@@ -902,19 +898,22 @@ def run_beyn_convergence_study(
             s0_change = math.nan
         else:
             s0_change = float(
-                np.linalg.norm(S0 - previous_S0)
-                / max(np.linalg.norm(S0), 1.0e-30)
+                np.linalg.norm(S0 - previous_S0) / max(np.linalg.norm(S0), 1.0e-30)
             )
 
         shift = candidate_set_shift(previous_candidates, candidates)
-        rank_stable = bool(previous_rank is not None and previous_rank == diag.estimated_rank)
+        rank_stable = bool(
+            previous_rank is not None and previous_rank == diag.estimated_rank
+        )
 
         primary = (
             min(candidates, key=lambda z: abs(z.imag))
             if candidates
             else complex(math.nan, math.nan)
         )
-        raw_for_row = primary_raw if primary_raw is not None else complex(math.nan, math.nan)
+        raw_for_row = (
+            primary_raw if primary_raw is not None else complex(math.nan, math.nan)
+        )
 
         convergence_rows.append(
             BeynConvergenceRow(
@@ -1000,7 +999,8 @@ def run_beyn_convergence_study(
         # indicates one enclosed mode.  They merely initialize local SVD.
         final_rank_stable = bool(
             len(convergence_rows) >= 2
-            and convergence_rows[-1].estimated_rank == convergence_rows[-2].estimated_rank
+            and convergence_rows[-1].estimated_rank
+            == convergence_rows[-2].estimated_rank
         )
         if final_diag.estimated_rank == 1 and final_rank_stable:
             aitken_seed = aitken_seed_from_history(raw_primary_history, config)
@@ -1240,7 +1240,9 @@ def validate_epsilon(
     all_refinement: list[ModeRefinementRow] = []
     mode_results: list[ModeResult] = []
 
-    for i, (seed, bracket) in enumerate(zip(local_seeds, brackets, strict=True), start=1):
+    for i, (seed, bracket) in enumerate(
+        zip(local_seeds, brackets, strict=True), start=1
+    ):
         rows, mode = run_candidate_refinement(epsilon, i, seed, bracket, config)
         all_refinement.extend(rows)
         mode_results.append(mode)
@@ -1263,9 +1265,7 @@ def validate_epsilon(
     # is not accepted; the local SVD minimum must satisfy all certification
     # criteria before this can pass.
     one_mode_count_supported = bool(
-        final_diag.estimated_rank == 1
-        and rank_stable
-        and len(resolved) == 1
+        final_diag.estimated_rank == 1 and rank_stable and len(resolved) == 1
     )
 
     if resolved:
@@ -1299,7 +1299,9 @@ def validate_epsilon(
             "last two Nq levels. Local SVD refinement remains the trusted position."
         )
 
-    seed_source = ",".join(sorted({mode.seed_source for mode in mode_results})) or "none"
+    seed_source = (
+        ",".join(sorted({mode.seed_source for mode in mode_results})) or "none"
+    )
     result = ValidationResult(
         epsilon=epsilon,
         a=config.a,
@@ -1413,7 +1415,9 @@ def plot_beyn_convergence(
     plt.title(rf"Beyn moment convergence, $\varepsilon={epsilon:.2f}$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_directory / f"beyn_s0_convergence_epsilon_{epsilon:.2f}.png", dpi=180)
+    plt.savefig(
+        output_directory / f"beyn_s0_convergence_epsilon_{epsilon:.2f}.png", dpi=180
+    )
     plt.close()
 
     raw_values = np.array([row.primary_raw_real for row in rows], dtype=float)
@@ -1462,7 +1466,8 @@ def plot_candidate_refinement(
         )
         plt.tight_layout()
         plt.savefig(
-            output_directory / f"candidate_{candidate_index}_svd_epsilon_{epsilon:.2f}.png",
+            output_directory
+            / f"candidate_{candidate_index}_svd_epsilon_{epsilon:.2f}.png",
             dpi=180,
         )
         plt.close()
@@ -1476,15 +1481,33 @@ def plot_candidate_refinement(
         )
         plt.tight_layout()
         plt.savefig(
-            output_directory / f"candidate_{candidate_index}_kb_epsilon_{epsilon:.2f}.png",
+            output_directory
+            / f"candidate_{candidate_index}_kb_epsilon_{epsilon:.2f}.png",
             dpi=180,
         )
         plt.close()
 
 
-def plot_summary(results: list[ValidationResult], output_directory: Path, config: Config) -> None:
+def plot_summary(
+    results: list[ValidationResult], output_directory: Path, config: Config
+) -> None:
     eps = np.array([row.epsilon for row in results])
     counts = np.array([row.resolved_mode_count for row in results])
+    finite_kb = [row for row in results if np.isfinite(row.kb_numerical)]
+
+    if finite_kb:
+        eps_kb = np.array([row.epsilon for row in finite_kb])
+        kb_num = np.array([row.kb_numerical for row in finite_kb])
+        kb_asym_finite = np.array([row.kb_asymptotic for row in finite_kb])
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(eps_kb, kb_num, "o-", label=r"$kb_{\mathrm{BEM}}$")
+        plt.plot(eps_kb, kb_asym_finite, "s--", label=r"$kb_{\mathrm{asym}}$")
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(r"$kb$")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(output_directory / "kb_vs_epsilon.png", dpi=180)
+        plt.close()
 
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, counts, "o-")
@@ -1501,7 +1524,9 @@ def plot_summary(results: list[ValidationResult], output_directory: Path, config
         error = np.array([row.relative_error_sigma for row in finite])
         plt.figure(figsize=(7, 4.5))
         plt.plot(eps_f, error, "o-")
-        plt.axhline(config.relative_sigma_error_tolerance, linestyle="--", label="5% tolerance")
+        plt.axhline(
+            config.relative_sigma_error_tolerance, linestyle="--", label="5% tolerance"
+        )
         plt.xlabel(r"$\varepsilon$")
         plt.ylabel(r"relative error in $\sigma$")
         plt.legend()
@@ -1514,7 +1539,9 @@ def print_result(result: ValidationResult, config: Config) -> None:
     print("\n  --- Beyn-v3 adaptive + local-SVD validation result ---")
     print(f"  final Beyn quadrature Nq       = {result.beyn_final_quadrature_points}")
     print(f"  final Beyn estimated rank      = {result.beyn_estimated_rank}")
-    print(f"  Beyn rank stable (last 2 Nq)   = {'YES' if result.beyn_rank_stable else 'no'}")
+    print(
+        f"  Beyn rank stable (last 2 Nq)   = {'YES' if result.beyn_rank_stable else 'no'}"
+    )
     print(f"  final strict Beyn candidates   = {result.beyn_near_real_candidates}")
     print(f"  local refinement seeds         = {result.local_refinement_seed_count}")
     print(f"  local seed source              = {result.local_refinement_seed_source}")
@@ -1534,7 +1561,9 @@ def print_result(result: ValidationResult, config: Config) -> None:
         print(f"  sigma BEM                      = {result.sigma_numerical:.8e}")
         print(f"  final sigma_min(A)             = {result.sigma_min_final:.3e}")
         print(f"  final minimum drop             = {result.final_drop_factor:.2e}")
-        print(f"  final mesh change in sigma     = {result.final_relative_mesh_change:.3%}")
+        print(
+            f"  final mesh change in sigma     = {result.final_relative_mesh_change:.3%}"
+        )
         print(f"  relative sigma error           = {result.relative_error_sigma:.3%}")
     else:
         print("  kb BEM                         = --")
@@ -1572,10 +1601,7 @@ def main() -> None:
     print(f"b = {config.b}")
     print(f"a = {config.a}")
     print(f"leading-order a0* = {a0_star:.12f}")
-    print(
-        f"geometric condition a > a0*: "
-        f"{'PASS' if config.a > a0_star else 'FAIL'}"
-    )
+    print(f"geometric condition a > a0*: {'PASS' if config.a > a0_star else 'FAIL'}")
     print(f"Lambda_1 = {lambda_1(config):.12f}")
     print(f"sqrt(Lambda_1)b = {kb_cutoff(config):.12f}")
     print(f"epsilons = {config.epsilon_values}")
