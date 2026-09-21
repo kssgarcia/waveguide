@@ -38,14 +38,18 @@ This is a numerical validation, not a mathematical proof of uniqueness.
 from __future__ import annotations
 
 import csv
+import io
 import math
 import os
 import sys
-from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from collections.abc import Callable, Sequence
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stdout
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
+from typing import Any
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
 import numpy as np
 from scipy.optimize import minimize_scalar
 
@@ -74,7 +78,20 @@ class Config:
     finite_difference_step: float = 1.0e-6
 
     # Mesh refinement used to validate the expected branch.
-    refinement_M: tuple[int, ...] = (16, 24, 32, 40, 48)
+    refinement_M: tuple[int, ...] = (8, 16, 24, 32, 40)
+
+    # Paper figures: the y-position sweep uses one fixed BEM resolution.
+    paper_a_values: tuple[float, ...] = (0.35, 0.50, 0.55, 0.60, 0.65, 0.70)
+    paper_fixed_M: int = 32
+    paper_epsilon_min: float = 0.01
+    paper_epsilon_points: int = 20
+    paper_epsilon_hard_upper: float = 0.5
+    paper_geometry_endpoint_factor: float = 0.999
+    # Extra admissibility margin for the periodic Green-function expansion.
+    paper_green_radius_safety_factor: float = 0.999
+
+    # Numerical evaluations are independent across epsilon/a cases.
+    parallel_workers: int = 4
 
     # Expected-mode search window in spectral distance
     # delta = Lambda_1 - k^2 = sigma^2.
@@ -124,6 +141,26 @@ class RefinementRow:
     drop_factor: float
     minimum_is_interior: bool
     relative_sigma_change_from_previous: float
+
+
+@dataclass
+class PaperSweepRow:
+    a: float
+    a0_leading_order: float
+    epsilon: float
+    M: int
+    kb: float
+    sigma_bem: float
+    sigma_min: float
+    drop_factor: float
+    kb_asymptotic: float
+    sigma_asymptotic: float
+    relative_error_kb: float
+    relative_error_sigma: float
+    geometry_valid: bool
+    asymptotic_prediction_valid: bool
+    mode_resolved: bool
+    mode_status: str
 
 
 @dataclass
@@ -296,7 +333,7 @@ def source_derivatives(
 ) -> tuple[complex, complex]:
     dG_dxi = (G(x, y, xi + h, eta) - G(x, y, xi - h, eta)) / (2.0 * h)
     dG_deta = (G(x, y, xi, eta + h) - G(x, y, xi, eta - h)) / (2.0 * h)
-    return dG_dxi, dG_deta
+    return complex(dG_dxi), complex(dG_deta)
 
 
 def weighted_normal_kernel(
@@ -307,8 +344,14 @@ def weighted_normal_kernel(
     G: Callable[..., complex],
     G_regularized: Callable[..., complex],
 ) -> complex:
-    x, y, _, _, _, _ = circle_geometry(psi, epsilon)
-    xi, eta, xi_p, eta_p, xi_pp, eta_pp = circle_geometry(theta, epsilon)
+    x_raw, y_raw, _, _, _, _ = circle_geometry(psi, epsilon)
+    xi_raw, eta_raw, xi_p_raw, eta_p_raw, xi_pp_raw, eta_pp_raw = circle_geometry(
+        theta, epsilon
+    )
+    x, y = float(x_raw), float(y_raw)
+    xi, eta = float(xi_raw), float(eta_raw)
+    xi_p, eta_p = float(xi_p_raw), float(eta_p_raw)
+    xi_pp, eta_pp = float(xi_pp_raw), float(eta_pp_raw)
 
     w = float(np.hypot(xi_p, eta_p))
     h = config.finite_difference_step
@@ -391,7 +434,7 @@ def refine_expected_mode_for_M(
     left_value = smallest_singular_value(left, epsilon, M, config)
     right_value = smallest_singular_value(right, epsilon, M, config)
 
-    result = minimize_scalar(
+    result: Any = minimize_scalar(
         lambda kb: math.log10(
             max(smallest_singular_value(float(kb), epsilon, M, config), tiny)
         ),
@@ -556,7 +599,7 @@ def refine_bracket_once(
     left_value = smallest_singular_value(left, epsilon, M, config)
     right_value = smallest_singular_value(right, epsilon, M, config)
 
-    result = minimize_scalar(
+    result: Any = minimize_scalar(
         lambda kb: math.log10(
             max(smallest_singular_value(float(kb), epsilon, M, config), tiny)
         ),
@@ -715,7 +758,277 @@ def validate_epsilon(
     return result, refinement, scan, scan_values, additional
 
 
-def write_dataclass_csv(path: Path, rows: list[object]) -> None:
+def build_band_grid_without_asymptotic(config: Config) -> np.ndarray:
+    """Build a subcritical-band grid without assuming a positive asymptotic sigma."""
+    lam1 = lambda_1(config)
+    kb1 = kb_cutoff(config)
+    linear = np.linspace(
+        config.low_k_margin,
+        kb1 - config.low_k_margin,
+        config.uniqueness_linear_points,
+    )
+    deltas = np.geomspace(
+        config.cutoff_delta_floor,
+        lam1 * (1.0 - 1.0e-8),
+        config.uniqueness_log_points,
+    )
+    logarithmic = config.b * np.sqrt(np.maximum(lam1 - deltas, 0.0))
+    grid = np.concatenate([linear, logarithmic])
+    grid = grid[(grid > 0.0) & (grid < kb1)]
+    return np.unique(np.sort(grid))
+
+
+def find_resolved_subcritical_candidate(
+    epsilon: float,
+    config: Config,
+) -> tuple[float, float, float]:
+    """Search the full subcritical band when no asymptotic mode is predicted."""
+    scan = build_band_grid_without_asymptotic(config)
+    values = np.array(
+        [
+            smallest_singular_value(
+                float(kb), epsilon, config.paper_fixed_M, config
+            )
+            for kb in scan
+        ],
+        dtype=float,
+    )
+    candidates: list[tuple[float, float, float]] = []
+    for left, right in sampled_local_minimum_brackets(scan, values):
+        kb, sigma_min, drop = refine_bracket_once(
+            left, right, epsilon, config.paper_fixed_M, config
+        )
+        if (
+            np.isfinite(kb)
+            and np.isfinite(sigma_min)
+            and np.isfinite(drop)
+            and sigma_min <= config.near_singular_tolerance
+            and drop >= config.minimum_drop_factor
+        ):
+            candidates.append((kb, sigma_min, drop))
+
+    if not candidates:
+        return math.nan, math.nan, math.nan
+    return min(candidates, key=lambda item: item[1])
+
+
+def paper_green_radius_max(
+    epsilon: float,
+    a: float,
+    config: Config,
+) -> float:
+    """Bound every Green-function radius used by the M=32 finite differences."""
+    theta = boundary_nodes(config.paper_fixed_M)
+    x = epsilon * np.cos(theta)
+    y = epsilon * np.sin(theta) + config.b + a
+    x_difference = np.abs(x[:, None] - x[None, :]) + config.finite_difference_step
+    y_sum = np.abs(y[:, None] + y[None, :]) + config.finite_difference_step
+    y_difference = np.abs(y[:, None] - y[None, :]) + config.finite_difference_step
+
+    # greens_dirichlet evaluates both y-eta and y+eta.  The derivative
+    # finite differences perturb one source coordinate by h; adding h to both
+    # coordinates gives a conservative bound for all calls.
+    radius_sum = np.hypot(x_difference, y_sum)
+    radius_difference = np.hypot(x_difference, y_difference)
+    return float(max(np.max(radius_sum), np.max(radius_difference)))
+
+
+def paper_green_radius_upper(a: float, config: Config) -> float:
+    """Find a safe open epsilon limit for greens_periodic's r <= 0.99*d test."""
+    geometry_upper = config.b - abs(a)
+    if geometry_upper <= 0.0:
+        return 0.0
+
+    green_radius_limit = (
+        config.paper_green_radius_safety_factor * 0.99 * (4.0 * config.b)
+    )
+    if paper_green_radius_max(0.0, a, config) >= green_radius_limit:
+        return 0.0
+
+    lower, upper = 0.0, geometry_upper
+    for _ in range(60):
+        midpoint = 0.5 * (lower + upper)
+        if paper_green_radius_max(midpoint, a, config) < green_radius_limit:
+            lower = midpoint
+        else:
+            upper = midpoint
+    return lower
+
+
+def paper_epsilon_values(a: float, config: Config) -> np.ndarray:
+    """Return epsilon values valid for geometry and the Green expansion."""
+    geometry_upper = config.b - abs(a)
+    green_upper = paper_green_radius_upper(a, config)
+    if geometry_upper <= config.paper_epsilon_min or green_upper <= 0.0:
+        return np.array([], dtype=float)
+
+    upper = min(
+        config.paper_epsilon_hard_upper,
+        config.paper_geometry_endpoint_factor * geometry_upper,
+        config.paper_geometry_endpoint_factor * green_upper,
+    )
+    if upper <= config.paper_epsilon_min:
+        return np.array([], dtype=float)
+    return np.linspace(
+        config.paper_epsilon_min,
+        upper,
+        config.paper_epsilon_points,
+    )
+
+
+def paper_sweep_case(
+    epsilon: float,
+    a: float,
+    config: Config,
+) -> PaperSweepRow:
+    """Compute one Figure 2 point using the fixed paper resolution M=32."""
+    case_config = replace(config, a=a, epsilon_values=(epsilon,))
+    geometry_valid = bool(epsilon < config.b - abs(a))
+
+    if not geometry_valid:
+        return PaperSweepRow(
+            a=a,
+            a0_leading_order=critical_height_leading_order(config),
+            epsilon=epsilon,
+            M=config.paper_fixed_M,
+            kb=math.nan,
+            sigma_bem=math.nan,
+            sigma_min=math.nan,
+            drop_factor=math.nan,
+            kb_asymptotic=math.nan,
+            sigma_asymptotic=math.nan,
+            relative_error_kb=math.nan,
+            relative_error_sigma=math.nan,
+            geometry_valid=False,
+            asymptotic_prediction_valid=False,
+            mode_resolved=False,
+            mode_status="invalid_geometry",
+        )
+
+    try:
+        kb_asym, sigma_asym = asymptotic_prediction(epsilon, case_config)
+    except ValueError:
+        kb, sigma_min, drop = find_resolved_subcritical_candidate(
+            epsilon, case_config
+        )
+        status = "resolved_subcritical_candidate" if np.isfinite(kb) else "no_resolved_mode"
+        return PaperSweepRow(
+            a=a,
+            a0_leading_order=critical_height_leading_order(config),
+            epsilon=epsilon,
+            M=config.paper_fixed_M,
+            kb=kb,
+            sigma_bem=sigma_from_kb(kb, case_config) if np.isfinite(kb) else math.nan,
+            sigma_min=sigma_min,
+            drop_factor=drop,
+            kb_asymptotic=math.nan,
+            sigma_asymptotic=math.nan,
+            relative_error_kb=math.nan,
+            relative_error_sigma=math.nan,
+            geometry_valid=True,
+            asymptotic_prediction_valid=False,
+            mode_resolved=np.isfinite(kb),
+            mode_status=status,
+        )
+
+    (
+        kb,
+        sigma_min,
+        _left_value,
+        _right_value,
+        drop_factor,
+        interior,
+    ) = refine_expected_mode_for_M(epsilon, config.paper_fixed_M, case_config)
+    sigma_bem = sigma_from_kb(kb, case_config)
+    relative_error_kb = abs(kb - kb_asym) / max(abs(kb_asym), 1.0e-30)
+    relative_error_sigma = abs(sigma_bem - sigma_asym) / max(
+        abs(sigma_asym), 1.0e-30
+    )
+    resolved = bool(
+        interior
+        and sigma_min <= config.near_singular_tolerance
+        and drop_factor >= config.minimum_drop_factor
+    )
+    return PaperSweepRow(
+        a=a,
+        a0_leading_order=critical_height_leading_order(config),
+        epsilon=epsilon,
+        M=config.paper_fixed_M,
+        kb=kb,
+        sigma_bem=sigma_bem,
+        sigma_min=sigma_min,
+        drop_factor=drop_factor,
+        kb_asymptotic=kb_asym,
+        sigma_asymptotic=sigma_asym,
+        relative_error_kb=relative_error_kb,
+        relative_error_sigma=relative_error_sigma,
+        geometry_valid=True,
+        asymptotic_prediction_valid=True,
+        mode_resolved=resolved,
+        mode_status="resolved" if resolved else "unresolved_expected_mode",
+    )
+
+
+def _validate_epsilon_worker(
+    payload: tuple[float, Config],
+) -> tuple[float, tuple[ValidationResult, list[RefinementRow], np.ndarray, np.ndarray, list[AdditionalCandidate]], str]:
+    epsilon, config = payload
+    output = io.StringIO()
+    with redirect_stdout(output):
+        result = validate_epsilon(epsilon, config)
+    return epsilon, result, output.getvalue()
+
+
+def _paper_sweep_worker(payload: tuple[float, float, Config]) -> PaperSweepRow:
+    epsilon, a, config = payload
+    return paper_sweep_case(epsilon, a, config)
+
+
+def configure_parallel_environment() -> None:
+    """Prevent nested BLAS threads when using several worker processes."""
+    for variable in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ[variable] = "1"
+
+
+def run_parallel_validations(
+    epsilon_values: tuple[float, ...],
+    config: Config,
+) -> list[tuple[ValidationResult, list[RefinementRow], np.ndarray, np.ndarray, list[AdditionalCandidate], str]]:
+    results: dict[float, tuple[ValidationResult, list[RefinementRow], np.ndarray, np.ndarray, list[AdditionalCandidate], str]] = {}
+    with ProcessPoolExecutor(max_workers=config.parallel_workers) as executor:
+        futures = [
+            executor.submit(_validate_epsilon_worker, (epsilon, config))
+            for epsilon in epsilon_values
+        ]
+        for future in as_completed(futures):
+            epsilon, result, log = future.result()
+            results[epsilon] = (*result, log)
+    return [results[epsilon] for epsilon in epsilon_values]
+
+
+def run_parallel_paper_sweep(
+    config: Config,
+) -> list[PaperSweepRow]:
+    tasks = [
+        (float(epsilon), float(a), config)
+        for a in config.paper_a_values
+        for epsilon in paper_epsilon_values(a, config)
+    ]
+    rows: list[PaperSweepRow] = []
+    with ProcessPoolExecutor(max_workers=config.parallel_workers) as executor:
+        futures = [executor.submit(_paper_sweep_worker, task) for task in tasks]
+        for future in as_completed(futures):
+            rows.append(future.result())
+    return sorted(rows, key=lambda row: (row.a, row.epsilon))
+
+
+def write_dataclass_csv(path: Path, rows: Sequence[Any]) -> None:
     if not rows:
         return
     dictionaries = [asdict(row) for row in rows]
@@ -823,6 +1136,237 @@ def plot_summary(results: list[ValidationResult], output_directory: Path) -> Non
     plt.close()
 
 
+def plot_kb_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper Figure 1: numerical kb curves for every refinement M."""
+    plt.figure(figsize=(8, 5))
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.plot(
+                [row.epsilon for row in rows],
+                [row.kb for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    kb_asym = np.array([asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps])
+    plt.plot(eps, kb_asym, "k--", linewidth=2.0, label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.title(r"Theorem 2.1: $kb$ versus $\varepsilon$, $a=0.6$")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_kb_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_cutoff_gap_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper Figure 1 diagnostic: distance from the first cutoff."""
+    plt.figure(figsize=(8, 5))
+    cutoff = kb_cutoff(config)
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.semilogy(
+                [row.epsilon for row in rows],
+                [max(cutoff - row.kb, 1.0e-30) for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    asym_gap = np.array(
+        [cutoff - asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps]
+    )
+    plt.semilogy(eps, asym_gap, "k--", linewidth=2.0, label=r"asymptotic")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$\sqrt{\Lambda_1}b-kb$")
+    plt.title(r"Distance from the first cutoff")
+    plt.grid(True, which="both", linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_cutoff_gap_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_relative_sigma_error_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper Figure 1 diagnostic: relative asymptotic error by mesh size."""
+    plt.figure(figsize=(8, 5))
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            errors = []
+            for row in rows:
+                _, sigma_asym = asymptotic_prediction(row.epsilon, config)
+                errors.append(
+                    abs(row.sigma_bem - sigma_asym) / max(abs(sigma_asym), 1.0e-30)
+                )
+            plt.plot(
+                [row.epsilon for row in rows],
+                errors,
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    plt.axhline(
+        config.relative_sigma_error_tolerance,
+        color="k",
+        linestyle="--",
+        label="5% criterion",
+    )
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"relative error in $\sigma$")
+    plt.title(r"Asymptotic error versus $\varepsilon$")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_relative_sigma_error_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_kb_sweep_in_a(
+    paper_rows: list[PaperSweepRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper Figure 2: kb curves for several obstacle positions."""
+    plt.figure(figsize=(8, 5))
+    a_values = sorted({row.a for row in paper_rows})
+    color_map = {
+        a: plt.get_cmap("tab10")(index % 10)
+        for index, a in enumerate(a_values)
+    }
+    for a in a_values:
+        rows = sorted(
+            (row for row in paper_rows if row.a == a and np.isfinite(row.kb)),
+            key=lambda row: row.epsilon,
+        )
+        if not rows:
+            continue
+        color = color_map[a]
+        plt.plot(
+            [row.epsilon for row in rows],
+            [row.kb for row in rows],
+            "o-",
+            color=color,
+            markersize=3,
+            label=fr"$a={a:.2f}$, BEM",
+        )
+        asym_rows = [row for row in rows if row.asymptotic_prediction_valid]
+        if asym_rows:
+            plt.plot(
+                [row.epsilon for row in asym_rows],
+                [row.kb_asymptotic for row in asym_rows],
+                "--",
+                color=color,
+                linewidth=1.2,
+                label=fr"$a={a:.2f}$, asymptotic",
+            )
+
+    a0_star = critical_height_leading_order(config)
+    plt.text(
+        0.02,
+        0.02,
+        rf"$a_0^*\approx{a0_star:.4f}$; no resolved mode is shown below the threshold",
+        transform=plt.gca().transAxes,
+        fontsize=8,
+    )
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.title(r"Theorem 2.1: dependence on obstacle height ($M=32$)")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend(fontsize=8, ncol=2)
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_kb_vs_epsilon_and_a.png", dpi=220)
+    plt.close()
+
+
+def plot_kb_surface_in_a(
+    paper_rows: list[PaperSweepRow],
+    output_directory: Path,
+) -> None:
+    """Additional 3-D view of the numerically resolved kb surface."""
+    finite_rows = [
+        row
+        for row in paper_rows
+        if row.geometry_valid and np.isfinite(row.kb)
+    ]
+    if len(finite_rows) < 3:
+        return
+
+    figure = plt.figure(figsize=(9, 6))
+    axis = figure.add_subplot(111, projection="3d")
+    axis.plot_trisurf(
+        [row.epsilon for row in finite_rows],
+        [row.a for row in finite_rows],
+        [row.kb for row in finite_rows],
+        cmap="viridis",
+        edgecolor="none",
+        alpha=0.85,
+    )
+    axis.set_xlabel(r"$\varepsilon$")
+    axis.set_ylabel(r"$a$")
+    axis.set_zlabel(r"$kb$")
+    axis.set_title(r"Numerical surface $kb(\varepsilon,a)$, $M=32$")
+    figure.tight_layout()
+    figure.savefig(output_directory / "paper_kb_surface_epsilon_a.png", dpi=220)
+    plt.close(figure)
+
+
+def write_paper_refinement_csv(
+    path: Path,
+    refinement_rows: list[RefinementRow],
+    config: Config,
+) -> None:
+    rows = []
+    for row in refinement_rows:
+        kb_asym, sigma_asym = asymptotic_prediction(row.epsilon, config)
+        rows.append(
+            {
+                **asdict(row),
+                "a": config.a,
+                "kb_asymptotic": kb_asym,
+                "sigma_asymptotic": sigma_asym,
+                "cutoff_gap_bem": kb_cutoff(config) - row.kb,
+                "cutoff_gap_asymptotic": kb_cutoff(config) - kb_asym,
+                "relative_error_kb": abs(row.kb - kb_asym) / abs(kb_asym),
+                "relative_error_sigma": abs(row.sigma_bem - sigma_asym) / abs(sigma_asym),
+            }
+        )
+    if not rows:
+        return
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def print_result(result: ValidationResult, config: Config) -> None:
     print("\n  --- validation result ---")
     print(
@@ -884,20 +1428,25 @@ def main() -> None:
             "The selected geometry does not satisfy the leading-order condition a > a0*."
         )
 
+    configure_parallel_environment()
+
     summary: list[ValidationResult] = []
     all_refinement: list[RefinementRow] = []
     all_additional: list[AdditionalCandidate] = []
 
-    for epsilon in config.epsilon_values:
+    print(
+        f"Running {len(config.epsilon_values)} validation cases with "
+        f"{config.parallel_workers} worker processes."
+    )
+    parallel_results = run_parallel_validations(config.epsilon_values, config)
+    for epsilon, packed in zip(config.epsilon_values, parallel_results, strict=True):
+        result, refinement, scan, scan_values, additional, worker_log = packed
         print(f"\n=== epsilon={epsilon:.3f} ===")
         kb_asym, sigma_asym = asymptotic_prediction(epsilon, config)
         print(f"  predicted kb = {kb_asym:.12f}")
         print(f"  predicted sigma = {sigma_asym:.8e}")
         print(f"  predicted kb cutoff gap = {kb_cutoff(config) - kb_asym:.3e}")
-
-        result, refinement, scan, scan_values, additional = validate_epsilon(
-            epsilon, config
-        )
+        print(worker_log, end="")
 
         summary.append(result)
         all_refinement.extend(refinement)
@@ -910,7 +1459,52 @@ def main() -> None:
     write_dataclass_csv(output_directory / "summary.csv", summary)
     write_dataclass_csv(output_directory / "mesh_refinement.csv", all_refinement)
     write_dataclass_csv(output_directory / "additional_candidates.csv", all_additional)
+    write_paper_refinement_csv(
+        output_directory / "paper_kb_vs_epsilon.csv", all_refinement, config
+    )
     plot_summary(summary, output_directory)
+    plot_kb_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_cutoff_gap_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_relative_sigma_error_by_M(all_refinement, config, output_directory)
+
+    print("\n=== PAPER FIGURE 2: sweep in a ===")
+    print(f"a values = {config.paper_a_values}")
+    print(f"fixed M = {config.paper_fixed_M}")
+    paper_rows = run_parallel_paper_sweep(config)
+    write_dataclass_csv(output_directory / "paper_a_sweep.csv", paper_rows)
+    plot_kb_sweep_in_a(paper_rows, config, output_directory)
+    plot_kb_surface_in_a(paper_rows, output_directory)
+    print(
+        f"Paper sweep points: {len(paper_rows)}; "
+        f"resolved modes: {sum(row.mode_resolved for row in paper_rows)}"
+    )
+
+    # The asymptotic formula is intentionally not used below a0*.  For those
+    # values of a, paper_sweep_case performs a full-band search and this
+    # explicit report records the numerical no-mode check.
+    subcritical_values = sorted(
+        a for a in config.paper_a_values if a <= a0_star
+    )
+    if subcritical_values:
+        print("\n=== SUBCRITICAL FULL-BAND CHECK ===")
+        print(f"leading-order threshold a0* = {a0_star:.12f}")
+        for a in subcritical_values:
+            rows = [row for row in paper_rows if np.isclose(row.a, a)]
+            resolved_rows = [row for row in rows if row.mode_resolved]
+            no_mode_passed = bool(rows) and not resolved_rows
+            statuses = sorted({row.mode_status for row in rows})
+            print(
+                f"  a={a:.6f} (< a0*): "
+                f"{'PASS' if no_mode_passed else 'FAIL'}; "
+                f"full-band points={len(rows)}, "
+                f"resolved modes={len(resolved_rows)}, "
+                f"statuses={statuses}"
+            )
+            for row in resolved_rows:
+                print(
+                    f"    candidate: epsilon={row.epsilon:.6f}, "
+                    f"kb={row.kb:.12f}, status={row.mode_status}"
+                )
 
     uniqueness_passed = sum(row.unique_mode_verified for row in summary)
     asymptotic_passed = sum(row.asymptotic_agreement_verified for row in summary)

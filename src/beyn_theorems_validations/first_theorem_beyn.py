@@ -5,11 +5,12 @@ import math
 import os
 import sys
 from collections.abc import Callable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy.polynomial.legendre import leggauss
 from scipy.optimize import minimize_scalar
 
 # Same project import convention as the existing scripts.
@@ -33,6 +34,17 @@ class Config:
     lattice_terms: int = 200
     harmonic_order: int = 20
     finite_difference_step: float = 1.0e-6
+
+    # Internal numerical-convergence diagnostics. These do NOT alter the main
+    # mathematical discretization; they probe sensitivity to implementation
+    # parameters at one representative epsilon.
+    run_internal_convergence_study: bool = True
+    internal_convergence_epsilon: float = 0.09
+    internal_convergence_M: int = 32
+    internal_refine_half_width: float = 7.5e-5
+    finite_difference_steps_test: tuple[float, ...] = (3.0e-6, 1.0e-6, 3.0e-7)
+    lattice_terms_test: tuple[int, ...] = (100, 200, 300)
+    harmonic_orders_test: tuple[int, ...] = (12, 20, 28)
 
     # ------------------------------------------------------------------
     # Beyn global discovery.
@@ -66,10 +78,26 @@ class Config:
     beyn_rank_absolute_tolerance: float = 1.0e-12
     beyn_rank_gap_threshold: float = 1.0e3
 
+    # Critical fix: permit an EMPTY contour.  If every singular value of S0 is
+    # at the numerical-noise level, the estimated rank is zero rather than
+    # being forcibly promoted to one.  This is essential for testing the
+    # non-existence side of Theorem 2.1.
+    beyn_empty_s0_tolerance: float = 1.0e-9
+
     # The contour is an ellipse enclosing the real discrete band. It stays a
     # small positive distance away from k=0 and from the first cutoff.
     beyn_low_k_margin: float = 1.0e-4
     beyn_cutoff_margin: float = 1.0e-5
+    beyn_min_cutoff_margin: float = 1.0e-10
+    # The effective right-end margin is reduced when the asymptotic branch is
+    # closer to the cutoff.  The contour still discovers globally; the
+    # asymptotic formula only prevents us from accidentally chopping off the
+    # near-cutoff region we intend to test.
+    beyn_cutoff_margin_fraction_of_predicted_gap: float = 0.25
+    # Independent contour-geometry diagnostic: repeat the FINAL Beyn solve with
+    # a tighter cutoff margin and check that the enclosed rank does not change.
+    beyn_check_tighter_cutoff_margin: bool = True
+    beyn_tighter_cutoff_margin_factor: float = 0.20
     beyn_imag_half_height: float = 3.0e-2
 
     # A true discrete trapped mode is real. Beyn may return a small imaginary
@@ -107,13 +135,38 @@ class Config:
     minimizer_xatol: float = 2.0e-10
 
     minimum_drop_factor: float = 100.0
+    # Retained as a descriptive diagnostic only.  Certification is based on
+    # the scale-invariant ratio sigma_min/sigma_max below.
     near_singular_tolerance: float = 1.0e-4
+    relative_near_singular_tolerance: float = 1.0e-4
     mesh_sigma_relative_tolerance: float = 0.03
 
     # Asymptotic accuracy is intentionally separate from mode existence.
     relative_sigma_error_tolerance: float = 0.05
 
-    output_directory: str = "theorem_2_1_beyn_v3_adaptive_validation"
+    # Physical trapped-mode diagnostics.  These are independent of the SVD
+    # search: reconstruct the field, verify wall Dirichlet values, estimate the
+    # obstacle Neumann residual, and check exponential decay away from the
+    # obstacle.  They are reported separately from spectral certification.
+    run_physical_diagnostics: bool = True
+    physical_quadrature_points: int = 80
+    physical_x_over_b: tuple[float, ...] = (1.5, 2.0, 2.5, 3.0)
+    physical_neumann_samples: int = 24
+    physical_neumann_offset_fraction_of_epsilon: float = 0.04
+    physical_wall_relative_tolerance: float = 1.0e-6
+    physical_neumann_relative_tolerance: float = 5.0e-2
+    physical_decay_relative_tolerance: float = 0.20
+
+    # Full theorem-side diagnostic for the critical height a*.  This is costly
+    # because each bisection point launches a complete Beyn+SVD mode-count
+    # calculation.  It is implemented here but disabled by default; enable it
+    # for the final publication-quality validation run.
+    run_critical_height_study: bool = False
+    critical_height_epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09)
+    critical_height_half_width: float = 0.12
+    critical_height_bisection_iterations: int = 5
+
+    output_directory: str = "theorem_2_1_beyn_v4_full_validation"
 
 
 @dataclass
@@ -190,6 +243,8 @@ class ModeRefinementRow:
     kb: float
     sigma_bem: float
     sigma_min: float
+    sigma_max: float
+    relative_singular_value: float
     left_value: float
     right_value: float
     drop_factor: float
@@ -207,9 +262,54 @@ class ModeResult:
     kb_numerical: float
     sigma_numerical: float
     sigma_min_final: float
+    sigma_max_final: float
+    relative_singular_value_final: float
     final_drop_factor: float
     final_relative_mesh_change: float
     resolved: bool
+
+
+@dataclass
+class PhysicalDiagnostics:
+    epsilon: float
+    kb: float
+    M: int
+    wall_relative_residual: float
+    neumann_relative_residual: float
+    decay_rate_left: float
+    decay_rate_right: float
+    expected_decay_rate: float
+    decay_relative_error_left: float
+    decay_relative_error_right: float
+    monotone_decay_left: bool
+    monotone_decay_right: bool
+    walls_verified: bool
+    neumann_verified: bool
+    decay_verified: bool
+
+
+@dataclass
+class InternalConvergenceRow:
+    epsilon: float
+    parameter: str
+    value: float
+    kb: float
+    sigma_bem: float
+    relative_singular_value: float
+    relative_kb_shift_from_baseline: float
+    relative_sigma_shift_from_baseline: float
+
+
+@dataclass
+class CriticalHeightRow:
+    epsilon: float
+    a_lower_zero_mode: float
+    a_upper_one_mode: float
+    a_critical_estimate: float
+    bracket_width: float
+    a0_star: float
+    normalized_shift_over_epsilon: float
+    status: str
 
 
 @dataclass
@@ -218,8 +318,11 @@ class ValidationResult:
     a: float
     lambda_1: float
     kb_cutoff: float
+    effective_beyn_cutoff_margin: float
+    tighter_margin_rank_consistent: bool | None
     kb_asymptotic: float
     sigma_asymptotic: float
+    asymptotic_coefficient: float
     beyn_final_quadrature_points: int
     beyn_estimated_rank: int
     beyn_rank_stable: bool
@@ -230,13 +333,22 @@ class ValidationResult:
     resolved_mode_count: int
     kb_numerical: float
     sigma_numerical: float
+    sigma_over_epsilon_squared: float
+    scaled_asymptotic_remainder: float
     sigma_min_final: float
+    sigma_max_final: float
+    relative_singular_value_final: float
     final_drop_factor: float
     final_relative_mesh_change: float
     relative_error_kb: float
     relative_error_sigma: float
     unique_mode_verified: bool
     asymptotic_agreement_verified: bool | None
+    wall_relative_residual: float
+    neumann_relative_residual: float
+    decay_rate_left: float
+    decay_rate_right: float
+    physical_decay_verified: bool | None
 
 
 CONFIG = Config()
@@ -262,16 +374,54 @@ def critical_height_leading_order(config: Config) -> float:
     return (2.0 * config.b / PI) * math.atan(math.sqrt(area / (2.0 * PI * mu)))
 
 
-def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]:
-    """Return (kb_asymptotic, sigma_asymptotic)."""
+def asymptotic_coefficient(config: Config) -> float:
+    """C(a) in sigma = C(a) epsilon^2 + O(epsilon^3 log epsilon)."""
     alpha = PI * config.a / config.b
     mu = 1.0
     area = PI
-
     bracket = (
-        PI * mu * math.sin(alpha / 2.0) ** 2 - 0.5 * area * math.cos(alpha / 2.0) ** 2
+        PI * mu * math.sin(alpha / 2.0) ** 2
+        - 0.5 * area * math.cos(alpha / 2.0) ** 2
     )
-    sigma = epsilon**2 * PI**2 / (4.0 * config.b**3) * bracket
+    return PI**2 / (4.0 * config.b**3) * bracket
+
+
+def effective_cutoff_margin(epsilon: float, config: Config) -> float:
+    """
+    Pick a cutoff margin small enough not to exclude the near-threshold branch.
+
+    This does not select an eigenvalue; it only chooses how close the global
+    contour gets to sqrt(Lambda_1)b.  If the leading coefficient is non-positive
+    (the non-existence side of the theorem), use the configured minimum margin.
+    """
+    coefficient = asymptotic_coefficient(config)
+    if coefficient <= 0.0:
+        return float(config.beyn_min_cutoff_margin)
+
+    sigma = coefficient * epsilon**2
+    k_squared = lambda_1(config) - sigma**2
+    if k_squared <= 0.0:
+        return float(config.beyn_min_cutoff_margin)
+
+    kb_asym = config.b * math.sqrt(k_squared)
+    gap = max(kb_cutoff(config) - kb_asym, config.beyn_min_cutoff_margin)
+    margin = config.beyn_cutoff_margin_fraction_of_predicted_gap * gap
+    return float(
+        min(
+            config.beyn_cutoff_margin,
+            max(config.beyn_min_cutoff_margin, margin),
+        )
+    )
+
+
+def config_for_epsilon(epsilon: float, config: Config) -> Config:
+    """Return a frozen Config copy with an epsilon-appropriate cutoff margin."""
+    return replace(config, beyn_cutoff_margin=effective_cutoff_margin(epsilon, config))
+
+
+def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]:
+    """Return (kb_asymptotic, sigma_asymptotic)."""
+    sigma = asymptotic_coefficient(config) * epsilon**2
 
     if sigma <= 0.0:
         raise ValueError(
@@ -426,15 +576,48 @@ def assemble_matrix(
     return np.eye(M, dtype=np.complex128) - (4.0 * PI / M) * K_weighted
 
 
+def singular_metrics(
+    kb: float,
+    epsilon: float,
+    M: int,
+    config: Config,
+) -> tuple[float, float, float]:
+    """Return sigma_min(A), sigma_max(A), and the scale-invariant ratio."""
+    A = assemble_matrix(complex(kb, 0.0), epsilon, M, config)
+    singular_values = np.linalg.svd(A, compute_uv=False)
+    sigma_max = float(singular_values[0])
+    sigma_min = float(singular_values[-1])
+    relative = sigma_min / max(sigma_max, np.finfo(float).tiny)
+    return sigma_min, sigma_max, float(relative)
+
+
 def smallest_singular_value(
     kb: float,
     epsilon: float,
     M: int,
     config: Config,
 ) -> float:
+    return singular_metrics(kb, epsilon, M, config)[0]
+
+
+def smallest_singular_pair(
+    kb: float,
+    epsilon: float,
+    M: int,
+    config: Config,
+) -> tuple[float, float, float, np.ndarray]:
+    """Return singular diagnostics and normalized right singular vector."""
     A = assemble_matrix(complex(kb, 0.0), epsilon, M, config)
-    singular_values = np.linalg.svd(A, compute_uv=False)
-    return float(singular_values[-1])
+    _, singular_values, Vh = np.linalg.svd(A, full_matrices=False)
+    vector = Vh.conj().T[:, -1]
+    vector /= max(float(np.linalg.norm(vector)), 1.0e-30)
+    pivot = int(np.argmax(np.abs(vector)))
+    if abs(vector[pivot]) > 0.0:
+        vector *= np.exp(-1j * np.angle(vector[pivot]))
+    sigma_max = float(singular_values[0])
+    sigma_min = float(singular_values[-1])
+    relative = sigma_min / max(sigma_max, np.finfo(float).tiny)
+    return sigma_min, sigma_max, float(relative), vector
 
 
 # ---------------------------------------------------------------------------
@@ -505,20 +688,18 @@ def estimate_beyn_rank(
     config: Config,
 ) -> tuple[int, int, int, float]:
     """
-    Estimate rank(S0) using a threshold estimate plus a dominant-gap estimate.
+    Estimate rank(S0) while explicitly allowing rank zero.
 
-    Returns
-    -------
-    estimated_rank, threshold_rank, gap_rank, selected_gap_ratio
-
-    The threshold rank is the conventional count s_j > tol*s_1.  We then look
-    only at gaps up to that provisional rank and choose the largest ratio
-    s_j/s_{j+1}.  If that gap is at least beyn_rank_gap_threshold, the gap rank
-    is preferred.  This is intentionally transparent and is reported alongside
-    quadrature convergence; it is not treated as a mathematical proof.
+    The previous implementation forced threshold_rank >= 1, which made an
+    empty contour impossible to diagnose numerically.  Here an S0 whose leading
+    singular value is at the configured noise floor is classified as rank zero.
+    Above that floor we retain the threshold + dominant-gap logic.
     """
     s = np.asarray(singular_values, dtype=float)
     if len(s) == 0 or not np.isfinite(s[0]) or s[0] <= 0.0:
+        return 0, 0, 0, math.nan
+
+    if s[0] <= config.beyn_empty_s0_tolerance:
         return 0, 0, 0, math.nan
 
     threshold = max(
@@ -526,26 +707,24 @@ def estimate_beyn_rank(
         config.beyn_rank_relative_tolerance * s[0],
     )
     threshold_rank = int(np.sum(s > threshold))
-    threshold_rank = max(1, min(threshold_rank, len(s)))
+    if threshold_rank == 0:
+        return 0, 0, 0, math.nan
+    threshold_rank = min(threshold_rank, len(s))
 
     if len(s) == 1:
         return 1, threshold_rank, 1, math.inf
 
-    # Search the gap immediately after any singular value provisionally kept by
-    # the threshold test. This avoids choosing arbitrary ratios deep in the
-    # numerical tail.
     n_gaps = min(threshold_rank, len(s) - 1)
+    if n_gaps <= 0:
+        return threshold_rank, threshold_rank, threshold_rank, math.nan
+
     floor = max(config.beyn_rank_absolute_tolerance, np.finfo(float).tiny)
     ratios = s[:n_gaps] / np.maximum(s[1 : n_gaps + 1], floor)
     best_index = int(np.argmax(ratios))
     selected_gap = float(ratios[best_index])
     gap_rank = best_index + 1
 
-    if selected_gap >= config.beyn_rank_gap_threshold:
-        rank = gap_rank
-    else:
-        rank = threshold_rank
-
+    rank = gap_rank if selected_gap >= config.beyn_rank_gap_threshold else threshold_rank
     return int(rank), int(threshold_rank), int(gap_rank), selected_gap
 
 
@@ -1087,7 +1266,7 @@ def refine_candidate_for_M(
     left: float,
     right: float,
     config: Config,
-) -> tuple[float, float, float, float, float, bool]:
+) -> tuple[float, float, float, float, float, float, float, bool]:
     tiny = np.finfo(float).tiny
 
     left_value = smallest_singular_value(left, epsilon, M, config)
@@ -1107,13 +1286,22 @@ def refine_candidate_for_M(
         )
 
     kb = float(result.x)
-    sv = smallest_singular_value(kb, epsilon, M, config)
-    drop = min(left_value, right_value) / max(sv, tiny)
+    sigma_min, sigma_max, relative_sv = singular_metrics(kb, epsilon, M, config)
+    drop = min(left_value, right_value) / max(sigma_min, tiny)
 
     width = right - left
     edge_margin = 0.005 * width
     interior = (kb > left + edge_margin) and (kb < right - edge_margin)
-    return kb, sv, left_value, right_value, drop, interior
+    return (
+        kb,
+        sigma_min,
+        sigma_max,
+        relative_sv,
+        left_value,
+        right_value,
+        drop,
+        interior,
+    )
 
 
 def run_candidate_refinement(
@@ -1133,9 +1321,16 @@ def run_candidate_refinement(
     )
 
     for M in config.refinement_M:
-        kb, sv, left_value, right_value, drop, interior = refine_candidate_for_M(
-            epsilon, M, left, right, config
-        )
+        (
+            kb,
+            sigma_min,
+            sigma_max,
+            relative_sv,
+            left_value,
+            right_value,
+            drop,
+            interior,
+        ) = refine_candidate_for_M(epsilon, M, left, right, config)
         sigma_bem = sigma_from_kb(kb, config)
         change = (
             abs(sigma_bem - previous_sigma) / max(abs(sigma_bem), 1.0e-30)
@@ -1152,7 +1347,9 @@ def run_candidate_refinement(
             M=M,
             kb=kb,
             sigma_bem=sigma_bem,
-            sigma_min=sv,
+            sigma_min=sigma_min,
+            sigma_max=sigma_max,
+            relative_singular_value=relative_sv,
             left_value=left_value,
             right_value=right_value,
             drop_factor=drop,
@@ -1165,7 +1362,8 @@ def run_candidate_refinement(
         change_text = f"{change:.3%}" if np.isfinite(change) else "--"
         print(
             f"    M={M:>2}: kb={kb:.12f}, sigma_BEM={sigma_bem:.8e}, "
-            f"sv_min={sv:.3e}, drop={drop:.2e}, mesh_change={change_text}, "
+            f"sv_min={sigma_min:.3e}, sv_min/sv_max={relative_sv:.3e}, "
+            f"drop={drop:.2e}, mesh_change={change_text}, "
             f"interior={'yes' if interior else 'no'}"
         )
 
@@ -1175,9 +1373,11 @@ def run_candidate_refinement(
         abs(final.sigma_bem), 1.0e-30
     )
 
+    # Certification uses the scale-invariant singular-value ratio rather than
+    # an absolute sigma_min threshold.  The absolute value is still reported.
     resolved = bool(
         final.minimum_is_interior
-        and final.sigma_min <= config.near_singular_tolerance
+        and final.relative_singular_value <= config.relative_near_singular_tolerance
         and final.drop_factor >= config.minimum_drop_factor
         and final_change <= config.mesh_sigma_relative_tolerance
     )
@@ -1191,6 +1391,8 @@ def run_candidate_refinement(
         kb_numerical=final.kb,
         sigma_numerical=final.sigma_bem,
         sigma_min_final=final.sigma_min,
+        sigma_max_final=final.sigma_max,
+        relative_singular_value_final=final.relative_singular_value,
         final_drop_factor=final.drop_factor,
         final_relative_mesh_change=final_change,
         resolved=resolved,
@@ -1200,13 +1402,267 @@ def run_candidate_refinement(
 
 
 # ---------------------------------------------------------------------------
+# Independent physical trapped-mode diagnostics
+# ---------------------------------------------------------------------------
+
+
+def make_extended_field_green(
+    kb: float,
+    config: Config,
+) -> Callable[..., complex]:
+    """
+    Dirichlet waveguide Green function for off-boundary field reconstruction.
+
+    The lattice-sum representation used by greens_periodic requires the polar
+    radius to stay below one period.  For beta=0 the periodic Green function is
+    exactly periodic in Y, so we wrap each image separation into the nearest
+    periodic representative before evaluating it.  This extends the usable x
+    range for the independent decay diagnostics without changing the Green
+    function mathematically.
+    """
+    b = config.b
+    d = 2.0 * b
+    period = 2.0 * d
+    k = complex(kb / b)
+    coefficients = lattice.lattice_sums(
+        period,
+        k,
+        beta=0.0,
+        M=config.lattice_terms,
+        Lh=config.harmonic_order,
+    )
+
+    def wrap_periodic_y(value: float) -> float:
+        return float((value + 0.5 * period) % period - 0.5 * period)
+
+    def green(x: float, y: float, xi: float, eta: float) -> complex:
+        y_field = y + b + config.a
+        y_source = eta + b + config.a
+        X = x - xi
+        Y1 = wrap_periodic_y(y_field - y_source)
+        Y2 = wrap_periodic_y(y_field + y_source)
+        term1 = lattice.greens_periodic(X, Y1, coefficients, k, period)
+        term2 = lattice.greens_periodic(X, Y2, coefficients, k, period)
+        return term1 - term2
+
+    return green
+
+
+def weighted_kernel_at_field_point(
+    x: float,
+    y: float,
+    theta: float,
+    epsilon: float,
+    config: Config,
+    G: Callable[..., complex],
+) -> complex:
+    """Weighted double-layer kernel at a field point away from the boundary."""
+    xi, eta, xi_p, eta_p, _, _ = circle_geometry(theta, epsilon)
+    G_xi, G_eta = source_derivatives(
+        G,
+        x,
+        y,
+        float(xi),
+        float(eta),
+        config.finite_difference_step,
+    )
+    return float(xi_p) * G_eta - float(eta_p) * G_xi
+
+
+def reconstruct_field_at_points(
+    points: list[tuple[float, float]],
+    boundary_vector: np.ndarray,
+    theta: np.ndarray,
+    epsilon: float,
+    config: Config,
+    G: Callable[..., complex],
+) -> np.ndarray:
+    """Reconstruct u(P) = integral_gamma u(q) dG/dn_q ds_q off the boundary."""
+    delta_theta = 2.0 * PI / len(theta)
+    values = np.empty(len(points), dtype=np.complex128)
+    for i, (x, y) in enumerate(points):
+        kernel = np.array(
+            [
+                weighted_kernel_at_field_point(
+                    float(x), float(y), float(t), epsilon, config, G
+                )
+                for t in theta
+            ],
+            dtype=np.complex128,
+        )
+        values[i] = delta_theta * np.dot(kernel, boundary_vector)
+    return values
+
+
+def cross_section_field(
+    x: float,
+    y_values: np.ndarray,
+    boundary_vector: np.ndarray,
+    theta: np.ndarray,
+    epsilon: float,
+    config: Config,
+    G: Callable[..., complex],
+) -> np.ndarray:
+    points = [(float(x), float(y)) for y in y_values]
+    return reconstruct_field_at_points(
+        points, boundary_vector, theta, epsilon, config, G
+    )
+
+
+def physical_mode_diagnostics(
+    epsilon: float,
+    kb: float,
+    M: int,
+    config: Config,
+) -> PhysicalDiagnostics:
+    """
+    Independently inspect the reconstructed trapped mode.
+
+    Checks:
+      * Dirichlet walls y=+-b (in obstacle-centred coordinates y=-b-a,b-a),
+      * approximate homogeneous Neumann data on the obstacle,
+      * exponential L2 decay of cross sections as |x| grows.
+
+    The Neumann test is deliberately a diagnostic rather than part of spectral
+    certification because evaluating a double-layer field very close to its
+    boundary is numerically delicate.
+    """
+    _, _, _, boundary_vector = smallest_singular_pair(kb, epsilon, M, config)
+    theta = boundary_nodes(M)
+    G = make_extended_field_green(kb, config)
+
+    b = config.b
+    y_lower = -b - config.a
+    y_upper = b - config.a
+
+    # Gauss-Legendre rule for cross-section L2 norms.
+    nodes, weights = leggauss(config.physical_quadrature_points)
+    y_values = 0.5 * (y_upper - y_lower) * nodes + 0.5 * (y_upper + y_lower)
+    y_weights = 0.5 * (y_upper - y_lower) * weights
+
+    distances = np.array(config.physical_x_over_b, dtype=float) * b
+    left_norms: list[float] = []
+    right_norms: list[float] = []
+    cross_section_peak = 0.0
+    for distance in distances:
+        field_left = cross_section_field(
+            -float(distance), y_values, boundary_vector, theta, epsilon, config, G
+        )
+        field_right = cross_section_field(
+            float(distance), y_values, boundary_vector, theta, epsilon, config, G
+        )
+        left_norm = float(math.sqrt(np.sum(y_weights * np.abs(field_left) ** 2)))
+        right_norm = float(math.sqrt(np.sum(y_weights * np.abs(field_right) ** 2)))
+        left_norms.append(left_norm)
+        right_norms.append(right_norm)
+        cross_section_peak = max(
+            cross_section_peak,
+            float(np.max(np.abs(field_left))),
+            float(np.max(np.abs(field_right))),
+        )
+
+    left_arr = np.asarray(left_norms, dtype=float)
+    right_arr = np.asarray(right_norms, dtype=float)
+    monotone_left = bool(np.all(np.diff(left_arr) <= 1.0e-10 * max(left_arr[0], 1.0)))
+    monotone_right = bool(
+        np.all(np.diff(right_arr) <= 1.0e-10 * max(right_arr[0], 1.0))
+    )
+
+    def fit_decay(norms: np.ndarray) -> float:
+        positive = np.maximum(norms, np.finfo(float).tiny)
+        slope, _ = np.polyfit(distances, np.log(positive), 1)
+        return float(-slope)
+
+    decay_left = fit_decay(left_arr)
+    decay_right = fit_decay(right_arr)
+    expected_decay = sigma_from_kb(kb, config)
+    decay_error_left = abs(decay_left - expected_decay) / max(expected_decay, 1.0e-30)
+    decay_error_right = abs(decay_right - expected_decay) / max(expected_decay, 1.0e-30)
+
+    # Wall values at three longitudinal locations.  Because the waveguide Green
+    # function already satisfies Dirichlet data, these should be near roundoff.
+    x0 = float(distances[0]) if len(distances) else 2.0 * b
+    wall_points = [
+        (-x0, y_lower), (-x0, y_upper),
+        (0.0, y_lower), (0.0, y_upper),
+        (x0, y_lower), (x0, y_upper),
+    ]
+    wall_values = reconstruct_field_at_points(
+        wall_points, boundary_vector, theta, epsilon, config, G
+    )
+    amplitude_scale = max(
+        float(np.max(np.abs(boundary_vector))), cross_section_peak, 1.0e-30
+    )
+    wall_relative = float(np.max(np.abs(wall_values)) / amplitude_scale)
+
+    # One-sided second-order normal derivative from the fluid side of a circle.
+    sample_t = np.linspace(
+        0.0, 2.0 * PI, config.physical_neumann_samples, endpoint=False
+    )
+    offset = max(
+        config.physical_neumann_offset_fraction_of_epsilon * epsilon,
+        2.0e-5 * b,
+    )
+    periodic_theta = np.r_[theta[-1] - 2.0 * PI, theta, theta[0] + 2.0 * PI]
+    periodic_values = np.r_[boundary_vector[-1], boundary_vector, boundary_vector[0]]
+    boundary_samples = np.interp(sample_t, periodic_theta, periodic_values)
+    normal_derivatives: list[complex] = []
+    for t, u0 in zip(sample_t, boundary_samples, strict=True):
+        x0q = epsilon * math.cos(float(t))
+        y0q = epsilon * math.sin(float(t))
+        nx = math.cos(float(t))
+        ny = math.sin(float(t))
+        points = [
+            (x0q + offset * nx, y0q + offset * ny),
+            (x0q + 2.0 * offset * nx, y0q + 2.0 * offset * ny),
+        ]
+        u1, u2 = reconstruct_field_at_points(
+            points, boundary_vector, theta, epsilon, config, G
+        )
+        derivative = (-3.0 * u0 + 4.0 * u1 - u2) / (2.0 * offset)
+        normal_derivatives.append(complex(derivative))
+
+    neumann_scale = max(float(np.max(np.abs(boundary_vector))), 1.0e-30)
+    neumann_relative = float(
+        epsilon * np.max(np.abs(np.asarray(normal_derivatives))) / neumann_scale
+    )
+
+    walls_ok = wall_relative <= config.physical_wall_relative_tolerance
+    neumann_ok = neumann_relative <= config.physical_neumann_relative_tolerance
+    decay_ok = bool(
+        monotone_left
+        and monotone_right
+        and decay_error_left <= config.physical_decay_relative_tolerance
+        and decay_error_right <= config.physical_decay_relative_tolerance
+    )
+
+    return PhysicalDiagnostics(
+        epsilon=epsilon,
+        kb=kb,
+        M=M,
+        wall_relative_residual=wall_relative,
+        neumann_relative_residual=neumann_relative,
+        decay_rate_left=decay_left,
+        decay_rate_right=decay_right,
+        expected_decay_rate=expected_decay,
+        decay_relative_error_left=float(decay_error_left),
+        decay_relative_error_right=float(decay_error_right),
+        monotone_decay_left=monotone_left,
+        monotone_decay_right=monotone_right,
+        walls_verified=walls_ok,
+        neumann_verified=neumann_ok,
+        decay_verified=decay_ok,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Validation / reporting
 # ---------------------------------------------------------------------------
 
 
 def validate_epsilon(
     epsilon: float,
-    config: Config,
+    base_config: Config,
 ) -> tuple[
     ValidationResult,
     list[BeynDiagnostics],
@@ -1217,8 +1673,12 @@ def validate_epsilon(
     np.ndarray,
     list[BeynEigenvalueRow],
     float,
+    PhysicalDiagnostics | None,
 ]:
+    """Validate one epsilon using an epsilon-adapted near-cutoff contour."""
+    config = config_for_epsilon(epsilon, base_config)
     kb_asym, sigma_asym = asymptotic_prediction(epsilon, config)
+    coefficient = asymptotic_coefficient(config)
 
     (
         final_raw,
@@ -1234,12 +1694,12 @@ def validate_epsilon(
     ) = run_beyn_convergence_study(epsilon, config)
 
     brackets = candidate_brackets(local_seeds, config)
+    print(f"  effective cutoff margin               = {config.beyn_cutoff_margin:.3e}")
     print(f"  final strict near-real Beyn candidates = {len(strict_candidates)}")
     print(f"  local refinement seeds                 = {len(local_seeds)}")
 
     all_refinement: list[ModeRefinementRow] = []
     mode_results: list[ModeResult] = []
-
     for i, (seed, bracket) in enumerate(
         zip(local_seeds, brackets, strict=True), start=1
     ):
@@ -1260,36 +1720,94 @@ def validate_epsilon(
         <= config.beyn_candidate_convergence_tolerance
     )
 
-    # Global one-mode support uses Beyn for the count and SVD/BEM for local
-    # certification. A fallback seed is permitted only because the seed itself
-    # is not accepted; the local SVD minimum must satisfy all certification
-    # criteria before this can pass.
+    # Independent contour-geometry check: move the right endpoint closer to the
+    # cutoff and verify that the enclosed rank is unchanged.  This specifically
+    # guards against accidentally truncating a mode that is O(epsilon^4) from
+    # Lambda_1.
+    tighter_margin_consistent: bool | None = None
+    if config.beyn_check_tighter_cutoff_margin:
+        tighter_margin = max(
+            config.beyn_min_cutoff_margin,
+            config.beyn_cutoff_margin * config.beyn_tighter_cutoff_margin_factor,
+        )
+        if tighter_margin < config.beyn_cutoff_margin * (1.0 - 1.0e-12):
+            tight_config = replace(config, beyn_cutoff_margin=tighter_margin)
+            print(
+                f"  tighter-cutoff diagnostic: margin {config.beyn_cutoff_margin:.3e} "
+                f"-> {tighter_margin:.3e}"
+            )
+            _, _, tight_diag, _, _ = beyn_discover(
+                epsilon, final_diag.quadrature_points, tight_config
+            )
+            tighter_margin_consistent = bool(
+                tight_diag.estimated_rank == final_diag.estimated_rank
+            )
+            print(
+                "  tighter-cutoff rank consistency = "
+                f"{'PASS' if tighter_margin_consistent else 'FAIL'} "
+                f"({final_diag.estimated_rank} -> {tight_diag.estimated_rank})"
+            )
+        else:
+            tighter_margin_consistent = True
+
+    margin_ok = tighter_margin_consistent is not False
     one_mode_count_supported = bool(
-        final_diag.estimated_rank == 1 and rank_stable and len(resolved) == 1
+        final_diag.estimated_rank == 1
+        and rank_stable
+        and len(resolved) == 1
+        and margin_ok
     )
 
-    if resolved:
-        expected = min(resolved, key=lambda mode: abs(mode.kb_numerical - kb_asym))
-        kb_num = expected.kb_numerical
-        sigma_num = expected.sigma_numerical
-        sv_final = expected.sigma_min_final
-        drop_final = expected.final_drop_factor
-        mesh_change = expected.final_relative_mesh_change
+    # IMPORTANT: no theory-driven selection among several numerical modes.
+    # If more than one mode is resolved, uniqueness is not supported and the
+    # asymptotic comparison is intentionally left N/A.
+    physical: PhysicalDiagnostics | None = None
+    if len(resolved) == 1:
+        mode = resolved[0]
+        kb_num = mode.kb_numerical
+        sigma_num = mode.sigma_numerical
+        sv_final = mode.sigma_min_final
+        sv_max_final = mode.sigma_max_final
+        relative_sv_final = mode.relative_singular_value_final
+        drop_final = mode.final_drop_factor
+        mesh_change = mode.final_relative_mesh_change
         error_kb = abs(kb_num - kb_asym) / abs(kb_asym)
         error_sigma = abs(sigma_num - sigma_asym) / abs(sigma_asym)
         asymptotic_ok: bool | None = (
             error_sigma <= config.relative_sigma_error_tolerance
         )
+        sigma_over_eps2 = sigma_num / epsilon**2
+        remainder_denom = epsilon**3 * abs(math.log(epsilon))
+        scaled_remainder = abs(sigma_num - coefficient * epsilon**2) / max(
+            remainder_denom, 1.0e-30
+        )
+
+        if config.run_physical_diagnostics:
+            print("  reconstructing field for independent physical diagnostics...")
+            physical = physical_mode_diagnostics(
+                epsilon, kb_num, config.refinement_M[-1], config
+            )
+            print(
+                f"    wall residual={physical.wall_relative_residual:.3e}, "
+                f"Neumann residual={physical.neumann_relative_residual:.3e}"
+            )
+            print(
+                f"    decay rates left/right="
+                f"{physical.decay_rate_left:.6e}/{physical.decay_rate_right:.6e}, "
+                f"expected sigma={physical.expected_decay_rate:.6e}"
+            )
     else:
         kb_num = math.nan
         sigma_num = math.nan
         sv_final = math.nan
+        sv_max_final = math.nan
+        relative_sv_final = math.nan
         drop_final = math.nan
         mesh_change = math.nan
         error_kb = math.nan
         error_sigma = math.nan
-        # N/A, not FAIL: the Beyn pipeline did not produce a certified BEM
-        # value from which an asymptotic error could be evaluated.
+        sigma_over_eps2 = math.nan
+        scaled_remainder = math.nan
         asymptotic_ok = None
 
     if not candidate_stable and strict_candidates:
@@ -1307,8 +1825,11 @@ def validate_epsilon(
         a=config.a,
         lambda_1=lambda_1(config),
         kb_cutoff=kb_cutoff(config),
+        effective_beyn_cutoff_margin=config.beyn_cutoff_margin,
+        tighter_margin_rank_consistent=tighter_margin_consistent,
         kb_asymptotic=kb_asym,
         sigma_asymptotic=sigma_asym,
+        asymptotic_coefficient=coefficient,
         beyn_final_quadrature_points=final_diag.quadrature_points,
         beyn_estimated_rank=final_diag.estimated_rank,
         beyn_rank_stable=rank_stable,
@@ -1319,13 +1840,26 @@ def validate_epsilon(
         resolved_mode_count=len(resolved),
         kb_numerical=kb_num,
         sigma_numerical=sigma_num,
+        sigma_over_epsilon_squared=sigma_over_eps2,
+        scaled_asymptotic_remainder=scaled_remainder,
         sigma_min_final=sv_final,
+        sigma_max_final=sv_max_final,
+        relative_singular_value_final=relative_sv_final,
         final_drop_factor=drop_final,
         final_relative_mesh_change=mesh_change,
         relative_error_kb=error_kb,
         relative_error_sigma=error_sigma,
         unique_mode_verified=one_mode_count_supported,
         asymptotic_agreement_verified=asymptotic_ok,
+        wall_relative_residual=(
+            physical.wall_relative_residual if physical is not None else math.nan
+        ),
+        neumann_relative_residual=(
+            physical.neumann_relative_residual if physical is not None else math.nan
+        ),
+        decay_rate_left=(physical.decay_rate_left if physical is not None else math.nan),
+        decay_rate_right=(physical.decay_rate_right if physical is not None else math.nan),
+        physical_decay_verified=(physical.decay_verified if physical is not None else None),
     )
 
     return (
@@ -1338,6 +1872,7 @@ def validate_epsilon(
         final_s,
         final_eigen_rows,
         aitken_estimate,
+        physical,
     )
 
 
@@ -1349,6 +1884,199 @@ def write_dataclass_csv(path: Path, rows: list[object]) -> None:
         writer = csv.DictWriter(handle, fieldnames=list(dictionaries[0]))
         writer.writeheader()
         writer.writerows(dictionaries)
+
+
+def run_internal_convergence_study(
+    results: list[ValidationResult],
+    base_config: Config,
+) -> list[InternalConvergenceRow]:
+    """One-at-a-time sensitivity to h, lattice truncation, and harmonic order."""
+    if not base_config.run_internal_convergence_study:
+        return []
+
+    finite = [row for row in results if np.isfinite(row.kb_numerical)]
+    if not finite:
+        return []
+
+    target = min(
+        finite,
+        key=lambda row: abs(row.epsilon - base_config.internal_convergence_epsilon),
+    )
+    epsilon = target.epsilon
+    baseline_kb = target.kb_numerical
+    baseline_sigma = target.sigma_numerical
+    config = config_for_epsilon(epsilon, base_config)
+    M = base_config.internal_convergence_M
+    half = base_config.internal_refine_half_width
+    left = max(config.beyn_low_k_margin, baseline_kb - half)
+    right = min(kb_cutoff(config) - config.beyn_cutoff_margin, baseline_kb + half)
+    if not left < right:
+        return []
+
+    variants: list[tuple[str, float, Config]] = []
+    for h in base_config.finite_difference_steps_test:
+        variants.append(("finite_difference_step", float(h), replace(config, finite_difference_step=float(h))))
+    for terms in base_config.lattice_terms_test:
+        variants.append(("lattice_terms", float(terms), replace(config, lattice_terms=int(terms))))
+    for order in base_config.harmonic_orders_test:
+        variants.append(("harmonic_order", float(order), replace(config, harmonic_order=int(order))))
+
+    rows: list[InternalConvergenceRow] = []
+    print(f"\n=== INTERNAL GREEN / DERIVATIVE CONVERGENCE at epsilon={epsilon:.3f} ===")
+    for parameter, value, variant_config in variants:
+        (
+            kb,
+            _,
+            _,
+            relative_sv,
+            _,
+            _,
+            _,
+            _,
+        ) = refine_candidate_for_M(epsilon, M, left, right, variant_config)
+        sigma = sigma_from_kb(kb, variant_config)
+        kb_shift = abs(kb - baseline_kb) / max(abs(baseline_kb), 1.0e-30)
+        sigma_shift = abs(sigma - baseline_sigma) / max(abs(baseline_sigma), 1.0e-30)
+        rows.append(
+            InternalConvergenceRow(
+                epsilon=epsilon,
+                parameter=parameter,
+                value=value,
+                kb=kb,
+                sigma_bem=sigma,
+                relative_singular_value=relative_sv,
+                relative_kb_shift_from_baseline=kb_shift,
+                relative_sigma_shift_from_baseline=sigma_shift,
+            )
+        )
+        print(
+            f"  {parameter}={value:g}: kb={kb:.12f}, sigma={sigma:.8e}, "
+            f"rel_sv={relative_sv:.3e}, delta_sigma={sigma_shift:.3%}"
+        )
+    return rows
+
+
+def classify_mode_count_for_geometry(
+    epsilon: float,
+    a: float,
+    base_config: Config,
+) -> tuple[str, int, int]:
+    """Return ('zero'|'one'|'ambiguous', Beyn rank, resolved count)."""
+    trial = replace(base_config, a=float(a), run_physical_diagnostics=False)
+    config = config_for_epsilon(epsilon, trial)
+    (
+        _,
+        _,
+        final_diag,
+        _,
+        _,
+        local_seeds,
+        _,
+        _,
+        convergence_rows,
+        _,
+    ) = run_beyn_convergence_study(epsilon, config)
+
+    brackets = candidate_brackets(local_seeds, config)
+    resolved_count = 0
+    for i, (seed, bracket) in enumerate(zip(local_seeds, brackets, strict=True), start=1):
+        _, mode = run_candidate_refinement(epsilon, i, seed, bracket, config)
+        resolved_count += int(mode.resolved)
+
+    rank_stable = bool(
+        len(convergence_rows) >= 2
+        and convergence_rows[-1].estimated_rank == convergence_rows[-2].estimated_rank
+    )
+
+    # Near-cutoff safeguard for the critical-height test.
+    tighter_consistent = True
+    tighter_margin = max(
+        config.beyn_min_cutoff_margin,
+        config.beyn_cutoff_margin * config.beyn_tighter_cutoff_margin_factor,
+    )
+    if tighter_margin < config.beyn_cutoff_margin * (1.0 - 1.0e-12):
+        tight_config = replace(config, beyn_cutoff_margin=tighter_margin)
+        _, _, tight_diag, _, _ = beyn_discover(
+            epsilon, final_diag.quadrature_points, tight_config
+        )
+        tighter_consistent = tight_diag.estimated_rank == final_diag.estimated_rank
+
+    if rank_stable and tighter_consistent and final_diag.estimated_rank == 0 and resolved_count == 0:
+        return "zero", final_diag.estimated_rank, resolved_count
+    if rank_stable and tighter_consistent and final_diag.estimated_rank == 1 and resolved_count == 1:
+        return "one", final_diag.estimated_rank, resolved_count
+    return "ambiguous", final_diag.estimated_rank, resolved_count
+
+
+def run_critical_height_study(base_config: Config) -> list[CriticalHeightRow]:
+    """Numerically bracket a_c(epsilon) and test a_c(epsilon)->a0*."""
+    if not base_config.run_critical_height_study:
+        return []
+
+    a0 = critical_height_leading_order(base_config)
+    rows: list[CriticalHeightRow] = []
+    cache: dict[tuple[float, float], tuple[str, int, int]] = {}
+
+    def classify(epsilon: float, a: float) -> tuple[str, int, int]:
+        key = (round(float(epsilon), 12), round(float(a), 12))
+        if key not in cache:
+            print(f"\n  critical-height probe: epsilon={epsilon:.4f}, a={a:.8f}")
+            cache[key] = classify_mode_count_for_geometry(epsilon, a, base_config)
+            print(f"    classification={cache[key][0]}, rank={cache[key][1]}, resolved={cache[key][2]}")
+        return cache[key]
+
+    print("\n=== CRITICAL-HEIGHT STUDY a*(epsilon) ===")
+    for epsilon in base_config.critical_height_epsilon_values:
+        geom_limit = base_config.b - epsilon - 1.0e-5
+        lower = max(-geom_limit, a0 - base_config.critical_height_half_width)
+        upper = min(geom_limit, a0 + base_config.critical_height_half_width)
+        lower_status, _, _ = classify(epsilon, lower)
+        upper_status, _, _ = classify(epsilon, upper)
+
+        if lower_status != "zero" or upper_status != "one":
+            rows.append(
+                CriticalHeightRow(
+                    epsilon=epsilon,
+                    a_lower_zero_mode=lower if lower_status == "zero" else math.nan,
+                    a_upper_one_mode=upper if upper_status == "one" else math.nan,
+                    a_critical_estimate=math.nan,
+                    bracket_width=math.nan,
+                    a0_star=a0,
+                    normalized_shift_over_epsilon=math.nan,
+                    status="unbracketed-or-ambiguous",
+                )
+            )
+            continue
+
+        for _ in range(base_config.critical_height_bisection_iterations):
+            mid = 0.5 * (lower + upper)
+            status, _, _ = classify(epsilon, mid)
+            if status == "zero":
+                lower = mid
+            elif status == "one":
+                upper = mid
+            else:
+                break
+
+        estimate = 0.5 * (lower + upper)
+        width = upper - lower
+        rows.append(
+            CriticalHeightRow(
+                epsilon=epsilon,
+                a_lower_zero_mode=lower,
+                a_upper_one_mode=upper,
+                a_critical_estimate=estimate,
+                bracket_width=width,
+                a0_star=a0,
+                normalized_shift_over_epsilon=(estimate - a0) / epsilon,
+                status="bracketed",
+            )
+        )
+        print(
+            f"  epsilon={epsilon:.4f}: a_c~{estimate:.10f}, "
+            f"width={width:.3e}, (a_c-a0*)/epsilon={(estimate-a0)/epsilon:.6e}"
+        )
+    return rows
 
 
 def plot_beyn_contour(
@@ -1455,6 +2183,7 @@ def plot_candidate_refinement(
         subset = [row for row in rows if row.candidate_index == candidate_index]
         M = np.array([row.M for row in subset])
         sv = np.array([row.sigma_min for row in subset])
+        relative_sv = np.array([row.relative_singular_value for row in subset])
         kb = np.array([row.kb for row in subset])
 
         plt.figure(figsize=(7, 4.5))
@@ -1462,12 +2191,27 @@ def plot_candidate_refinement(
         plt.xlabel(r"$M$")
         plt.ylabel(r"$\sigma_{\min}(A(k_*))$")
         plt.title(
-            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: SVD refinement"
+            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: absolute SVD"
         )
         plt.tight_layout()
         plt.savefig(
             output_directory
             / f"candidate_{candidate_index}_svd_epsilon_{epsilon:.2f}.png",
+            dpi=180,
+        )
+        plt.close()
+
+        plt.figure(figsize=(7, 4.5))
+        plt.semilogy(M, relative_sv, "o-")
+        plt.xlabel(r"$M$")
+        plt.ylabel(r"$\sigma_{\min}(A)/\sigma_{\max}(A)$")
+        plt.title(
+            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: relative singularity"
+        )
+        plt.tight_layout()
+        plt.savefig(
+            output_directory
+            / f"candidate_{candidate_index}_relative_svd_epsilon_{epsilon:.2f}.png",
             dpi=180,
         )
         plt.close()
@@ -1509,6 +2253,37 @@ def plot_summary(
         plt.savefig(output_directory / "kb_vs_epsilon.png", dpi=180)
         plt.close()
 
+        sigma_over_eps2 = np.array(
+            [row.sigma_over_epsilon_squared for row in finite_kb], dtype=float
+        )
+        coefficient = np.array(
+            [row.asymptotic_coefficient for row in finite_kb], dtype=float
+        )
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(eps_kb, sigma_over_eps2, "o-", label=r"$\sigma_{\mathrm{BEM}}/\varepsilon^2$")
+        plt.plot(eps_kb, coefficient, "--", label=r"$C(a)$")
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(r"$\sigma/\varepsilon^2$")
+        plt.title(r"Direct test of $\sigma=C(a)\varepsilon^2+O(\varepsilon^3\log\varepsilon)$")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(output_directory / "sigma_over_epsilon_squared.png", dpi=180)
+        plt.close()
+
+        scaled = np.array(
+            [row.scaled_asymptotic_remainder for row in finite_kb], dtype=float
+        )
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(eps_kb, scaled, "o-")
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(
+            r"$|\sigma_{\mathrm{BEM}}-C\varepsilon^2|/(\varepsilon^3|\log\varepsilon|)$"
+        )
+        plt.title("Scaled asymptotic remainder")
+        plt.tight_layout()
+        plt.savefig(output_directory / "scaled_asymptotic_remainder.png", dpi=180)
+        plt.close()
+
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, counts, "o-")
     plt.xlabel(r"$\varepsilon$")
@@ -1525,7 +2300,7 @@ def plot_summary(
         plt.figure(figsize=(7, 4.5))
         plt.plot(eps_f, error, "o-")
         plt.axhline(
-            config.relative_sigma_error_tolerance, linestyle="--", label="5% tolerance"
+            config.relative_sigma_error_tolerance, linestyle="--", label="reporting tolerance"
         )
         plt.xlabel(r"$\varepsilon$")
         plt.ylabel(r"relative error in $\sigma$")
@@ -1535,13 +2310,61 @@ def plot_summary(
         plt.close()
 
 
+def plot_internal_convergence(
+    rows: list[InternalConvergenceRow], output_directory: Path
+) -> None:
+    if not rows:
+        return
+    parameters = sorted(set(row.parameter for row in rows))
+    for parameter in parameters:
+        subset = [row for row in rows if row.parameter == parameter]
+        x = np.array([row.value for row in subset], dtype=float)
+        y = np.array([row.relative_sigma_shift_from_baseline for row in subset], dtype=float)
+        order = np.argsort(x)
+        plt.figure(figsize=(7, 4.5))
+        plt.semilogy(x[order], np.maximum(y[order], 1.0e-16), "o-")
+        plt.xlabel(parameter)
+        plt.ylabel("relative shift in sigma from baseline")
+        plt.title(f"Internal numerical sensitivity: {parameter}")
+        plt.tight_layout()
+        plt.savefig(output_directory / f"internal_convergence_{parameter}.png", dpi=180)
+        plt.close()
+
+
+def plot_critical_height(
+    rows: list[CriticalHeightRow], output_directory: Path
+) -> None:
+    finite = [row for row in rows if np.isfinite(row.a_critical_estimate)]
+    if not finite:
+        return
+    eps = np.array([row.epsilon for row in finite])
+    ac = np.array([row.a_critical_estimate for row in finite])
+    a0 = finite[0].a0_star
+    plt.figure(figsize=(7, 4.5))
+    plt.plot(eps, ac, "o-", label=r"$a_c(\varepsilon)$ numerical")
+    plt.axhline(a0, linestyle="--", label=r"$a_0^*$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"critical height $a$")
+    plt.title(r"Critical-height test: $a_c(\varepsilon)\to a_0^*$")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "critical_height_vs_epsilon.png", dpi=180)
+    plt.close()
+
+
 def print_result(result: ValidationResult, config: Config) -> None:
-    print("\n  --- Beyn-v3 adaptive + local-SVD validation result ---")
+    print("\n  --- Beyn-v4 + local-SVD validation result ---")
+    print(f"  effective cutoff margin        = {result.effective_beyn_cutoff_margin:.3e}")
     print(f"  final Beyn quadrature Nq       = {result.beyn_final_quadrature_points}")
     print(f"  final Beyn estimated rank      = {result.beyn_estimated_rank}")
     print(
         f"  Beyn rank stable (last 2 Nq)   = {'YES' if result.beyn_rank_stable else 'no'}"
     )
+    if result.tighter_margin_rank_consistent is None:
+        tighter_text = "N/A"
+    else:
+        tighter_text = "PASS" if result.tighter_margin_rank_consistent else "FAIL"
+    print(f"  tighter-cutoff rank check      = {tighter_text}")
     print(f"  final strict Beyn candidates   = {result.beyn_near_real_candidates}")
     print(f"  local refinement seeds         = {result.local_refinement_seed_count}")
     print(f"  local seed source              = {result.local_refinement_seed_source}")
@@ -1559,23 +2382,39 @@ def print_result(result: ValidationResult, config: Config) -> None:
         print(f"  kb BEM                         = {result.kb_numerical:.12f}")
         print(f"  sigma asym                     = {result.sigma_asymptotic:.8e}")
         print(f"  sigma BEM                      = {result.sigma_numerical:.8e}")
+        print(f"  sigma/epsilon^2                = {result.sigma_over_epsilon_squared:.8e}")
+        print(f"  asymptotic coefficient C(a)    = {result.asymptotic_coefficient:.8e}")
+        print(f"  scaled asymptotic remainder    = {result.scaled_asymptotic_remainder:.8e}")
         print(f"  final sigma_min(A)             = {result.sigma_min_final:.3e}")
+        print(f"  final sigma_max(A)             = {result.sigma_max_final:.3e}")
+        print(
+            f"  final sigma_min/sigma_max      = {result.relative_singular_value_final:.3e}"
+        )
         print(f"  final minimum drop             = {result.final_drop_factor:.2e}")
         print(
             f"  final mesh change in sigma     = {result.final_relative_mesh_change:.3%}"
         )
         print(f"  relative sigma error           = {result.relative_error_sigma:.3%}")
+        if np.isfinite(result.wall_relative_residual):
+            print(f"  wall Dirichlet residual        = {result.wall_relative_residual:.3e}")
+            print(f"  obstacle Neumann residual      = {result.neumann_relative_residual:.3e}")
+            print(
+                f"  decay rate left/right          = "
+                f"{result.decay_rate_left:.6e}/{result.decay_rate_right:.6e}"
+            )
+            decay_text = (
+                "PASS" if result.physical_decay_verified is True else "FAIL"
+            )
+            print(f"  physical decay check           = {decay_text}")
     else:
         print("  kb BEM                         = --")
         print(f"  sigma asym                     = {result.sigma_asymptotic:.8e}")
         print("  sigma BEM                      = --")
-        print("  final sigma_min(A)             = --")
-        print("  final minimum drop             = --")
-        print("  final mesh change in sigma     = --")
+        print("  relative singular value        = --")
         print("  relative sigma error           = --")
 
     if result.asymptotic_agreement_verified is None:
-        asym_text = "N/A (no certified BEM mode from this pipeline)"
+        asym_text = "N/A (requires exactly one certified BEM mode)"
     else:
         asym_text = "PASS" if result.asymptotic_agreement_verified else "FAIL"
     print(
@@ -1595,52 +2434,41 @@ def main() -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
 
     a0_star = critical_height_leading_order(config)
-    left, right, center, rx, ry = contour_geometry(config)
 
-    print("=== Theorem 2.1 validation with adaptive Beyn contour discovery (v3) ===")
+    print("=== Theorem 2.1 numerical validation: Beyn + BEM + SVD (v4) ===")
     print(f"b = {config.b}")
     print(f"a = {config.a}")
     print(f"leading-order a0* = {a0_star:.12f}")
-    print(f"geometric condition a > a0*: {'PASS' if config.a > a0_star else 'FAIL'}")
+    print(f"geometric leading condition a > a0*: {'PASS' if config.a > a0_star else 'FAIL'}")
     print(f"Lambda_1 = {lambda_1(config):.12f}")
     print(f"sqrt(Lambda_1)b = {kb_cutoff(config):.12f}")
     print(f"epsilons = {config.epsilon_values}")
     print(
-        "Beyn ellipse: "
-        f"real endpoints=[{left:.8f}, {right:.8f}], "
-        f"center={center:.8f}, rx={rx:.8f}, ry={ry:.3e}"
+        f"Beyn global discovery uses fixed M={config.beyn_M} "
+        "(no multi-M global Beyn sweep, by design)."
     )
     print(
-        f"Beyn settings: M={config.beyn_M}, "
-        f"base-Nq={config.beyn_quadrature_levels}, "
-        f"adaptive-Nq={config.beyn_adaptive_quadrature_levels}, "
+        f"Beyn Nq base={config.beyn_quadrature_levels}, "
+        f"adaptive={config.beyn_adaptive_quadrature_levels}, "
         f"probe_dim={config.beyn_probe_dim}"
     )
     print(
-        f"rank diagnostics: rel_tol={config.beyn_rank_relative_tolerance:.1e}, "
+        f"rank diagnostics: empty-S0={config.beyn_empty_s0_tolerance:.1e}, "
+        f"rel_tol={config.beyn_rank_relative_tolerance:.1e}, "
         f"gap_threshold={config.beyn_rank_gap_threshold:.1e}"
     )
-    print(f"local verification M = {config.refinement_M}")
+    print(f"local BEM refinement M = {config.refinement_M}")
 
     if config.a <= a0_star:
         raise RuntimeError(
-            "The selected geometry does not satisfy the leading-order condition a > a0*."
+            "The main epsilon-scaling experiment is configured on the existence "
+            "side and requires a > a0*. Use run_critical_height_study for the "
+            "zero/one-mode transition around a*."
         )
 
-    # Warn if the fixed cutoff margin is so large that the asymptotic branch
-    # would be excluded. This is only a safety diagnostic; Beyn itself does not
-    # use the asymptotic value for discovery.
-    for epsilon in config.epsilon_values:
-        kb_asym, _ = asymptotic_prediction(epsilon, config)
-        if kb_asym >= right:
-            print(
-                f"WARNING: epsilon={epsilon:.3f} has kb_asym={kb_asym:.12f} "
-                f"to the right of the contour endpoint {right:.12f}. "
-                "Reduce beyn_cutoff_margin before interpreting discovery."
-            )
-
+    first_config = config_for_epsilon(config.epsilon_values[0], config)
     print("\nChecking complex-kb support required by Beyn...")
-    complex_support_smoke_test(config.epsilon_values[0], config)
+    complex_support_smoke_test(config.epsilon_values[0], first_config)
     print("  complex-kb assembly: PASS")
 
     summaries: list[ValidationResult] = []
@@ -1649,13 +2477,21 @@ def main() -> None:
     all_convergence_rows: list[BeynConvergenceRow] = []
     all_refinement_rows: list[ModeRefinementRow] = []
     all_mode_results: list[ModeResult] = []
+    all_physical: list[PhysicalDiagnostics] = []
 
     for epsilon in config.epsilon_values:
-        print(f"\n=== epsilon={epsilon:.3f} ===")
-        kb_asym, sigma_asym = asymptotic_prediction(epsilon, config)
+        work_config = config_for_epsilon(epsilon, config)
+        left, right, center, rx, ry = contour_geometry(work_config)
+        print(f"\n=== epsilon={epsilon:.8f} ===")
+        kb_asym, sigma_asym = asymptotic_prediction(epsilon, work_config)
         print(f"  predicted kb = {kb_asym:.12f}")
         print(f"  predicted sigma = {sigma_asym:.8e}")
-        print(f"  predicted cutoff gap = {kb_cutoff(config) - kb_asym:.3e}")
+        print(f"  predicted cutoff gap = {kb_cutoff(work_config) - kb_asym:.3e}")
+        print(
+            "  Beyn ellipse: "
+            f"real=[{left:.12f}, {right:.12f}], "
+            f"center={center:.12f}, rx={rx:.12f}, ry={ry:.3e}"
+        )
 
         (
             result,
@@ -1667,6 +2503,7 @@ def main() -> None:
             final_s0_singular_values,
             final_eigen_rows,
             aitken_estimate,
+            physical,
         ) = validate_epsilon(epsilon, config)
 
         summaries.append(result)
@@ -1675,12 +2512,14 @@ def main() -> None:
         all_convergence_rows.extend(convergence_rows)
         all_refinement_rows.extend(refinement_rows)
         all_mode_results.extend(mode_results)
+        if physical is not None:
+            all_physical.append(physical)
 
-        print_result(result, config)
-        plot_beyn_contour(epsilon, final_eigen_rows, output_directory, config)
+        print_result(result, work_config)
+        plot_beyn_contour(epsilon, final_eigen_rows, output_directory, work_config)
         plot_s0_singular_values(epsilon, final_s0_singular_values, output_directory)
         plot_beyn_convergence(
-            epsilon, convergence_rows, output_directory, config, aitken_estimate
+            epsilon, convergence_rows, output_directory, work_config, aitken_estimate
         )
         plot_candidate_refinement(epsilon, refinement_rows, output_directory)
 
@@ -1690,7 +2529,16 @@ def main() -> None:
     write_dataclass_csv(output_directory / "beyn_raw_eigenvalues.csv", all_eigen_rows)
     write_dataclass_csv(output_directory / "mode_refinement.csv", all_refinement_rows)
     write_dataclass_csv(output_directory / "mode_results.csv", all_mode_results)
+    write_dataclass_csv(output_directory / "physical_diagnostics.csv", all_physical)
     plot_summary(summaries, output_directory, config)
+
+    internal_rows = run_internal_convergence_study(summaries, config)
+    write_dataclass_csv(output_directory / "internal_convergence.csv", internal_rows)
+    plot_internal_convergence(internal_rows, output_directory)
+
+    critical_rows = run_critical_height_study(config)
+    write_dataclass_csv(output_directory / "critical_height.csv", critical_rows)
+    plot_critical_height(critical_rows, output_directory)
 
     one_mode_supported = sum(row.unique_mode_verified for row in summaries)
     asymptotic_evaluated = [
@@ -1699,19 +2547,33 @@ def main() -> None:
     asymptotic_passed = sum(
         row.asymptotic_agreement_verified is True for row in asymptotic_evaluated
     )
+    physical_evaluated = [row for row in summaries if row.physical_decay_verified is not None]
+    physical_passed = sum(row.physical_decay_verified is True for row in physical_evaluated)
 
     print("\n=== FINAL SUMMARY ===")
     print("Global discovery: adaptive Beyn contour method with Nq convergence study")
-    print("Local certification: SVD minima + BEM mesh refinement")
-    print("Interval enclosed: 0 < k^2 < Lambda_1, excluding endpoint margins")
+    print("Global Beyn BEM order: one fixed M, as requested")
+    print("Local certification: relative SVD singularity + BEM mesh refinement")
+    print("Near-cutoff safeguard: epsilon-adaptive margin + tighter-margin rank check")
+    print("Asymptotics: direct sigma/epsilon^2 and scaled O(epsilon^3 log epsilon) diagnostics")
     print(
-        f"Stable Beyn rank=1 + one locally resolved mode: "
+        f"Stable rank=1 + exactly one locally resolved mode: "
         f"{one_mode_supported}/{len(summaries)}"
     )
     print(
-        f"Leading asymptotic sigma within {config.relative_sigma_error_tolerance:.1%} "
-        f"among resolved modes: {asymptotic_passed}/{len(asymptotic_evaluated)}"
+        f"Leading asymptotic sigma within {config.relative_sigma_error_tolerance:.1%}: "
+        f"{asymptotic_passed}/{len(asymptotic_evaluated)}"
     )
+    if physical_evaluated:
+        print(
+            f"Independent physical decay checks: "
+            f"{physical_passed}/{len(physical_evaluated)}"
+        )
+    if not config.run_critical_height_study:
+        print(
+            "Critical-height a*(epsilon) study: IMPLEMENTED but disabled. "
+            "Set run_critical_height_study=True for the full existence/non-existence transition test."
+        )
 
     for row in summaries:
         sigma_error_text = (
@@ -1724,13 +2586,18 @@ def main() -> None:
             if row.asymptotic_agreement_verified is None
             else ("PASS" if row.asymptotic_agreement_verified else "FAIL")
         )
+        margin_text = (
+            "N/A"
+            if row.tighter_margin_rank_consistent is None
+            else ("PASS" if row.tighter_margin_rank_consistent else "FAIL")
+        )
         print(
-            f"  epsilon={row.epsilon:.3f}: "
+            f"  epsilon={row.epsilon:.5f}: "
+            f"margin={row.effective_beyn_cutoff_margin:.2e}, "
             f"Nq={row.beyn_final_quadrature_points}, "
             f"rank={row.beyn_estimated_rank}, "
             f"rank_stable={'yes' if row.beyn_rank_stable else 'no'}, "
-            f"strict={row.beyn_near_real_candidates}, "
-            f"seed={row.local_refinement_seed_source}, "
+            f"margin_check={margin_text}, "
             f"resolved={row.resolved_mode_count}, "
             f"one-mode={'PASS' if row.unique_mode_verified else 'FAIL'}, "
             f"asymptotic={asym_text}, sigma_error={sigma_error_text}"
