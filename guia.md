@@ -406,6 +406,10 @@ providing numerical support for the predicted uniqueness.
 
 Third, for embedded trapped modes, a nearly singular matrix is not sufficient. The numerical candidate must also remain stable under mesh refinement and exhibit negligible projection onto the propagating transverse mode.
 
-As future work, we want to extend the analysis beyond the small-obstacle regime and investigate whether additional branches of embedded trapped modes can appear.
+Finally, the method presented here is still guided by the asymptotic prediction, so we regard it as a numerical consistency check rather than a fully independent validation.
+
+We are therefore developing an independent approach based on Beyn’s contour method. For Theorem 2.1, it already reproduces the previous BEM eigenvalues with differences of about \(10^{-8}\) in \(kb\), while also supporting the presence of a unique enclosed mode.
+
+The next step is to extend this approach to the embedded-mode theorem, including the \(x\)- and \(y\)-symmetric cases and the corresponding radiation-cancellation checks.
 
 Thank you very much for your attention.

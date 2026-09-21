@@ -1,0 +1,170 @@
+\documentclass[12pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\sisetup{
+  scientific-notation = true,
+  table-format = 1.12e-1,
+  round-mode = places,
+  round-precision = 2
+}
+\begin{document}
+
+% ============================================================
+\section*{Tabla 1: Mesh Refinement -- $\varepsilon = 0.05$}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Mesh refinement para $\varepsilon = 0.05$.}
+  \begin{tabular}{@{}lSSSSS@{}}
+    \toprule
+    M & \text{Discrete} & \text{BIC X} & \text{BIC Y} \\
+    \midrule
+    16 & 1.570769187049 & 3.140675347570 & 3.140666142067 \\
+    24 & 1.570769187077 & 3.140675357638 & 3.140666151929 \\
+    32 & 1.570769187082 & 3.140675360048 & 3.140666154290 \\
+    40 & 1.570769187084 & 3.140675360901 & 3.140666155126 \\
+    48 & 1.570769187085 & 3.140675361277 & 3.140666155494 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mesh_eps005}
+\end{table}
+
+% ============================================================
+\section*{Tabla 2: Mesh Refinement -- $\varepsilon = 0.07$}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Mesh refinement para $\varepsilon = 0.07$.}
+  \begin{tabular}{@{}lSSSSS@{}}
+    \toprule
+    M & \text{Discrete} & \text{BIC X} & \text{BIC Y} \\
+    \midrule
+    16 & 1.570694863808 & 3.138273756691 & 3.138240305549 \\
+    24 & 1.570694864415 & 3.138273862981 & 3.138240338969 \\
+    32 & 1.570694864560 & 3.138273870562 & 3.138240344147 \\
+    40 & 1.570694864610 & 3.138273873527 & 3.138240413163 \\
+    48 & 1.570694864633 & 3.138273874883 & 3.138240413756 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mesh_eps007}
+\end{table}
+
+% ============================================================
+\section*{Tabla 3: Mesh Refinement -- $\varepsilon = 0.09$}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Mesh refinement para $\varepsilon = 0.09$.}
+  \begin{tabular}{@{}lSSSSS@{}}
+    \toprule
+    M & \text{Discrete} & \text{BIC X} & \text{BIC Y} \\
+    \midrule
+    16 & 1.570529956631 & 3.133273351258 & 3.133189193309 \\
+    24 & 1.570529958280 & 3.133273637521 & 3.133189445989 \\
+    32 & 1.570529959331 & 3.133273683641 & 3.133189499024 \\
+    40 & 1.570529959704 & 3.133273744923 & 3.133189558673 \\
+    48 & 1.570529959870 & 3.133273751158 & 3.133189564015 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mesh_eps009}
+\end{table}
+
+% ============================================================
+\section*{Tabla 4: Mesh Refinement -- $\varepsilon = 0.11$}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Mesh refinement para $\varepsilon = 0.11$.}
+  \begin{tabular}{@{}lSSSSS@{}}
+    \toprule
+    M & \text{Discrete} & \text{BIC X} & \text{BIC Y} \\
+    \midrule
+    16 & 1.570232583665 & 3.124989777385 & 3.124821514981 \\
+    24 & 1.570232591832 & 3.124990573688 & 3.124822313310 \\
+    32 & 1.570232593785 & 3.124990761648 & 3.124822516708 \\
+    40 & 1.570232594476 & 3.124990826953 & 3.124822588659 \\
+    48 & 1.570232594781 & 3.124990855494 & 3.124822620361 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:mesh_eps011}
+\end{table}
+
+% ============================================================
+\section*{Tabla 5: Worst-case KB Shift ($M=16 \to M=48$)}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Worst-case $\Delta k_b$ entre $M=16$ y $M=48$.}
+  \begin{tabular}{@{}lSSS@{}}
+    \toprule
+    $\varepsilon$ & $\Delta k_b^{\text{disc}}$ & $\Delta k_b^{\text{BIC-X}}$ & $\Delta k_b^{\text{BIC-Y}}$ \\
+    \midrule
+    0.05 & $3.6\times10^{-11}$ & $1.37\times10^{-8}$  & $1.34\times10^{-8}$  \\
+    0.07 & $8.3\times10^{-11}$ & $1.18\times10^{-7}$  & $1.08\times10^{-7}$  \\
+    0.09 & $2.39\times10^{-9}$ & $3.99\times10^{-7}$  & $3.71\times10^{-7}$  \\
+    0.11 & $1.12\times10^{-8}$ & $1.01\times10^{-6}$  & $1.11\times10^{-6}$  \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:worst_shift}
+\end{table}
+
+% ============================================================
+\section*{Tabla 6: Comparaci\'on KB -- Teorema 2.1 (Modo Discreto)}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Comparaci\'on $k_b$ asint\'otico vs BEM -- Teorema 2.1.}
+  \begin{tabular}{@{}lSSSS@{}}
+    \toprule
+    $\varepsilon$ & $k_b^{\text{asym}}$ & $k_b^{\text{BEM}}$ & $\Delta k_b$ & $E_k$ \\
+    \midrule
+    0.05 & 1.570768582119 & 1.570769187085 & $6.050\times10^{-7}$ & $3.85\times10^{-7}$ \\
+    0.07 & 1.570689740172 & 1.570694864633 & $5.124\times10^{-6}$ & $3.26\times10^{-6}$ \\
+    0.09 & 1.570505049848 & 1.570529959870 & $2.491\times10^{-5}$ & $1.59\times10^{-5}$ \\
+    0.11 & 1.570146262336 & 1.570232594781 & $8.633\times10^{-5}$ & $5.50\times10^{-5}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:kb_discrete}
+\end{table}
+
+% ============================================================
+\section*{Tabla 7: Comparaci\'on KB -- Teorema 2.3(iii) (BIC Simetr\'ia X)}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Comparaci\'on $k_b$ asint\'otico vs BEM -- Teorema 2.3(iii).}
+  \begin{tabular}{@{}lSSSS@{}}
+    \toprule
+    $\varepsilon$ & $k_b^{\text{asym}}$ & $k_b^{\text{BEM}}$ & $\Delta k_b$ & $E_k$ \\
+    \midrule
+    0.05 & 3.140631984100 & 3.140675361277 & $4.338\times10^{-5}$ & $1.38\times10^{-5}$ \\
+    0.07 & 3.137900540385 & 3.138273874883 & $3.733\times10^{-4}$ & $1.19\times10^{-4}$ \\
+    0.09 & 3.131493237939 & 3.133273751158 & $1.781\times10^{-3}$ & $5.68\times10^{-4}$ \\
+    0.11 & 3.119010674785 & 3.124990855494 & $5.980\times10^{-3}$ & $1.92\times10^{-3}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:kb_bicx}
+\end{table}
+
+% ============================================================
+\section*{Tabla 8: Comparaci\'on KB -- Teorema 2.3(iv) (BIC Simetr\'ia Y, a tunned)}
+% ============================================================
+\begin{table}[h!]
+  \centering
+  \caption{Comparaci\'on $k_b$ asint\'otico vs BEM -- Teorema 2.3(iv) (tuned $a$).}
+  \begin{tabular}{@{}lSSSS@{}}
+    \toprule
+    $\varepsilon$ & $k_b^{\text{asym}}$ & $k_b^{\text{BEM}}$ & $\Delta k_b$ & $E_k$ \\
+    \midrule
+    0.05 & 3.140622485938 & 3.140666069606 & $4.358\times10^{-5}$ & $1.39\times10^{-5}$ \\
+    0.07 & 3.137864020328 & 3.138239627059 & $3.756\times10^{-4}$ & $1.20\times10^{-4}$ \\
+    0.09 & 3.131393237609 & 3.133186483837 & $1.793\times10^{-3}$ & $5.73\times10^{-4}$ \\
+    0.11 & 3.118786624544 & 3.124813903881 & $6.027\times10^{-3}$ & $1.93\times10^{-3}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:kb_bicy}
+\end{table}
+
+\end{document}
