@@ -68,8 +68,8 @@ class Config:
 
     # Keep the first experiment small and interpretable.
     epsilon_values: tuple[float, ...] = (
-        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
-        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+        0.02, 0.04, 0.06, 0.08, 0.10,
+        0.12, 0.14, 0.16, 0.18, 0.20,
     )
 
     # BEM / Green function.
@@ -83,7 +83,7 @@ class Config:
     # Paper figures: the y-position sweep uses one fixed BEM resolution.
     paper_a_values: tuple[float, ...] = (0.35, 0.50, 0.55, 0.60, 0.65, 0.70)
     paper_fixed_M: int = 32
-    paper_epsilon_min: float = 0.01
+    paper_epsilon_min: float = 0.02
     paper_epsilon_points: int = 20
     paper_epsilon_hard_upper: float = 0.5
     paper_geometry_endpoint_factor: float = 0.999
@@ -856,24 +856,27 @@ def paper_green_radius_upper(a: float, config: Config) -> float:
 
 
 def paper_epsilon_values(a: float, config: Config) -> np.ndarray:
-    """Return epsilon values valid for geometry and the Green expansion."""
+    """Return the shared epsilon grid, restricted to admissible cases.
+
+    Keep the sweep points fixed across ``a`` so this script can be compared
+    point-for-point with the other theorem sweep.  Do not stretch the grid to
+    each geometry's upper bound: that changes the epsilon values themselves.
+    """
     geometry_upper = config.b - abs(a)
     green_upper = paper_green_radius_upper(a, config)
     if geometry_upper <= config.paper_epsilon_min or green_upper <= 0.0:
         return np.array([], dtype=float)
 
-    upper = min(
+    shared_grid = np.linspace(
+        config.paper_epsilon_min,
         config.paper_epsilon_hard_upper,
+        config.paper_epsilon_points,
+    )
+    admissible_upper = min(
         config.paper_geometry_endpoint_factor * geometry_upper,
         config.paper_geometry_endpoint_factor * green_upper,
     )
-    if upper <= config.paper_epsilon_min:
-        return np.array([], dtype=float)
-    return np.linspace(
-        config.paper_epsilon_min,
-        upper,
-        config.paper_epsilon_points,
-    )
+    return shared_grid[shared_grid <= admissible_upper]
 
 
 def paper_sweep_case(
@@ -1141,9 +1144,9 @@ def plot_kb_vs_epsilon_by_M(
     config: Config,
     output_directory: Path,
 ) -> None:
-    """Paper Figure 1: numerical kb curves for every refinement M."""
+    """Paper Figure 1: numerical kb curve at the paper mesh M=32."""
     plt.figure(figsize=(8, 5))
-    for M in config.refinement_M:
+    for M in (32,):
         rows = sorted(
             (row for row in refinement_rows if row.M == M),
             key=lambda row: row.epsilon,

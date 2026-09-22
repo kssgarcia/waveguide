@@ -1213,7 +1213,8 @@ Files written to: /Users/kevinsepulveda/Documents/waveguide/src/theorem_2.3/theo
 ---
 
 (base) kevinsepulveda@Kevins-Mac-mini:~/Documents/waveguide/src/beyn_theorems_validations % python first_theorem_beyn.py
-=== Theorem 2.1 numerical validation: Beyn + BEM + SVD (v4) ===
+
+=== Theorem 2.1 numerical validation: Beyn + BEM + sigma-SVD (v5) ===
 b = 1.0
 a = 0.6
 leading-order a0* = 0.391826552031
@@ -1311,7 +1312,20 @@ raw Beyn eigenvalues:
 Nq=1536: rank=1, strict=0, near-contour=0, S0-change=3.961e-01, candidate-shift=--, raw=1.570808129446-1.30e-09i
 effective cutoff margin = 1.110e-08
 final strict near-real Beyn candidates = 0
-local refinement seeds = 0
+kb seeds available for local search = 0
+sigma refinement tasks = 0
+sigma-scan fallback seed: sigma=1.89304818e-08, kb=1.570796326795, rel_sv=2.016e-08, local_scan_drop=1.00e+00, sigma_bracket=[1.571e-08, 2.281e-08]
+candidate 1 [sigma-scan]: seed kb=1.570796326795 +0.000e+00i, sigma bracket=[1.57079633e-08, 2.28141061e-08]
+/Users/kevinsepulveda/miniforge3/lib/python3.12/site-packages/scipy/optimize/\_optimize.py:2358: RuntimeWarning: invalid value encountered in scalar subtract
+p = (xf - fulc) _ q - (xf - nfc) _ r
+/Users/kevinsepulveda/miniforge3/lib/python3.12/site-packages/scipy/optimize/\_optimize.py:2359: RuntimeWarning: invalid value encountered in scalar subtract
+q = 2.0 \* (q - r)
+M=16: sigma_BEM=2.28136796e-08, kb=1.570796326795, sv_min=2.245e-02, sv_min/sv_max=2.016e-08, drop=1.00e+00, mesh_change=--, sigma-interior=no
+M=24: sigma_BEM=2.28136796e-08, kb=1.570796326795, sv_min=2.246e-02, sv_min/sv_max=2.017e-08, drop=1.00e+00, mesh_change=0.000%, sigma-interior=no
+M=32: sigma_BEM=2.28136796e-08, kb=1.570796326795, sv_min=2.249e-02, sv_min/sv_max=2.020e-08, drop=1.00e+00, mesh_change=0.000%, sigma-interior=no
+M=40: sigma_BEM=2.28136796e-08, kb=1.570796326795, sv_min=2.251e-02, sv_min/sv_max=2.021e-08, drop=1.00e+00, mesh_change=0.000%, sigma-interior=no
+M=48: sigma_BEM=2.28136796e-08, kb=1.570796326795, sv_min=2.251e-02, sv_min/sv_max=2.022e-08, drop=1.00e+00, mesh_change=0.000%, sigma-interior=no
+resolved=no
 tighter-cutoff diagnostic: margin 1.110e-08 -> 2.220e-09
 Beyn contour discovery: M=24, quadrature=1536, probe_dim=8
 contour node 256/1536
@@ -1327,16 +1341,18 @@ max contour linear-solve residual = 4.180e-16
 raw Beyn eigenvalues:
 [0] +1.570808132284 +8.404e-10i outside-contour/band
 tighter-cutoff rank consistency = PASS (1 -> 1)
+NOTE: Beyn S0 is still changing appreciably between the last two Nq levels (relative change=3.961e-01). The integer rank is stable, but the contour moments are not fully converged.
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.110e-08
 final Beyn quadrature Nq = 1536
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 3.961e-01
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 0
-local refinement seeds = 0
-local seed source = none
+local refinement seeds = 1
+local seed source = sigma-scan
 Aitken diagnostic kb = 1.570797107514
 locally resolved modes = 0
 one-mode count supported = FAIL
@@ -1431,14 +1447,15 @@ Nq=1536: rank=1, strict=0, near-contour=0, S0-change=1.667e-01, candidate-shift=
 no strict final candidate; using Aitken Delta^2 only as local-SVD seed: kb=1.570791427858
 effective cutoff margin = 1.040e-06
 final strict near-real Beyn candidates = 0
-local refinement seeds = 1
-candidate 1 [aitken]: seed kb=1.570791427858 +0.000e+00i, local bracket=[1.568791427858, 1.570795287118]
-M=16: kb=1.570792195434, sigma_BEM=3.60264275e-03, sv_min=4.137e-06, sv_min/sv_max=1.440e-07, drop=8.45e+03, mesh_change=--, interior=no
-M=24: kb=1.570792195436, sigma_BEM=3.60264204e-03, sv_min=4.111e-06, sv_min/sv_max=1.430e-07, drop=8.51e+03, mesh_change=0.000%, interior=no
-M=32: kb=1.570792195436, sigma_BEM=3.60264188e-03, sv_min=4.103e-06, sv_min/sv_max=1.428e-07, drop=8.52e+03, mesh_change=0.000%, interior=no
-M=40: kb=1.570792195437, sigma_BEM=3.60264182e-03, sv_min=4.099e-06, sv_min/sv_max=1.426e-07, drop=8.53e+03, mesh_change=0.000%, interior=no
-M=48: kb=1.570792195437, sigma_BEM=3.60264179e-03, sv_min=4.099e-06, sv_min/sv_max=1.426e-07, drop=8.53e+03, mesh_change=0.000%, interior=no
-resolved=no
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [aitken]: seed kb=1.570791427858 +0.000e+00i, sigma bracket=[9.80766244e-04, 1.56922599e-02]
+M=16: sigma_BEM=3.60285561e-03, kb=1.570792194946, sv_min=9.402e-10, sv_min/sv_max=3.272e-11, drop=1.48e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=3.60285349e-03, kb=1.570792194951, sv_min=4.360e-11, sv_min/sv_max=1.517e-12, drop=3.20e+08, mesh_change=0.000%, sigma-interior=yes
+M=32: sigma_BEM=3.60285298e-03, kb=1.570792194952, sv_min=3.180e-10, sv_min/sv_max=1.107e-11, drop=4.38e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=3.60285278e-03, kb=1.570792194953, sv_min=3.833e-10, sv_min/sv_max=1.334e-11, drop=3.64e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=3.60285265e-03, kb=1.570792194953, sv_min=7.783e-10, sv_min/sv_max=2.709e-11, drop=1.79e+07, mesh_change=0.000%, sigma-interior=yes
+resolved=YES
 tighter-cutoff diagnostic: margin 1.040e-06 -> 2.079e-07
 Beyn contour discovery: M=24, quadrature=1536, probe_dim=8
 contour node 256/1536
@@ -1454,26 +1471,43 @@ max contour linear-solve residual = 7.378e-16
 raw Beyn eigenvalues:
 [0] +1.570798486469 -1.195e-09i outside-contour/band
 tighter-cutoff rank consistency = PASS (1 -> 1)
+reconstructing field for independent physical diagnostics...
+wall residual=4.166e-10, off-grid BIE residual=4.898e-07
+decay rates left/right=3.602196e-03/3.602196e-03, expected sigma=3.602853e-03
+NOTE: Beyn S0 is still changing appreciably between the last two Nq levels (relative change=1.667e-01). The integer rank is stable, but the contour moments are not fully converged.
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.040e-06
 final Beyn quadrature Nq = 1536
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 1.667e-01
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 0
 local refinement seeds = 1
 local seed source = aitken
 Aitken diagnostic kb = 1.570791427858
-locally resolved modes = 0
-one-mode count supported = FAIL
+locally resolved modes = 1
+one-mode count supported = PASS
 kb asymptotic = 1.570792168087
-kb BEM = --
+kb BEM = 1.570792194953
 sigma asym = 3.61454681e-03
-sigma BEM = --
-relative singular value = --
-relative sigma error = --
-asymptotic accuracy <= 5.0%: N/A (requires exactly one certified BEM mode)
+sigma BEM = 3.60285265e-03
+sigma/epsilon^2 = 3.72233527e+00
+asymptotic coefficient C(a) = 3.73441725e+00
+scaled asymptotic remainder = 1.11910055e-01
+final sigma_min(A) = 7.783e-10
+final sigma_max(A) = 2.873e+01
+final sigma_min/sigma_max = 2.709e-11
+final minimum drop = 1.79e+07
+final mesh change in sigma = 0.000%
+relative sigma error = 0.324%
+wall Dirichlet residual = 4.166e-10
+off-grid BIE residual = 4.898e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 3.602196e-03/3.602196e-03
+physical decay check = PASS
+asymptotic accuracy <= 5.0%: PASS
 
 === epsilon=0.05222222 ===
 predicted kb = 1.570763311005
@@ -1525,13 +1559,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=9.516e-02, candidate-shift=--, raw=1.570784419936+9.01e-12i
 effective cutoff margin = 8.254e-06
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.570784419936 +9.014e-12i, local bracket=[1.568784419936, 1.570788072847]
-M=16: kb=1.570764092065, sigma_BEM=1.00631681e-02, sv_min=1.340e-05, sv_min/sv_max=7.720e-07, drop=4.35e+03, mesh_change=--, interior=yes
-M=24: kb=1.570764092267, sigma_BEM=1.00631365e-02, sv_min=1.322e-05, sv_min/sv_max=7.621e-07, drop=4.40e+03, mesh_change=0.000%, interior=yes
-M=32: kb=1.570764092315, sigma_BEM=1.00631290e-02, sv_min=1.319e-05, sv_min/sv_max=7.598e-07, drop=4.42e+03, mesh_change=0.000%, interior=yes
-M=40: kb=1.570764092333, sigma_BEM=1.00631262e-02, sv_min=1.317e-05, sv_min/sv_max=7.589e-07, drop=4.42e+03, mesh_change=0.000%, interior=yes
-M=48: kb=1.570764092341, sigma_BEM=1.00631250e-02, sv_min=1.316e-05, sv_min/sv_max=7.585e-07, drop=4.42e+03, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.570784419936 +9.014e-12i, sigma bracket=[1.52901842e-03, 2.44642947e-02]
+M=16: sigma_BEM=1.00620180e-02, kb=1.570764099433, sv_min=1.894e-10, sv_min/sv_max=1.091e-11, drop=8.09e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=1.00620011e-02, kb=1.570764099541, sv_min=8.957e-10, sv_min/sv_max=5.161e-11, drop=1.71e+07, mesh_change=0.000%, sigma-interior=yes
+M=32: sigma_BEM=1.00619971e-02, kb=1.570764099566, sv_min=5.695e-10, sv_min/sv_max=3.282e-11, drop=2.69e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=1.00619957e-02, kb=1.570764099575, sv_min=3.197e-10, sv_min/sv_max=1.842e-11, drop=4.79e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=1.00619950e-02, kb=1.570764099580, sv_min=7.437e-10, sv_min/sv_max=4.285e-11, drop=2.06e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 8.254e-06 -> 1.651e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -1549,15 +1584,16 @@ raw Beyn eigenvalues:
 [0] +1.570784856218 -3.158e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=1.900e-10, Neumann residual=6.290e+00
-decay rates left/right=1.006021e-02/1.006020e-02, expected sigma=1.006312e-02
+wall residual=1.938e-10, off-grid BIE residual=1.964e-07
+decay rates left/right=1.005908e-02/1.005907e-02, expected sigma=1.006199e-02
 NOTE: final strict Beyn candidate position is still moving by more than 2.0e-04 between the last two Nq levels. Local SVD refinement remains the trusted position.
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 8.254e-06
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 9.516e-02
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -1566,21 +1602,22 @@ Aitken diagnostic kb = 1.570763223018
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.570763311005
-kb BEM = 1.570764092341
+kb BEM = 1.570764099580
 sigma asym = 1.01843543e-02
-sigma BEM = 1.00631250e-02
-sigma/epsilon^2 = 3.68996466e+00
+sigma BEM = 1.00619950e-02
+sigma/epsilon^2 = 3.68955030e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 2.88329444e-01
-final sigma_min(A) = 1.316e-05
+scaled asymptotic remainder = 2.91017099e-01
+final sigma_min(A) = 7.437e-10
 final sigma_max(A) = 1.735e+01
-final sigma_min/sigma_max = 7.585e-07
-final minimum drop = 4.42e+03
+final sigma_min/sigma_max = 4.285e-11
+final minimum drop = 2.06e+07
 final mesh change in sigma = 0.000%
-relative sigma error = 1.190%
-wall Dirichlet residual = 1.900e-10
-obstacle Neumann residual = 6.290e+00
-decay rate left/right = 1.006021e-02/1.006020e-02
+relative sigma error = 1.201%
+wall Dirichlet residual = 1.938e-10
+off-grid BIE residual = 1.964e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 1.005908e-02/1.005907e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: PASS
 
@@ -1634,13 +1671,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=1.180e-01, candidate-shift=2.371e-05, raw=1.570683181864+2.77e-10i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.570683181864 +2.769e-10i, local bracket=[1.568683181864, 1.570786326795]
-M=16: kb=1.570674808348, sigma_BEM=1.95383391e-02, sv_min=8.757e-06, sv_min/sv_max=6.929e-07, drop=1.35e+04, mesh_change=--, interior=yes
-M=24: kb=1.570674809063, sigma_BEM=1.95382816e-02, sv_min=8.811e-06, sv_min/sv_max=6.972e-07, drop=1.34e+04, mesh_change=0.000%, interior=yes
-M=32: kb=1.570674809237, sigma_BEM=1.95382676e-02, sv_min=8.822e-06, sv_min/sv_max=6.981e-07, drop=1.34e+04, mesh_change=0.000%, interior=yes
-M=40: kb=1.570674809303, sigma_BEM=1.95382623e-02, sv_min=8.824e-06, sv_min/sv_max=6.982e-07, drop=1.34e+04, mesh_change=0.000%, interior=yes
-M=48: kb=1.570674809326, sigma_BEM=1.95382604e-02, sv_min=8.828e-06, sv_min/sv_max=6.986e-07, drop=1.34e+04, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.570683181864 +2.769e-10i, sigma bracket=[4.71329556e-03, 7.54127290e-02]
+M=16: sigma_BEM=1.95372928e-02, kb=1.570674821362, sv_min=1.607e-09, sv_min/sv_max=1.272e-10, drop=1.91e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=1.95372290e-02, kb=1.570674822156, sv_min=6.193e-10, sv_min/sv_max=4.900e-11, drop=4.97e+07, mesh_change=0.000%, sigma-interior=yes
+M=32: sigma_BEM=1.95372137e-02, kb=1.570674822347, sv_min=5.032e-10, sv_min/sv_max=3.981e-11, drop=6.11e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=1.95372084e-02, kb=1.570674822413, sv_min=7.764e-10, sv_min/sv_max=6.143e-11, drop=3.96e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=1.95372058e-02, kb=1.570674822444, sv_min=1.093e-09, sv_min/sv_max=8.650e-11, drop=2.81e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -1658,14 +1696,15 @@ raw Beyn eigenvalues:
 [0] +1.570683623958 -2.336e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=1.353e-10, Neumann residual=6.287e+00
-decay rates left/right=1.953176e-02/1.953176e-02, expected sigma=1.953826e-02
+wall residual=1.247e-10, off-grid BIE residual=1.392e-07
+decay rates left/right=1.953071e-02/1.953071e-02, expected sigma=1.953721e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 1.180e-01
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -1674,21 +1713,22 @@ Aitken diagnostic kb = 1.570674278450
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.570667940347
-kb BEM = 1.570674809326
+kb BEM = 1.570674822444
 sigma asym = 2.00828643e-02
-sigma BEM = 1.95382604e-02
-sigma/epsilon^2 = 3.63314793e+00
+sigma BEM = 1.95372058e-02
+sigma/epsilon^2 = 3.63295183e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 5.28542931e-01
-final sigma_min(A) = 8.828e-06
+scaled asymptotic remainder = 5.29566422e-01
+final sigma_min(A) = 1.093e-09
 final sigma_max(A) = 1.264e+01
-final sigma_min/sigma_max = 6.986e-07
-final minimum drop = 1.34e+04
+final sigma_min/sigma_max = 8.650e-11
+final minimum drop = 2.81e+07
 final mesh change in sigma = 0.000%
-relative sigma error = 2.712%
-wall Dirichlet residual = 1.353e-10
-obstacle Neumann residual = 6.287e+00
-decay rate left/right = 1.953176e-02/1.953176e-02
+relative sigma error = 2.717%
+wall Dirichlet residual = 1.247e-10
+off-grid BIE residual = 1.392e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 1.953071e-02/1.953071e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: PASS
 
@@ -1742,13 +1782,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=6.180e-02, candidate-shift=1.138e-05, raw=1.570481120514-7.53e-11i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.570481120514 -7.526e-11i, local bracket=[1.568481120514, 1.570786326795]
-M=16: kb=1.570476733888, sigma_BEM=3.16848322e-02, sv_min=4.711e-06, sv_min/sv_max=4.654e-07, drop=3.73e+04, mesh_change=--, interior=yes
-M=24: kb=1.570476738028, sigma_BEM=3.16846269e-02, sv_min=4.476e-06, sv_min/sv_max=4.422e-07, drop=3.92e+04, mesh_change=0.001%, interior=yes
-M=32: kb=1.570476739019, sigma_BEM=3.16845778e-02, sv_min=4.420e-06, sv_min/sv_max=4.367e-07, drop=3.97e+04, mesh_change=0.000%, interior=yes
-M=40: kb=1.570476739369, sigma_BEM=3.16845605e-02, sv_min=4.401e-06, sv_min/sv_max=4.347e-07, drop=3.99e+04, mesh_change=0.000%, interior=yes
-M=48: kb=1.570476739523, sigma_BEM=3.16845529e-02, sv_min=4.392e-06, sv_min/sv_max=4.339e-07, drop=4.00e+04, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.570481120514 -7.526e-11i, sigma bracket=[7.86666377e-03, 1.25866620e-01]
+M=16: sigma_BEM=3.16841165e-02, kb=1.570476748326, sv_min=3.106e-10, sv_min/sv_max=3.069e-11, drop=1.31e+08, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=3.16839471e-02, kb=1.570476751744, sv_min=7.390e-10, sv_min/sv_max=7.301e-11, drop=5.50e+07, mesh_change=0.001%, sigma-interior=yes
+M=32: sigma_BEM=3.16839062e-02, kb=1.570476752569, sv_min=1.129e-09, sv_min/sv_max=1.115e-10, drop=3.60e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=3.16838921e-02, kb=1.570476752853, sv_min=1.722e-10, sv_min/sv_max=1.701e-11, drop=2.36e+08, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=3.16838859e-02, kb=1.570476752979, sv_min=9.526e-10, sv_min/sv_max=9.411e-11, drop=4.27e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -1766,14 +1807,15 @@ raw Beyn eigenvalues:
 [0] +1.570481443313 -1.121e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=1.025e-10, Neumann residual=6.285e+00
-decay rates left/right=3.167454e-02/3.167454e-02, expected sigma=3.168455e-02
+wall residual=1.675e-10, off-grid BIE residual=1.735e-07
+decay rates left/right=3.167387e-02/3.167387e-02, expected sigma=3.168389e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 6.180e-02
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -1782,21 +1824,22 @@ Aitken diagnostic kb = 1.570477745059
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.570443102779
-kb BEM = 1.570476739523
+kb BEM = 1.570476752979
 sigma asym = 3.33100766e-02
-sigma BEM = 3.16845529e-02
-sigma/epsilon^2 = 3.55217858e+00
+sigma BEM = 3.16838859e-02
+sigma/epsilon^2 = 3.55210381e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 8.17710040e-01
-final sigma_min(A) = 4.392e-06
+scaled asymptotic remainder = 8.18045544e-01
+final sigma_min(A) = 9.526e-10
 final sigma_max(A) = 1.012e+01
-final sigma_min/sigma_max = 4.339e-07
-final minimum drop = 4.00e+04
+final sigma_min/sigma_max = 9.411e-11
+final minimum drop = 4.27e+07
 final mesh change in sigma = 0.000%
-relative sigma error = 4.880%
-wall Dirichlet residual = 1.025e-10
-obstacle Neumann residual = 6.285e+00
-decay rate left/right = 3.167454e-02/3.167454e-02
+relative sigma error = 4.882%
+wall Dirichlet residual = 1.675e-10
+off-grid BIE residual = 1.735e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 3.167387e-02/3.167387e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: PASS
 
@@ -1850,13 +1893,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=8.036e-03, candidate-shift=7.063e-06, raw=1.570124373581+2.34e-11i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.570124373581 +2.340e-11i, local bracket=[1.568124373581, 1.570786326795]
-M=16: kb=1.570121353802, sigma_BEM=4.60438335e-02, sv_min=2.170e-06, sv_min/sv_max=2.523e-07, drop=1.05e+05, mesh_change=--, interior=yes
-M=24: kb=1.570121371033, sigma_BEM=4.60432459e-02, sv_min=9.349e-07, sv_min/sv_max=1.087e-07, drop=2.43e+05, mesh_change=0.001%, interior=yes
-M=32: kb=1.570121376211, sigma_BEM=4.60430694e-02, sv_min=4.422e-07, sv_min/sv_max=5.140e-08, drop=5.15e+05, mesh_change=0.000%, interior=yes
-M=40: kb=1.570121378104, sigma_BEM=4.60430048e-02, sv_min=2.563e-07, sv_min/sv_max=2.979e-08, drop=8.88e+05, mesh_change=0.000%, interior=yes
-M=48: kb=1.570121378949, sigma_BEM=4.60429760e-02, sv_min=1.727e-07, sv_min/sv_max=2.008e-08, drop=1.32e+06, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.570124373581 +2.340e-11i, sigma bracket=[1.14851855e-02, 1.83762967e-01]
+M=16: sigma_BEM=4.60434369e-02, kb=1.570121365432, sv_min=8.360e-10, sv_min/sv_max=9.717e-11, drop=5.99e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=4.60430748e-02, kb=1.570121376052, sv_min=1.071e-09, sv_min/sv_max=1.245e-10, drop=4.68e+07, mesh_change=0.001%, sigma-interior=yes
+M=32: sigma_BEM=4.60429887e-02, kb=1.570121378578, sv_min=4.758e-10, sv_min/sv_max=5.531e-11, drop=1.05e+08, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=4.60429577e-02, kb=1.570121379484, sv_min=1.048e-09, sv_min/sv_max=1.218e-10, drop=4.78e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=4.60429447e-02, kb=1.570121379868, sv_min=1.380e-09, sv_min/sv_max=1.604e-10, drop=3.63e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -1874,14 +1918,15 @@ raw Beyn eigenvalues:
 [0] +1.570124600270 -1.207e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=1.391e-10, Neumann residual=6.283e+00
-decay rates left/right=4.602595e-02/4.602595e-02, expected sigma=4.604298e-02
+wall residual=1.650e-10, off-grid BIE residual=2.513e-07
+decay rates left/right=4.602592e-02/4.602592e-02, expected sigma=4.604294e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 8.036e-03
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -1890,21 +1935,22 @@ Aitken diagnostic kb = 1.570121778761
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.570004612194
-kb BEM = 1.570121378949
+kb BEM = 1.570121379868
 sigma asym = 4.98660001e-02
-sigma BEM = 4.60429760e-02
-sigma/epsilon^2 = 3.44811462e+00
+sigma BEM = 4.60429447e-02
+sigma/epsilon^2 = 3.44811227e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 1.14810678e+00
-final sigma_min(A) = 1.727e-07
+scaled asymptotic remainder = 1.14811619e+00
+final sigma_min(A) = 1.380e-09
 final sigma_max(A) = 8.603e+00
-final sigma_min/sigma_max = 2.008e-08
-final minimum drop = 1.32e+06
+final sigma_min/sigma_max = 1.604e-10
+final minimum drop = 3.63e+07
 final mesh change in sigma = 0.000%
 relative sigma error = 7.667%
-wall Dirichlet residual = 1.391e-10
-obstacle Neumann residual = 6.283e+00
-decay rate left/right = 4.602595e-02/4.602595e-02
+wall Dirichlet residual = 1.650e-10
+off-grid BIE residual = 2.513e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 4.602592e-02/4.602592e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: FAIL
 
@@ -1958,13 +2004,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=3.158e-03, candidate-shift=5.285e-06, raw=1.569571695662-4.83e-11i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.569571695662 -4.834e-11i, local bracket=[1.567571695662, 1.570786326795]
-M=16: kb=1.569569435517, sigma_BEM=6.20716309e-02, sv_min=6.993e-07, sv_min/sv_max=9.177e-08, drop=2.43e+05, mesh_change=--, interior=yes
-M=24: kb=1.569569475286, sigma_BEM=6.20706253e-02, sv_min=9.040e-07, sv_min/sv_max=1.186e-07, drop=1.88e+05, mesh_change=0.002%, interior=yes
-M=32: kb=1.569569479191, sigma_BEM=6.20705265e-02, sv_min=6.181e-07, sv_min/sv_max=8.112e-08, drop=2.75e+05, mesh_change=0.000%, interior=yes
-M=40: kb=1.569569480571, sigma_BEM=6.20704916e-02, sv_min=5.169e-07, sv_min/sv_max=6.784e-08, drop=3.29e+05, mesh_change=0.000%, interior=yes
-M=48: kb=1.569569481179, sigma_BEM=6.20704763e-02, sv_min=4.723e-07, sv_min/sv_max=6.198e-08, drop=3.61e+05, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.569571695662 -4.834e-11i, sigma bracket=[1.55036134e-02, 2.48057814e-01]
+M=16: sigma_BEM=6.20714827e-02, kb=1.569569441379, sv_min=4.187e-10, sv_min/sv_max=5.495e-11, drop=1.42e+08, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=6.20708171e-02, kb=1.569569467702, sv_min=1.584e-09, sv_min/sv_max=2.079e-10, drop=3.75e+07, mesh_change=0.001%, sigma-interior=yes
+M=32: sigma_BEM=6.20706578e-02, kb=1.569569474001, sv_min=1.208e-09, sv_min/sv_max=1.585e-10, drop=4.92e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=6.20706006e-02, kb=1.569569476260, sv_min=2.511e-09, sv_min/sv_max=3.295e-10, drop=2.37e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=6.20705769e-02, kb=1.569569477198, sv_min=2.963e-09, sv_min/sv_max=3.889e-10, drop=2.00e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -1982,14 +2029,15 @@ raw Beyn eigenvalues:
 [0] +1.569571864782 +1.081e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=1.027e-10, Neumann residual=6.281e+00
-decay rates left/right=6.204497e-02/6.204497e-02, expected sigma=6.207048e-02
+wall residual=1.001e-10, off-grid BIE residual=3.480e-07
+decay rates left/right=6.204507e-02/6.204507e-02, expected sigma=6.207058e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 3.158e-03
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -1998,21 +2046,22 @@ Aitken diagnostic kb = 1.569569608948
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.569246937686
-kb BEM = 1.569569481179
+kb BEM = 1.569569477198
 sigma asym = 6.97506189e-02
-sigma BEM = 6.20704763e-02
-sigma/epsilon^2 = 3.32322581e+00
+sigma BEM = 6.20705769e-02
+sigma/epsilon^2 = 3.32323120e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 1.51175864e+00
-final sigma_min(A) = 4.723e-07
+scaled asymptotic remainder = 1.51173882e+00
+final sigma_min(A) = 2.963e-09
 final sigma_max(A) = 7.620e+00
-final sigma_min/sigma_max = 6.198e-08
-final minimum drop = 3.61e+05
+final sigma_min/sigma_max = 3.889e-10
+final minimum drop = 2.00e+07
 final mesh change in sigma = 0.000%
 relative sigma error = 11.011%
-wall Dirichlet residual = 1.027e-10
-obstacle Neumann residual = 6.281e+00
-decay rate left/right = 6.204497e-02/6.204497e-02
+wall Dirichlet residual = 1.001e-10
+off-grid BIE residual = 3.480e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 6.204507e-02/6.204507e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: FAIL
 
@@ -2066,13 +2115,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=1.068e-03, candidate-shift=4.158e-06, raw=1.568801375483-2.05e-10i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.568801375483 -2.048e-10i, local bracket=[1.566801375483, 1.570786326795]
-M=16: kb=1.568799576685, sigma_BEM=7.91769440e-02, sv_min=3.306e-07, sv_min/sv_max=4.750e-08, drop=3.95e+05, mesh_change=--, interior=yes
-M=24: kb=1.568799619952, sigma_BEM=7.91760867e-02, sv_min=6.916e-07, sv_min/sv_max=9.938e-08, drop=1.89e+05, mesh_change=0.001%, interior=yes
-M=32: kb=1.568799632328, sigma_BEM=7.91758415e-02, sv_min=7.674e-07, sv_min/sv_max=1.103e-07, drop=1.70e+05, mesh_change=0.000%, interior=yes
-M=40: kb=1.568799636922, sigma_BEM=7.91757505e-02, sv_min=7.761e-07, sv_min/sv_max=1.115e-07, drop=1.68e+05, mesh_change=0.000%, interior=yes
-M=48: kb=1.568799638981, sigma_BEM=7.91757097e-02, sv_min=7.771e-07, sv_min/sv_max=1.117e-07, drop=1.68e+05, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.568801375483 -2.048e-10i, sigma bracket=[1.97853237e-02, 3.16565179e-01]
+M=16: sigma_BEM=7.91770222e-02, kb=1.568799572737, sv_min=2.975e-09, sv_min/sv_max=4.275e-10, drop=2.30e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=7.91759224e-02, kb=1.568799628247, sv_min=2.628e-09, sv_min/sv_max=3.776e-10, drop=2.61e+07, mesh_change=0.001%, sigma-interior=yes
+M=32: sigma_BEM=7.91756581e-02, kb=1.568799641587, sv_min=1.845e-09, sv_min/sv_max=2.652e-10, drop=3.71e+07, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=7.91755650e-02, kb=1.568799646285, sv_min=1.496e-09, sv_min/sv_max=2.150e-10, drop=4.58e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=7.91755244e-02, kb=1.568799648332, sv_min=3.996e-10, sv_min/sv_max=5.742e-11, drop=1.71e+08, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -2090,14 +2140,15 @@ raw Beyn eigenvalues:
 [0] +1.568801508127 -2.800e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=7.236e-11, Neumann residual=6.280e+00
-decay rates left/right=7.914006e-02/7.914006e-02, expected sigma=7.917571e-02
+wall residual=7.514e-11, off-grid BIE residual=4.602e-07
+decay rates left/right=7.913988e-02/7.913988e-02, expected sigma=7.917552e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 1.068e-03
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -2106,21 +2157,22 @@ Aitken diagnostic kb = 1.568799972227
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.568042986053
-kb BEM = 1.568799638981
+kb BEM = 1.568799648332
 sigma asym = 9.29639401e-02
-sigma BEM = 7.91757097e-02
-sigma/epsilon^2 = 3.18053576e+00
+sigma BEM = 7.91755244e-02
+sigma/epsilon^2 = 3.18052832e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 1.90110357e+00
-final sigma_min(A) = 7.771e-07
+scaled asymptotic remainder = 1.90112911e+00
+final sigma_min(A) = 3.996e-10
 final sigma_max(A) = 6.959e+00
-final sigma_min/sigma_max = 1.117e-07
-final minimum drop = 1.68e+05
+final sigma_min/sigma_max = 5.742e-11
+final minimum drop = 1.71e+08
 final mesh change in sigma = 0.000%
 relative sigma error = 14.832%
-wall Dirichlet residual = 7.236e-11
-obstacle Neumann residual = 6.280e+00
-decay rate left/right = 7.914006e-02/7.914006e-02
+wall Dirichlet residual = 7.514e-11
+off-grid BIE residual = 4.602e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 7.913988e-02/7.913988e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: FAIL
 
@@ -2174,13 +2226,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=2.003e-03, candidate-shift=3.397e-06, raw=1.567814842485-4.15e-10i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.567814842485 -4.152e-10i, local bracket=[1.565814842485, 1.569814842485]
-M=16: kb=1.567813315236, sigma_BEM=9.67600581e-02, sv_min=3.675e-07, sv_min/sv_max=5.648e-08, drop=2.81e+05, mesh_change=--, interior=yes
-M=24: kb=1.567813425969, sigma_BEM=9.67582639e-02, sv_min=8.160e-07, sv_min/sv_max=1.254e-07, drop=1.27e+05, mesh_change=0.002%, interior=yes
-M=32: kb=1.567813452477, sigma_BEM=9.67578343e-02, sv_min=9.257e-07, sv_min/sv_max=1.423e-07, drop=1.12e+05, mesh_change=0.000%, interior=yes
-M=40: kb=1.567813461858, sigma_BEM=9.67576823e-02, sv_min=9.648e-07, sv_min/sv_max=1.483e-07, drop=1.07e+05, mesh_change=0.000%, interior=yes
-M=48: kb=1.567813465992, sigma_BEM=9.67576153e-02, sv_min=9.821e-07, sv_min/sv_max=1.509e-07, drop=1.05e+05, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.567814842485 -4.152e-10i, sigma bracket=[2.41838272e-02, 3.86941235e-01]
+M=16: sigma_BEM=9.67601541e-02, kb=1.567813309310, sv_min=2.017e-09, sv_min/sv_max=3.100e-10, drop=3.82e+07, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=9.67584784e-02, kb=1.567813412730, sv_min=4.916e-10, sv_min/sv_max=7.556e-11, drop=1.57e+08, mesh_change=0.002%, sigma-interior=yes
+M=32: sigma_BEM=9.67580774e-02, kb=1.567813437474, sv_min=6.549e-10, sv_min/sv_max=1.006e-10, drop=1.18e+08, mesh_change=0.000%, sigma-interior=yes
+M=40: sigma_BEM=9.67579362e-02, kb=1.567813446191, sv_min=1.346e-09, sv_min/sv_max=2.068e-10, drop=5.73e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=9.67578734e-02, kb=1.567813450069, sv_min=1.641e-10, sv_min/sv_max=2.522e-11, drop=4.70e+08, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -2198,14 +2251,15 @@ raw Beyn eigenvalues:
 [0] +1.567814951137 -4.127e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=2.152e-10, Neumann residual=6.280e+00
-decay rates left/right=9.670573e-02/9.670573e-02, expected sigma=9.675762e-02
+wall residual=1.751e-10, off-grid BIE residual=5.894e-07
+decay rates left/right=9.670599e-02/9.670599e-02, expected sigma=9.675787e-02
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 2.003e-03
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -2214,21 +2268,22 @@ Aitken diagnostic kb = 1.567813648770
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.566243730998
-kb BEM = 1.567813465992
+kb BEM = 1.567813450069
 sigma asym = 1.19505964e-01
-sigma BEM = 9.67576153e-02
-sigma/epsilon^2 = 3.02355879e+00
+sigma BEM = 9.67578734e-02
+sigma/epsilon^2 = 3.02356685e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 2.30898610e+00
-final sigma_min(A) = 9.821e-07
+scaled asymptotic remainder = 2.30895991e+00
+final sigma_min(A) = 1.641e-10
 final sigma_max(A) = 6.507e+00
-final sigma_min/sigma_max = 1.509e-07
-final minimum drop = 1.05e+05
+final sigma_min/sigma_max = 2.522e-11
+final minimum drop = 4.70e+08
 final mesh change in sigma = 0.000%
 relative sigma error = 19.035%
-wall Dirichlet residual = 2.152e-10
-obstacle Neumann residual = 6.280e+00
-decay rate left/right = 9.670573e-02/9.670573e-02
+wall Dirichlet residual = 1.751e-10
+off-grid BIE residual = 5.894e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 9.670599e-02/9.670599e-02
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: FAIL
 
@@ -2282,13 +2337,14 @@ raw Beyn eigenvalues:
 Nq=384: rank=1, strict=1, near-contour=0, S0-change=5.051e-04, candidate-shift=2.887e-06, raw=1.566637451734-3.26e-10i
 effective cutoff margin = 1.000e-05
 final strict near-real Beyn candidates = 1
-local refinement seeds = 1
-candidate 1 [strict-beyn]: seed kb=1.566637451734 -3.260e-10i, local bracket=[1.564637451734, 1.568637451734]
-M=16: kb=1.566636070811, sigma_BEM=1.14247634e-01, sv_min=1.875e-07, sv_min/sv_max=3.025e-08, drop=4.49e+05, mesh_change=--, interior=yes
-M=24: kb=1.566636232516, sigma_BEM=1.14245417e-01, sv_min=4.203e-07, sv_min/sv_max=6.781e-08, drop=2.00e+05, mesh_change=0.002%, interior=yes
-M=32: kb=1.566636272315, sigma_BEM=1.14244871e-01, sv_min=5.097e-07, sv_min/sv_max=8.223e-08, drop=1.65e+05, mesh_change=0.000%, interior=yes
-M=40: kb=1.566636293893, sigma_BEM=1.14244575e-01, sv_min=1.791e-07, sv_min/sv_max=2.889e-08, drop=4.71e+05, mesh_change=0.000%, interior=yes
-M=48: kb=1.566636300070, sigma_BEM=1.14244490e-01, sv_min=1.943e-07, sv_min/sv_max=3.134e-08, drop=4.34e+05, mesh_change=0.000%, interior=yes
+kb seeds available for local search = 1
+sigma refinement tasks = 1
+candidate 1 [strict-beyn]: seed kb=1.566637451734 -3.260e-10i, sigma bracket=[2.85571741e-02, 4.56914786e-01]
+M=16: sigma_BEM=1.14247687e-01, kb=1.566636066934, sv_min=3.067e-11, sv_min/sv_max=4.947e-12, drop=2.78e+09, mesh_change=--, sigma-interior=yes
+M=24: sigma_BEM=1.14245298e-01, kb=1.566636241197, sv_min=1.356e-09, sv_min/sv_max=2.188e-10, drop=6.29e+07, mesh_change=0.002%, sigma-interior=yes
+M=32: sigma_BEM=1.14244725e-01, kb=1.566636282936, sv_min=2.818e-09, sv_min/sv_max=4.546e-10, drop=3.03e+07, mesh_change=0.001%, sigma-interior=yes
+M=40: sigma_BEM=1.14244524e-01, kb=1.566636297587, sv_min=8.914e-10, sv_min/sv_max=1.438e-10, drop=9.57e+07, mesh_change=0.000%, sigma-interior=yes
+M=48: sigma_BEM=1.14244434e-01, kb=1.566636304146, sv_min=2.466e-09, sv_min/sv_max=3.979e-10, drop=3.46e+07, mesh_change=0.000%, sigma-interior=yes
 resolved=YES
 tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
 Beyn contour discovery: M=24, quadrature=384, probe_dim=8
@@ -2306,14 +2362,15 @@ raw Beyn eigenvalues:
 [0] +1.566637543623 -4.070e-10i real-candidate
 tighter-cutoff rank consistency = PASS (1 -> 1)
 reconstructing field for independent physical diagnostics...
-wall residual=8.393e-11, Neumann residual=6.279e+00
-decay rates left/right=1.141771e-01/1.141771e-01, expected sigma=1.142445e-01
+wall residual=1.110e-10, off-grid BIE residual=7.345e-07
+decay rates left/right=1.141770e-01/1.141770e-01, expected sigma=1.142444e-01
 
---- Beyn-v4 + local-SVD validation result ---
+--- Beyn-v5 + local-sigma-SVD validation result ---
 effective cutoff margin = 1.000e-05
 final Beyn quadrature Nq = 384
 final Beyn estimated rank = 1
 Beyn rank stable (last 2 Nq) = YES
+final relative S0 change = 5.051e-04
 tighter-cutoff rank check = PASS
 final strict Beyn candidates = 1
 local refinement seeds = 1
@@ -2322,54 +2379,57 @@ Aitken diagnostic kb = 1.566636294064
 locally resolved modes = 1
 one-mode count supported = PASS
 kb asymptotic = 1.563677621758
-kb BEM = 1.566636300070
+kb BEM = 1.566636304146
 sigma asym = 1.49376690e-01
-sigma BEM = 1.14244490e-01
-sigma/epsilon^2 = 2.85611226e+00
+sigma BEM = 1.14244434e-01
+sigma/epsilon^2 = 2.85611086e+00
 asymptotic coefficient C(a) = 3.73441725e+00
-scaled asymptotic remainder = 2.72860786e+00
-final sigma_min(A) = 1.943e-07
+scaled asymptotic remainder = 2.72861220e+00
+final sigma_min(A) = 2.466e-09
 final sigma_max(A) = 6.199e+00
-final sigma_min/sigma_max = 3.134e-08
-final minimum drop = 4.34e+05
+final sigma_min/sigma_max = 3.979e-10
+final minimum drop = 3.46e+07
 final mesh change in sigma = 0.000%
 relative sigma error = 23.519%
-wall Dirichlet residual = 8.393e-11
-obstacle Neumann residual = 6.279e+00
-decay rate left/right = 1.141771e-01/1.141771e-01
+wall Dirichlet residual = 1.110e-10
+off-grid BIE residual = 7.345e-07
+off-grid BIE residual check = PASS
+decay rate left/right = 1.141770e-01/1.141770e-01
 physical decay check = PASS
 asymptotic accuracy <= 5.0%: FAIL
 
 === INTERNAL GREEN / DERIVATIVE CONVERGENCE at epsilon=0.094 ===
-finite_difference_step=3e-06: kb=1.570476739075, sigma=3.16845751e-02, rel_sv=4.349e-07, delta_sigma=0.000%
-finite_difference_step=1e-06: kb=1.570476739076, sigma=3.16845750e-02, rel_sv=4.348e-07, delta_sigma=0.000%
-finite_difference_step=3e-07: kb=1.570476739075, sigma=3.16845750e-02, rel_sv=4.348e-07, delta_sigma=0.000%
-lattice_terms=100: kb=1.570476739076, sigma=3.16845750e-02, rel_sv=4.349e-07, delta_sigma=0.000%
-lattice_terms=200: kb=1.570476739076, sigma=3.16845750e-02, rel_sv=4.348e-07, delta_sigma=0.000%
-lattice_terms=300: kb=1.570476739076, sigma=3.16845750e-02, rel_sv=4.349e-07, delta_sigma=0.000%
-harmonic_order=12: kb=1.570476305063, sigma=3.17060800e-02, rel_sv=2.623e-07, delta_sigma=0.068%
-harmonic_order=20: kb=1.570476739076, sigma=3.16845750e-02, rel_sv=4.348e-07, delta_sigma=0.000%
-harmonic_order=28: kb=1.570476768163, sigma=3.16831332e-02, rel_sv=8.412e-08, delta_sigma=0.004%
+finite_difference_step=3e-06: kb=1.570476752560, sigma=3.16839066e-02, rel_sv=1.204e-10, delta_sigma=0.000%
+finite_difference_step=1e-06: kb=1.570476752560, sigma=3.16839066e-02, rel_sv=1.496e-10, delta_sigma=0.000%
+finite_difference_step=3e-07: kb=1.570476752567, sigma=3.16839063e-02, rel_sv=9.169e-11, delta_sigma=0.000%
+lattice_terms=100: kb=1.570476752560, sigma=3.16839066e-02, rel_sv=1.086e-10, delta_sigma=0.000%
+lattice_terms=200: kb=1.570476752560, sigma=3.16839066e-02, rel_sv=1.496e-10, delta_sigma=0.000%
+lattice_terms=300: kb=1.570476752561, sigma=3.16839066e-02, rel_sv=1.306e-10, delta_sigma=0.000%
+harmonic_order=12: kb=1.570476313200, sigma=3.17056770e-02, rel_sv=1.592e-10, delta_sigma=0.069%
+harmonic_order=20: kb=1.570476752560, sigma=3.16839066e-02, rel_sv=1.496e-10, delta_sigma=0.000%
+harmonic_order=28: kb=1.570476770773, sigma=3.16830039e-02, rel_sv=2.315e-11, delta_sigma=0.003%
 
 === FINAL SUMMARY ===
 Global discovery: adaptive Beyn contour method with Nq convergence study
 Global Beyn BEM order: one fixed M, as requested
-Local certification: relative SVD singularity + BEM mesh refinement
+Local certification: relative SVD singularity refined in sigma + BEM mesh refinement
 Near-cutoff safeguard: epsilon-adaptive margin + tighter-margin rank check
 Asymptotics: direct sigma/epsilon^2 and scaled O(epsilon^3 log epsilon) diagnostics
-Stable rank=1 + exactly one locally resolved mode: 8/10
-Leading asymptotic sigma within 5.0%: 3/8
-Independent physical decay checks: 8/8
+Stable rank=1 + exactly one locally resolved mode: 9/10
+Leading asymptotic sigma within 5.0%: 4/9
+Independent off-grid BIE residual checks: 9/9
+Independent physical decay checks: 9/9
 Critical-height a\*(epsilon) study: IMPLEMENTED but disabled. Set run_critical_height_study=True for the full existence/non-existence transition test.
-epsilon=0.01000: margin=1.11e-08, Nq=1536, rank=1, rank_stable=yes, margin_check=PASS, resolved=0, one-mode=FAIL, asymptotic=N/A, sigma_error=N/A
-epsilon=0.03111: margin=1.04e-06, Nq=1536, rank=1, rank_stable=yes, margin_check=PASS, resolved=0, one-mode=FAIL, asymptotic=N/A, sigma_error=N/A
-epsilon=0.05222: margin=8.25e-06, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=1.190%
-epsilon=0.07333: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=2.712%
-epsilon=0.09444: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=4.880%
-epsilon=0.11556: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=7.667%
-epsilon=0.13667: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=11.011%
-epsilon=0.15778: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=14.832%
-epsilon=0.17889: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=19.035%
-epsilon=0.20000: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=23.519%
+epsilon=0.01000: margin=1.11e-08, Nq=1536, rank=1, rank_stable=yes, S0_change=3.96e-01, margin_check=PASS, resolved=0, one-mode=FAIL, asymptotic=N/A, sigma_error=N/A
+epsilon=0.03111: margin=1.04e-06, Nq=1536, rank=1, rank_stable=yes, S0_change=1.67e-01, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=0.324%
+epsilon=0.05222: margin=8.25e-06, Nq=384, rank=1, rank_stable=yes, S0_change=9.52e-02, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=1.201%
+epsilon=0.07333: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=1.18e-01, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=2.717%
+epsilon=0.09444: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=6.18e-02, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=PASS, sigma_error=4.882%
+epsilon=0.11556: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=8.04e-03, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=7.667%
+epsilon=0.13667: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=3.16e-03, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=11.011%
+epsilon=0.15778: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=1.07e-03, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=14.832%
+epsilon=0.17889: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=2.00e-03, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=19.035%
+epsilon=0.20000: margin=1.00e-05, Nq=384, rank=1, rank_stable=yes, S0_change=5.05e-04, margin_check=PASS, resolved=1, one-mode=PASS, asymptotic=FAIL, sigma_error=23.519%
 
-Files written to: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/the(base) kevinsepulveda@Kevins-Mac-mini:~/Documents/waveguide/src/beyn_theorems_validations %
+Files written to: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/theorem_2_1_beyn_v5_sigma_validation
+(base) kevinsepulveda@Kevins-Mac-mini:~/Documents/waveguide/src/beyn_theorems_validations %

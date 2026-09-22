@@ -68,7 +68,8 @@ import csv
 import math
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from typing import Any
 from dataclasses import asdict, dataclass
 from functools import cache
 from pathlib import Path
@@ -100,8 +101,8 @@ class Config:
 
     # Same first experiment used for the x-symmetric case.
     epsilon_values: tuple[float, ...] = (
-        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
-        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+        0.02, 0.04, 0.06, 0.08, 0.10,
+        0.12, 0.14, 0.16, 0.18, 0.20,
     )
 
     # BEM / Green function.
@@ -110,7 +111,7 @@ class Config:
     finite_difference_step: float = 1.0e-6
 
     # Mesh refinement for the expected BIC branch.
-    refinement_M: tuple[int, ...] = (16, 24, 32, 40, 48)
+    refinement_M: tuple[int, ...] = (8, 16, 24, 32, 40)
 
     # Expected-mode search window in delta_2 = Lambda_2-k^2 = sigma^2.
     expected_delta_lower_factor: float = 0.20
@@ -1167,7 +1168,7 @@ def validate_epsilon(
     return result, refinement, scan, scan_values, additional
 
 
-def write_dataclass_csv(path: Path, rows: list[object]) -> None:
+def write_dataclass_csv(path: Path, rows: Sequence[Any]) -> None:
     if not rows:
         return
     dictionaries = [asdict(row) for row in rows]
@@ -1339,6 +1340,123 @@ def plot_summary(
     plt.close()
 
 
+def plot_kb_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper figure: Theorem 2.3(iv) branch at the paper mesh M=32."""
+    plt.figure(figsize=(8, 5))
+    for M in (32,):
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.plot(
+                [row.epsilon for row in rows],
+                [row.kb for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    kb_asym = np.array(
+        [asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps]
+    )
+    plt.plot(eps, kb_asym, "k--", linewidth=2.0, label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.title(r"Theorem 2.3(iv): y-symmetric BIC branch")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_kb_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_cutoff_gap_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper diagnostic: distance from the second transverse cutoff."""
+    plt.figure(figsize=(8, 5))
+    cutoff = kb_cutoff_2(config)
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.semilogy(
+                [row.epsilon for row in rows],
+                [max(cutoff - row.kb, 1.0e-30) for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    asym_gap = np.array(
+        [cutoff - asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps]
+    )
+    plt.semilogy(eps, asym_gap, "k--", linewidth=2.0, label="asymptotic")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$\sqrt{\Lambda_2}b-kb$")
+    plt.title(r"Theorem 2.3(iv): distance from the second cutoff")
+    plt.grid(True, which="both", linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_cutoff_gap_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_relative_sigma_error_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper diagnostic: asymptotic sigma error for every mesh size."""
+    plt.figure(figsize=(8, 5))
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            errors = []
+            for row in rows:
+                _, sigma_asym = asymptotic_prediction(row.epsilon, config)
+                errors.append(
+                    abs(row.sigma_bem - sigma_asym)
+                    / max(abs(sigma_asym), 1.0e-30)
+                )
+            plt.plot(
+                [row.epsilon for row in rows],
+                errors,
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    plt.axhline(
+        config.relative_sigma_error_tolerance,
+        color="k",
+        linestyle="--",
+        label="5% criterion",
+    )
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"relative error in $\sigma$")
+    plt.title(r"Theorem 2.3(iv): asymptotic error versus $\varepsilon$")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_relative_sigma_error_by_M.png", dpi=220)
+    plt.close()
+
+
 def print_result(result: ValidationResult, config: Config) -> None:
     max_prop = max(result.propagating_ratio_left, result.propagating_ratio_right)
     if result.yaxis_even_residual <= result.yaxis_odd_residual:
@@ -1465,6 +1583,9 @@ def main() -> None:
     write_dataclass_csv(output_directory / "mesh_refinement.csv", all_refinement)
     write_dataclass_csv(output_directory / "additional_candidates.csv", all_additional)
     plot_summary(summary, output_directory, config)
+    plot_kb_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_cutoff_gap_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_relative_sigma_error_by_M(all_refinement, config, output_directory)
 
     unique_passed = sum(row.unique_bic_verified for row in summary)
     asymptotic_passed = sum(row.asymptotic_agreement_verified for row in summary)

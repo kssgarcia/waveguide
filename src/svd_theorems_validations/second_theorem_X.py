@@ -53,15 +53,19 @@ Important:
 from __future__ import annotations
 
 import csv
+import io
 import math
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stdout
 from dataclasses import asdict, dataclass
 from functools import cache
 from pathlib import Path
+from typing import Any
 
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt  # pyright: ignore[reportMissingImports]
 import numpy as np
 from numpy.polynomial.legendre import leggauss
 from scipy.optimize import minimize_scalar
@@ -69,7 +73,7 @@ from scipy.optimize import minimize_scalar
 # Same project import convention used by the previous scripts.
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-import dipole_theorem as dip
+import dipole_theorem as dip  # pyright: ignore[reportMissingImports]
 import lattice_sums as lattice
 
 PI = np.pi
@@ -90,8 +94,8 @@ class Config:
 
     # Small, interpretable first experiment.
     epsilon_values: tuple[float, ...] = (
-        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
-        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+        0.02, 0.04, 0.06, 0.08, 0.10,
+        0.12, 0.14, 0.16, 0.18, 0.20,
     )
 
     # BEM / Green function.
@@ -99,8 +103,15 @@ class Config:
     harmonic_order: int = 20
     finite_difference_step: float = 1.0e-6
 
+    # Numerical evaluations are independent across epsilon cases.
+    parallel_workers: int = 4
+
+    # Conservative admissibility margin for the periodic Green-function
+    # expansion, including the far-field BIC projections.
+    green_radius_safety_factor: float = 0.999
+
     # Mesh refinement for the expected BIC branch.
-    refinement_M: tuple[int, ...] = (16, 24, 32, 40, 48)
+    refinement_M: tuple[int, ...] = (8, 16, 24, 32, 40)
 
     # Expected-mode search window in
     #   delta_2 = Lambda_2 - k^2 = sigma^2.
@@ -121,6 +132,7 @@ class Config:
     propagating_ratio_tolerance: float = 1.0e-2
     projection_x_over_b: float = 2.0
     projection_quadrature_points: int = 64
+    compute_propagation_diagnostics: bool = True
 
     # Symmetry / dipole check.
     geometry_symmetry_tolerance: float = 1.0e-12
@@ -334,6 +346,85 @@ def geometry_symmetry_residual(config: Config) -> tuple[float, float]:
     return x_even, y_odd
 
 
+def obstacle_vertical_extent(config: Config) -> float:
+    """Return the reference obstacle's maximum vertical extent."""
+    t = np.linspace(-PI, PI, 2049)
+    _, y, *_ = obstacle_geometry(t, 1.0, config)
+    return float(np.max(np.abs(y)))
+
+
+def green_radius_max(epsilon: float, config: Config) -> float:
+    """Bound every Green-function radius, including far-field projections."""
+    matrix_M = max((*config.refinement_M, config.uniqueness_scan_M, config.uniqueness_refine_M))
+    theta = boundary_nodes(matrix_M)
+    source_x, source_y, *_ = obstacle_geometry(theta, epsilon, config)
+
+    nodes, _ = leggauss(config.projection_quadrature_points)
+    projection_y = config.b * nodes
+    x_far = config.projection_x_over_b * config.b
+
+    field_x = np.concatenate(
+        (np.asarray(source_x, dtype=float),
+         np.full(projection_y.size, -x_far),
+         np.full(projection_y.size, x_far))
+    )
+    _, field_y, *_ = obstacle_geometry(theta, epsilon, config)
+    field_y = np.concatenate(
+        (np.asarray(field_y, dtype=float), projection_y, projection_y)
+    )
+
+    h = config.finite_difference_step
+    source_x = np.asarray(source_x, dtype=float)
+    source_y = np.asarray(source_y, dtype=float)
+    shifted_field_y = field_y + config.b + config.a
+    shifted_source_y = source_y + config.b + config.a
+    x_difference = np.abs(field_x[:, None] - source_x[None, :]) + h
+    y_sum = np.abs(shifted_field_y[:, None] + shifted_source_y[None, :]) + h
+    y_difference = np.abs(shifted_field_y[:, None] - shifted_source_y[None, :]) + h
+
+    radius_sum = np.hypot(x_difference, y_sum)
+    radius_difference = np.hypot(x_difference, y_difference)
+    return float(max(np.max(radius_sum), np.max(radius_difference)))
+
+
+def boundary_green_radius_max(epsilon: float, config: Config) -> float:
+    """Bound Green radii used by the BEM matrix only."""
+    matrix_M = max((*config.refinement_M, config.uniqueness_scan_M, config.uniqueness_refine_M))
+    theta = boundary_nodes(matrix_M)
+    x, y, *_ = obstacle_geometry(theta, epsilon, config)
+    h = config.finite_difference_step
+    x_difference = np.abs(x[:, None] - x[None, :]) + h
+    shifted_y = np.asarray(y, dtype=float) + config.b + config.a
+    y_sum = np.abs(shifted_y[:, None] + shifted_y[None, :]) + h
+    y_difference = np.abs(shifted_y[:, None] - shifted_y[None, :]) + h
+    return float(
+        max(
+            np.max(np.hypot(x_difference, y_sum)),
+            np.max(np.hypot(x_difference, y_difference)),
+        )
+    )
+
+
+def green_radius_upper(config: Config) -> float:
+    """Find a safe open epsilon limit for greens_periodic's radius test."""
+    vertical_extent = obstacle_vertical_extent(config)
+    geometry_upper = (config.b - abs(config.a)) / max(vertical_extent, 1.0e-30)
+    green_radius_limit = (
+        config.green_radius_safety_factor * 0.99 * (4.0 * config.b)
+    )
+    if geometry_upper <= 0.0 or green_radius_max(0.0, config) >= green_radius_limit:
+        return 0.0
+
+    lower, upper = 0.0, geometry_upper
+    for _ in range(60):
+        midpoint = 0.5 * (lower + upper)
+        if green_radius_max(midpoint, config) < green_radius_limit:
+            lower = midpoint
+        else:
+            upper = midpoint
+    return lower
+
+
 # ---------------------------------------------------------------------------
 # BEM assembly
 # ---------------------------------------------------------------------------
@@ -405,8 +496,14 @@ def weighted_normal_kernel(
     G: Callable[..., complex],
     G_regularized: Callable[..., complex],
 ) -> complex:
-    x, y, _, _, _, _ = obstacle_geometry(psi, epsilon, config)
-    xi, eta, xi_p, eta_p, xi_pp, eta_pp = obstacle_geometry(theta, epsilon, config)
+    x_raw, y_raw, _, _, _, _ = obstacle_geometry(psi, epsilon, config)
+    xi_raw, eta_raw, xi_p_raw, eta_p_raw, xi_pp_raw, eta_pp_raw = obstacle_geometry(
+        theta, epsilon, config
+    )
+    x, y = float(x_raw), float(y_raw)
+    xi, eta = float(xi_raw), float(eta_raw)
+    xi_p, eta_p = float(xi_p_raw), float(eta_p_raw)
+    xi_pp, eta_pp = float(xi_pp_raw), float(eta_pp_raw)
 
     w = float(np.hypot(xi_p, eta_p))
     h = config.finite_difference_step
@@ -660,7 +757,7 @@ def refine_expected_mode_for_M(
     left_value = smallest_singular_value(left, epsilon, M, config)
     right_value = smallest_singular_value(right, epsilon, M, config)
 
-    result = minimize_scalar(
+    result: Any = minimize_scalar(
         lambda kb: math.log10(
             max(smallest_singular_value(float(kb), epsilon, M, config), tiny)
         ),
@@ -684,13 +781,23 @@ def refine_expected_mode_for_M(
     interior = (kb > left + edge_margin) and (kb < right - edge_margin)
 
     odd_residual, even_residual = boundary_parity_residuals(boundary_vector)
-    propagation = first_propagating_component(
-        epsilon,
-        boundary_vector,
-        theta,
-        G,
-        config,
-    )
+    if config.compute_propagation_diagnostics:
+        propagation = first_propagating_component(
+            epsilon,
+            boundary_vector,
+            theta,
+            G,
+            config,
+        )
+    else:
+        propagation = {
+            "ratio_left": math.nan,
+            "ratio_right": math.nan,
+            "coefficient_left": math.nan,
+            "coefficient_right": math.nan,
+            "field_norm_left": math.nan,
+            "field_norm_right": math.nan,
+        }
 
     return (
         kb,
@@ -881,7 +988,7 @@ def refine_bracket_once(
     left_value = smallest_singular_value(left, epsilon, M, config)
     right_value = smallest_singular_value(right, epsilon, M, config)
 
-    result = minimize_scalar(
+    result: Any = minimize_scalar(
         lambda kb: math.log10(
             max(smallest_singular_value(float(kb), epsilon, M, config), tiny)
         ),
@@ -1001,6 +1108,73 @@ def whole_band_uniqueness_screen(
     return scan, values, additional
 
 
+def _validate_epsilon_worker(
+    payload: tuple[float, Config],
+) -> tuple[
+    float,
+    tuple[
+        ValidationResult,
+        list[RefinementRow],
+        np.ndarray,
+        np.ndarray,
+        list[AdditionalCandidate],
+    ],
+    str,
+]:
+    epsilon, config = payload
+    output = io.StringIO()
+    with redirect_stdout(output):
+        result = validate_epsilon(epsilon, config)
+    return epsilon, result, output.getvalue()
+
+
+def configure_parallel_environment() -> None:
+    """Prevent nested BLAS threads when using several worker processes."""
+    for variable in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "VECLIB_MAXIMUM_THREADS",
+        "NUMEXPR_NUM_THREADS",
+    ):
+        os.environ[variable] = "1"
+
+
+def run_parallel_validations(
+    epsilon_values: tuple[float, ...],
+    config: Config,
+) -> list[
+    tuple[
+        ValidationResult,
+        list[RefinementRow],
+        np.ndarray,
+        np.ndarray,
+        list[AdditionalCandidate],
+        str,
+    ]
+]:
+    results: dict[
+        float,
+        tuple[
+            ValidationResult,
+            list[RefinementRow],
+            np.ndarray,
+            np.ndarray,
+            list[AdditionalCandidate],
+            str,
+        ],
+    ] = {}
+    with ProcessPoolExecutor(max_workers=config.parallel_workers) as executor:
+        futures = [
+            executor.submit(_validate_epsilon_worker, (epsilon, config))
+            for epsilon in epsilon_values
+        ]
+        for future in as_completed(futures):
+            epsilon, packed, log = future.result()
+            results[epsilon] = (*packed, log)
+    return [results[epsilon] for epsilon in epsilon_values]
+
+
 # ---------------------------------------------------------------------------
 # Validation and reporting
 # ---------------------------------------------------------------------------
@@ -1089,7 +1263,7 @@ def validate_epsilon(
     return result, refinement, scan, scan_values, additional
 
 
-def write_dataclass_csv(path: Path, rows: list[object]) -> None:
+def write_dataclass_csv(path: Path, rows: Sequence[Any]) -> None:
     if not rows:
         return
     dictionaries = [asdict(row) for row in rows]
@@ -1213,9 +1387,23 @@ def plot_summary(
         ]
     )
 
+    branch_color = plt.get_cmap("tab10")(0)
+
     plt.figure(figsize=(7, 4.5))
-    plt.plot(eps, kb_num, "o-", label=r"$kb_{\mathrm{BEM}}$")
-    plt.plot(eps, kb_asym, "s--", label=r"$kb_{\mathrm{asym}}$")
+    plt.plot(
+        eps,
+        kb_num,
+        "o-",
+        color=branch_color,
+        label=r"$kb_{\mathrm{BEM}}$",
+    )
+    plt.plot(
+        eps,
+        kb_asym,
+        "s--",
+        color=branch_color,
+        label=r"$kb_{\mathrm{asym}}$",
+    )
     plt.xlabel(r"$\varepsilon$")
     plt.ylabel(r"$kb$")
     plt.legend()
@@ -1224,8 +1412,20 @@ def plot_summary(
     plt.close()
 
     plt.figure(figsize=(7, 4.5))
-    plt.plot(eps, sigma_num, "o-", label=r"$\sigma_{\mathrm{BEM}}$")
-    plt.plot(eps, sigma_asym, "s--", label=r"$\sigma_{\mathrm{asym}}$")
+    plt.plot(
+        eps,
+        sigma_num,
+        "o-",
+        color=branch_color,
+        label=r"$\sigma_{\mathrm{BEM}}$",
+    )
+    plt.plot(
+        eps,
+        sigma_asym,
+        "s--",
+        color=branch_color,
+        label=r"$\sigma_{\mathrm{asym}}$",
+    )
     plt.xlabel(r"$\varepsilon$")
     plt.ylabel(r"$\sigma$")
     plt.legend()
@@ -1260,6 +1460,151 @@ def plot_summary(
     plt.tight_layout()
     plt.savefig(output_directory / "propagating_fraction.png", dpi=180)
     plt.close()
+
+
+def plot_kb_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper figure: BIC branch at the paper mesh M=32."""
+    plt.figure(figsize=(8, 5))
+    for M in (32,):
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.plot(
+                [row.epsilon for row in rows],
+                [row.kb for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    kb_asym = np.array(
+        [asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps]
+    )
+    plt.plot(eps, kb_asym, "k--", linewidth=2.0, label=r"$kb_{\mathrm{asym}}$")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.title(r"Theorem 2.3(iii): BIC branch versus $\varepsilon$")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_kb_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_cutoff_gap_vs_epsilon_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper diagnostic: distance from the second transverse cutoff."""
+    plt.figure(figsize=(8, 5))
+    cutoff = kb_cutoff_2(config)
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            plt.semilogy(
+                [row.epsilon for row in rows],
+                [max(cutoff - row.kb, 1.0e-30) for row in rows],
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    eps = np.array(sorted({row.epsilon for row in refinement_rows}), dtype=float)
+    asym_gap = np.array(
+        [cutoff - asymptotic_prediction(float(eps_i), config)[0] for eps_i in eps]
+    )
+    plt.semilogy(eps, asym_gap, "k--", linewidth=2.0, label=r"asymptotic")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$\sqrt{\Lambda_2}b-kb$")
+    plt.title(r"Distance from the second cutoff")
+    plt.grid(True, which="both", linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_cutoff_gap_vs_epsilon_by_M.png", dpi=220)
+    plt.close()
+
+
+def plot_relative_sigma_error_by_M(
+    refinement_rows: list[RefinementRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    """Paper diagnostic: relative asymptotic error by mesh size."""
+    plt.figure(figsize=(8, 5))
+    for M in config.refinement_M:
+        rows = sorted(
+            (row for row in refinement_rows if row.M == M),
+            key=lambda row: row.epsilon,
+        )
+        if rows:
+            errors = []
+            for row in rows:
+                _, sigma_asym = asymptotic_prediction(row.epsilon, config)
+                errors.append(
+                    abs(row.sigma_bem - sigma_asym)
+                    / max(abs(sigma_asym), 1.0e-30)
+                )
+            plt.plot(
+                [row.epsilon for row in rows],
+                errors,
+                "o-",
+                markersize=4,
+                label=fr"$M={M}$",
+            )
+
+    plt.axhline(
+        config.relative_sigma_error_tolerance,
+        color="k",
+        linestyle="--",
+        label="5% criterion",
+    )
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"relative error in $\sigma$")
+    plt.title(r"BIC asymptotic error versus $\varepsilon$")
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_directory / "paper_relative_sigma_error_by_M.png", dpi=220)
+    plt.close()
+
+
+def write_paper_refinement_csv(
+    path: Path,
+    refinement_rows: list[RefinementRow],
+    config: Config,
+) -> None:
+    rows = []
+    for row in refinement_rows:
+        kb_asym, sigma_asym = asymptotic_prediction(row.epsilon, config)
+        rows.append(
+            {
+                **asdict(row),
+                "kb_asymptotic": kb_asym,
+                "sigma_asymptotic": sigma_asym,
+                "cutoff_gap_bem": kb_cutoff_2(config) - row.kb,
+                "cutoff_gap_asymptotic": kb_cutoff_2(config) - kb_asym,
+                "relative_error_kb": abs(row.kb - kb_asym) / max(abs(kb_asym), 1.0e-30),
+                "relative_error_sigma": abs(row.sigma_bem - sigma_asym)
+                / max(abs(sigma_asym), 1.0e-30),
+            }
+        )
+    if not rows:
+        return
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+        writer.writeheader()
+        writer.writerows(rows)
 
 
 def print_result(result: ValidationResult, config: Config) -> None:
@@ -1334,6 +1679,13 @@ def main() -> None:
     print(f"sqrt(Lambda_2) b = {kb_cutoff_2(config):.12f}")
     print(f"epsilons = {config.epsilon_values}")
     print(f"refinement M = {config.refinement_M}")
+    green_upper = green_radius_upper(config)
+    print(f"safe Green-function epsilon upper bound = {green_upper:.12f}")
+    if max(config.epsilon_values) >= green_upper:
+        raise RuntimeError(
+            "The selected epsilon range violates the periodic Green-function "
+            "radius admissibility bound."
+        )
 
     if not symmetry_ok:
         raise RuntimeError(
@@ -1344,18 +1696,23 @@ def main() -> None:
     all_refinement: list[RefinementRow] = []
     all_additional: list[AdditionalCandidate] = []
 
-    for epsilon in config.epsilon_values:
+    configure_parallel_environment()
+    print(
+        f"Running {len(config.epsilon_values)} validation cases with "
+        f"{config.parallel_workers} worker processes."
+    )
+    parallel_results = run_parallel_validations(config.epsilon_values, config)
+    for epsilon, packed in zip(config.epsilon_values, parallel_results, strict=True):
+        result, refinement, scan, scan_values, additional, worker_log = packed
         print(f"\n=== epsilon={epsilon:.3f} ===")
         kb_asym, sigma_asym = asymptotic_prediction(epsilon, config)
         print(f"  predicted kb = {kb_asym:.12f}")
         print(f"  predicted sigma = {sigma_asym:.8e}")
         print(
-            f"  predicted kb gap to sqrt(Lambda_2) = {kb_cutoff_2(config) - kb_asym:.3e}"
+            f"  predicted kb gap to sqrt(Lambda_2) = "
+            f"{kb_cutoff_2(config) - kb_asym:.3e}"
         )
-
-        result, refinement, scan, scan_values, additional = validate_epsilon(
-            epsilon, config
-        )
+        print(worker_log, end="")
 
         summary.append(result)
         all_refinement.extend(refinement)
@@ -1368,7 +1725,13 @@ def main() -> None:
     write_dataclass_csv(output_directory / "summary.csv", summary)
     write_dataclass_csv(output_directory / "mesh_refinement.csv", all_refinement)
     write_dataclass_csv(output_directory / "additional_candidates.csv", all_additional)
+    write_paper_refinement_csv(
+        output_directory / "paper_kb_vs_epsilon.csv", all_refinement, config
+    )
     plot_summary(summary, output_directory, config)
+    plot_kb_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_cutoff_gap_vs_epsilon_by_M(all_refinement, config, output_directory)
+    plot_relative_sigma_error_by_M(all_refinement, config, output_directory)
 
     unique_passed = sum(row.unique_bic_verified for row in summary)
     asymptotic_passed = sum(row.asymptotic_agreement_verified for row in summary)

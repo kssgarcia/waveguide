@@ -1,13 +1,33 @@
 from __future__ import annotations
 
 import csv
+import io
 import math
+import multiprocessing as mp
 import os
 import sys
 from collections.abc import Callable
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 
+# The paper sweep uses process-level parallelism.  Keep each worker's BLAS
+# implementation single-threaded so 4-7 worker processes do not each spawn
+# their own full CPU thread pool (oversubscription is especially costly on macOS).
+for _thread_env in (
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "NUMEXPR_NUM_THREADS",
+    "VECLIB_MAXIMUM_THREADS",
+    "BLAS_NUM_THREADS",
+):
+    os.environ[_thread_env] = "1"
+os.environ["OMP_DYNAMIC"] = "FALSE"
+
+import matplotlib
+matplotlib.use("Agg")  # non-interactive, multiprocessing-safe backend on macOS
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.polynomial.legendre import leggauss
@@ -26,9 +46,13 @@ class Config:
     b: float = 1.0
     a: float = 0.6
     epsilon_values: tuple[float, ...] = (
-        0.01, 0.03111111, 0.05222222, 0.07333333, 0.09444444,
-        0.11555556, 0.13666667, 0.15777778, 0.17888889, 0.2,
+        0.02, 0.04, 0.06, 0.08, 0.10,
+        0.12, 0.14, 0.16, 0.18, 0.20,
     )
+
+    # Run the single-geometry baseline at a=0.6 for the ten epsilon values
+    # through 0.20, independently of the multi-a paper sweep below.
+    run_main_epsilon_validation: bool = True
 
     # Green function / BEM.
     lattice_terms: int = 200
@@ -38,10 +62,10 @@ class Config:
     # Internal numerical-convergence diagnostics. These do NOT alter the main
     # mathematical discretization; they probe sensitivity to implementation
     # parameters at one representative epsilon.
-    run_internal_convergence_study: bool = True
+    run_internal_convergence_study: bool = False
     internal_convergence_epsilon: float = 0.09
     internal_convergence_M: int = 32
-    internal_refine_half_width: float = 7.5e-5
+    internal_sigma_bracket_factor: float = 1.15
     finite_difference_steps_test: tuple[float, ...] = (3.0e-6, 1.0e-6, 3.0e-7)
     lattice_terms_test: tuple[int, ...] = (100, 200, 300)
     harmonic_orders_test: tuple[int, ...] = (12, 20, 28)
@@ -122,17 +146,31 @@ class Config:
     beyn_enable_aitken_seed: bool = True
     beyn_aitken_require_contracting_shifts: bool = True
 
-    # Only a discovery diagnostic: how much the final Beyn candidate is allowed
-    # to move between the last two quadrature levels before we flag slow contour
-    # convergence. Local SVD refinement is still the final position estimate.
+    # Discovery diagnostics.  The raw candidate position and the contour moment
+    # S0 may converge slowly when the contour approaches Lambda_1.  These are
+    # warnings, not local eigenvalue-certification criteria.
     beyn_candidate_convergence_tolerance: float = 2.0e-4
+    beyn_s0_change_warning_tolerance: float = 0.15
 
     # ------------------------------------------------------------------
     # Local SVD verification of each Beyn-discovered candidate.
     # ------------------------------------------------------------------
     refinement_M: tuple[int, ...] = (16, 24, 32, 40, 48)
-    local_refine_half_width: float = 2.0e-3
-    minimizer_xatol: float = 2.0e-10
+
+    # IMPORTANT: local refinement is performed in sigma rather than in kb:
+    #
+    #     k^2 = Lambda_1 - sigma^2.
+    #
+    # Near the first cutoff, kb_cutoff-kb = O(sigma^2), so optimizing directly
+    # in kb becomes increasingly ill-scaled as epsilon -> 0.  Sigma is the
+    # natural variable of Theorem 2.1 and remains O(epsilon^2).
+    local_sigma_seed_bracket_factor: float = 4.0
+    local_sigma_min_fraction_of_cutoff: float = 1.0e-8
+    local_sigma_max_fraction_of_cutoff: float = 0.50
+    local_sigma_scan_points: int = 96
+    local_sigma_scan_M: int = 16
+    local_sigma_edge_margin_fraction: float = 0.002
+    minimizer_sigma_xatol: float = 1.0e-12
 
     minimum_drop_factor: float = 100.0
     # Retained as a descriptive diagnostic only.  Certification is based on
@@ -144,17 +182,22 @@ class Config:
     # Asymptotic accuracy is intentionally separate from mode existence.
     relative_sigma_error_tolerance: float = 0.05
 
-    # Physical trapped-mode diagnostics.  These are independent of the SVD
-    # search: reconstruct the field, verify wall Dirichlet values, estimate the
-    # obstacle Neumann residual, and check exponential decay away from the
-    # obstacle.  They are reported separately from spectral certification.
+    # Physical / independent diagnostics.  These are reported separately from
+    # spectral certification.
+    #
+    # NOTE: the old one-sided finite-difference "Neumann residual" has been
+    # removed.  The normal derivative of a double-layer potential is
+    # hypersingular on the boundary, so evaluating it with ordinary near-
+    # boundary quadrature produced the spurious ~2*pi residual seen in v4.
+    #
+    # Instead we test the boundary integral equation at off-grid collocation
+    # points, plus wall Dirichlet values and exponential decay.
     run_physical_diagnostics: bool = True
     physical_quadrature_points: int = 80
     physical_x_over_b: tuple[float, ...] = (1.5, 2.0, 2.5, 3.0)
-    physical_neumann_samples: int = 24
-    physical_neumann_offset_fraction_of_epsilon: float = 0.04
+    physical_boundary_residual_samples: int = 96
     physical_wall_relative_tolerance: float = 1.0e-6
-    physical_neumann_relative_tolerance: float = 5.0e-2
+    physical_boundary_residual_tolerance: float = 5.0e-3
     physical_decay_relative_tolerance: float = 0.20
 
     # Full theorem-side diagnostic for the critical height a*.  This is costly
@@ -166,7 +209,65 @@ class Config:
     critical_height_half_width: float = 0.12
     critical_height_bisection_iterations: int = 5
 
-    output_directory: str = "theorem_2_1_beyn_v4_full_validation"
+    # ------------------------------------------------------------------
+    # Paper sweep in obstacle height a.
+    # ------------------------------------------------------------------
+    # This sweep deliberately crosses the leading critical value a0*.  Values
+    # below a0* test the non-existence side; values above a0* generate the
+    # kb(epsilon) branches used in the paper figures.  The plotted BEM value is
+    # always taken at one fixed discretization M=32, as requested.  The main
+    # validation above still retains the full multi-M refinement study.
+    run_paper_a_sweep: bool = True
+    paper_a_values: tuple[float, ...] = (
+        0.35, 0.50, 0.55, 0.60, 0.65, 0.70,
+    )
+    # Fixed candidate grid for the multi-a sweep.  Each geometry keeps only
+    # the admissible prefix; the grid itself is never regenerated per a.
+    paper_epsilon_values: tuple[float, ...] = (
+        0.020000, 0.045263, 0.070526, 0.095789, 0.121053,
+        0.146316, 0.171579, 0.196842, 0.222105, 0.247368,
+        0.272632, 0.297895, 0.323158, 0.348421, 0.373684,
+        0.398947, 0.424211, 0.449474, 0.474737, 0.500000,
+    )
+    paper_M: int = 32
+    paper_plot_dpi: int = 220
+
+    # Parallel paper production.  max_workers=0 means automatic: use 50% of the
+    # CPUs visible to the process and leave the other half available to macOS.
+    # A standard 10-core M4 therefore uses 5 worker processes; an M4 Pro adapts
+    # automatically to its own core count.
+    paper_parallel: bool = True
+    paper_cpu_fraction: float = 0.50
+    paper_max_workers: int = 0
+    paper_worker_quiet: bool = True
+
+    # If the paper sweep CSV already exists and contains exactly the configured
+    # (a, epsilon) grid, reuse it instead of recomputing all expensive BEM/Beyn
+    # points.  This is especially useful if plotting fails after the numerical
+    # sweep has already completed.
+    paper_reuse_existing_csv: bool = True
+
+    # The paper sweep deliberately uses a cheaper discovery policy than the full
+    # certification run.  Each (a,epsilon) point is independent and M=32 is the
+    # single plotted BEM order.
+    paper_search_quadrature: int = 384
+    paper_verify_quadrature: int = 192
+    paper_escalation_quadrature: int = 768
+
+    # IMPORTANT: these margin ladders are NUMERICAL and do not use the asymptotic
+    # prediction to place the Beyn contour.  Supercritical cases approach the
+    # cutoff only as needed.  Subcritical cases intentionally stop at 1e-5:
+    # pushing an empty contour to 1e-10 created the threshold artefacts/rank=8
+    # seen in the previous hours-long run.
+    paper_supercritical_cutoff_margins: tuple[float, ...] = (
+        1.0e-5, 3.0e-6, 1.0e-6, 3.0e-7, 1.0e-7,
+        3.0e-8, 1.0e-8, 3.0e-9, 1.0e-9, 3.0e-10, 1.0e-10,
+    )
+    paper_subcritical_cutoff_margins: tuple[float, ...] = (
+        1.0e-3, 1.0e-4, 1.0e-5,
+    )
+
+    output_directory: str = "theorem_2_1_beyn_v6_parallel_paper"
 
 
 @dataclass
@@ -275,7 +376,7 @@ class PhysicalDiagnostics:
     kb: float
     M: int
     wall_relative_residual: float
-    neumann_relative_residual: float
+    boundary_integral_relative_residual: float
     decay_rate_left: float
     decay_rate_right: float
     expected_decay_rate: float
@@ -284,7 +385,7 @@ class PhysicalDiagnostics:
     monotone_decay_left: bool
     monotone_decay_right: bool
     walls_verified: bool
-    neumann_verified: bool
+    boundary_integral_verified: bool
     decay_verified: bool
 
 
@@ -313,6 +414,30 @@ class CriticalHeightRow:
 
 
 @dataclass
+class PaperSweepRow:
+    a: float
+    epsilon: float
+    M: int
+    status: str  # zero | one | ambiguous | invalid-geometry | error
+    beyn_rank: int
+    beyn_rank_stable: bool
+    tighter_margin_rank_consistent: bool
+    local_mode_count: int
+    kb: float
+    sigma_bem: float
+    relative_singular_value: float
+    drop_factor: float
+    minimum_is_interior: bool
+    asymptotic_prediction_valid: bool
+    kb_asymptotic: float
+    sigma_asymptotic: float
+    asymptotic_coefficient: float
+    cutoff_margin_used: float = math.nan
+    beyn_quadrature_points: int = 0
+    geometry_reason: str = "ok"
+
+
+@dataclass
 class ValidationResult:
     epsilon: float
     a: float
@@ -326,6 +451,7 @@ class ValidationResult:
     beyn_final_quadrature_points: int
     beyn_estimated_rank: int
     beyn_rank_stable: bool
+    beyn_final_s0_relative_change: float
     beyn_near_real_candidates: int
     local_refinement_seed_count: int
     local_refinement_seed_source: str
@@ -345,13 +471,84 @@ class ValidationResult:
     unique_mode_verified: bool
     asymptotic_agreement_verified: bool | None
     wall_relative_residual: float
-    neumann_relative_residual: float
+    boundary_integral_relative_residual: float
     decay_rate_left: float
     decay_rate_right: float
+    physical_boundary_integral_verified: bool | None
     physical_decay_verified: bool | None
 
 
 CONFIG = Config()
+
+
+# ---------------------------------------------------------------------------
+# Runtime / geometry helpers
+# ---------------------------------------------------------------------------
+
+
+def detected_cpu_count() -> int:
+    """Number of CPUs available to this process (portable fallback for macOS)."""
+    try:
+        # Linux/container affinity when available.  macOS normally falls back
+        # to os.cpu_count().
+        affinity = os.sched_getaffinity(0)  # type: ignore[attr-defined]
+        if affinity:
+            return max(1, len(affinity))
+    except (AttributeError, OSError):
+        pass
+    return max(1, int(os.cpu_count() or 1))
+
+
+def paper_worker_count(config: Config) -> int:
+    available = detected_cpu_count()
+    if config.paper_max_workers > 0:
+        return max(1, min(int(config.paper_max_workers), available))
+    fraction = min(max(float(config.paper_cpu_fraction), 0.05), 1.0)
+    return max(1, min(available, int(math.floor(available * fraction))))
+
+
+def geometry_admissibility(
+    epsilon: float,
+    a: float,
+    config: Config,
+) -> tuple[bool, str, float, float]:
+    """Check both wall clearance and the lattice Green-series radius bound.
+
+    For a circle of radius epsilon centred at y=a in the physical strip
+    -b<y<b, wall clearance requires |a|+epsilon<b.
+
+    greens_dirichlet ultimately calls greens_periodic(..., d=4*b), whose local
+    cylindrical series requires r<=0.99*d.  The image term has the conservative
+    bound
+
+        |X| <= 2 epsilon,
+        |Y_image| <= 2(|b+a|+epsilon).
+
+    We reject a paper point before any expensive solve if this sufficient bound
+    violates the Green representation's admissible disk.
+    """
+    b = float(config.b)
+    epsilon = float(epsilon)
+    a = float(a)
+
+    if epsilon <= 0.0:
+        return False, "epsilon must be positive", math.nan, math.nan
+    if abs(a) + epsilon >= b:
+        return False, "obstacle intersects/touches a waveguide wall", math.nan, math.nan
+
+    periodic_d = 4.0 * b
+    green_limit = 0.99 * periodic_d
+    max_dx = 2.0 * epsilon
+    max_image_dy = 2.0 * (abs(b + a) + epsilon)
+    max_r = math.hypot(max_dx, max_image_dy)
+    if max_r > green_limit:
+        return (
+            False,
+            f"Green-series radius bound exceeded: r_max={max_r:.6g} > {green_limit:.6g}",
+            max_r,
+            green_limit,
+        )
+    return True, "ok", max_r, green_limit
 
 
 # ---------------------------------------------------------------------------
@@ -436,10 +633,86 @@ def asymptotic_prediction(epsilon: float, config: Config) -> tuple[float, float]
     return math.sqrt(k_squared) * config.b, sigma
 
 
+def safe_asymptotic_prediction(
+    epsilon: float,
+    config: Config,
+) -> tuple[bool, float, float, float]:
+    """
+    Return (valid, kb_asymptotic, sigma_asymptotic, coefficient).
+
+    For a <= a0* the leading coefficient is non-positive, so Theorem 2.1 does
+    not predict a positive discrete trapped-mode branch below Lambda_1.  In
+    that regime the asymptotic kb curve is intentionally left undefined rather
+    than plotting an unphysical value.
+    """
+    coefficient = asymptotic_coefficient(config)
+    if coefficient <= 0.0:
+        return False, math.nan, math.nan, coefficient
+
+    sigma = coefficient * epsilon**2
+    k_squared = lambda_1(config) - sigma**2
+    if sigma <= 0.0 or k_squared <= 0.0:
+        return False, math.nan, math.nan, coefficient
+
+    return True, math.sqrt(k_squared) * config.b, sigma, coefficient
+
+
 def sigma_from_kb(kb: float, config: Config) -> float:
-    k = kb / config.b
-    gap = lambda_1(config) - k**2
-    return math.sqrt(max(gap, 0.0))
+    """Stable conversion from dimensionless kb to sigma.
+
+    Using
+        sigma^2 = (k_c-k)(k_c+k)
+    avoids subtracting two nearly equal squared quantities when kb is extremely
+    close to the first cutoff.
+    """
+    cutoff_kb = kb_cutoff(config)
+    if kb >= cutoff_kb:
+        return 0.0
+    gap_kb_squared = max(
+        (cutoff_kb - float(kb)) * (cutoff_kb + float(kb)),
+        0.0,
+    )
+    return math.sqrt(gap_kb_squared) / config.b
+
+
+def kb_from_sigma(sigma: float, config: Config) -> float:
+    """Map sigma>0 to the discrete-band spectral variable kb.
+
+    k^2 = Lambda_1 - sigma^2, so
+        kb = b*sqrt(Lambda_1-sigma^2).
+
+    This is the natural local-refinement parametrization near Lambda_1.
+    """
+    sigma = float(sigma)
+    if sigma < 0.0:
+        raise ValueError("sigma must be non-negative")
+    cutoff_kb = kb_cutoff(config)
+    sigma_b = sigma * config.b
+    radicand = cutoff_kb**2 - sigma_b**2
+    if radicand <= 0.0:
+        return 0.0
+    root = math.sqrt(radicand)
+
+    # Rationalized form for the tiny cutoff gap:
+    # cutoff_kb - kb = sigma_b^2/(cutoff_kb + kb).
+    gap = sigma_b**2 / max(cutoff_kb + root, np.finfo(float).tiny)
+    return cutoff_kb - gap
+
+
+def sigma_search_limits(config: Config) -> tuple[float, float]:
+    """Global local-refinement window in sigma, independent of the asymptotic value."""
+    sigma_cutoff = math.sqrt(lambda_1(config))
+    lower = max(
+        config.local_sigma_min_fraction_of_cutoff * sigma_cutoff,
+        100.0 * np.finfo(float).eps * sigma_cutoff,
+    )
+    upper = min(
+        config.local_sigma_max_fraction_of_cutoff * sigma_cutoff,
+        sigma_from_kb(config.beyn_low_k_margin, config),
+    )
+    if not 0.0 < lower < upper:
+        raise ValueError("Invalid local sigma search limits.")
+    return float(lower), float(upper)
 
 
 # ---------------------------------------------------------------------------
@@ -1221,84 +1494,236 @@ def run_beyn_convergence_study(
 
 
 # ---------------------------------------------------------------------------
-# Local real-axis verification of Beyn candidates
+# Local verification of Beyn candidates in the natural sigma variable
 # ---------------------------------------------------------------------------
 
 
-def candidate_brackets(
+def relative_singular_value_from_sigma(
+    sigma: float,
+    epsilon: float,
+    M: int,
+    config: Config,
+) -> float:
+    """Scale-invariant local objective expressed in sigma."""
+    kb = kb_from_sigma(float(sigma), config)
+    if not (config.beyn_low_k_margin < kb < kb_cutoff(config)):
+        return math.inf
+    return singular_metrics(kb, epsilon, M, config)[2]
+
+
+def absolute_singular_value_from_sigma(
+    sigma: float,
+    epsilon: float,
+    M: int,
+    config: Config,
+) -> float:
+    """Absolute local singularity objective sigma_min(A), expressed in sigma."""
+    kb = kb_from_sigma(float(sigma), config)
+    if not (config.beyn_low_k_margin < kb < kb_cutoff(config)):
+        return math.inf
+    return singular_metrics(kb, epsilon, M, config)[0]
+
+
+def contour_sigma_lower_bound(config: Config) -> float:
+    """Smallest sigma represented INSIDE the current Beyn contour real span."""
+    _, right, _, _, _ = contour_geometry(config)
+    sigma_right_endpoint = sigma_from_kb(right, config)
+    global_lower, _ = sigma_search_limits(config)
+    # Move a tiny amount into the contour so floating-point roundoff cannot map
+    # the local optimizer back onto/above the cutoff endpoint.
+    return max(global_lower, sigma_right_endpoint * (1.0 + 1.0e-8))
+
+
+def candidate_sigma_tasks(
     seeds: list[DiscoverySeed],
     config: Config,
-) -> list[tuple[float, float]]:
-    """Build non-overlapping real-axis SVD brackets around discovery seeds."""
+) -> list[tuple[DiscoverySeed, tuple[float, float]]]:
+    """
+    Convert kb discovery seeds to non-overlapping sigma brackets.
+
+    The brackets are deliberately multiplicative because sigma spans several
+    orders of magnitude in the small-obstacle regime.  The asymptotic formula
+    is NOT used to choose the bracket.
+    """
     if not seeds:
         return []
 
-    left_band = config.beyn_low_k_margin
-    right_band = kb_cutoff(config) - config.beyn_cutoff_margin
-    tiny = max(1.0e-12, 1.0e-8 * (right_band - left_band))
+    sigma_lower_global, sigma_upper_global = sigma_search_limits(config)
+    sigma_lower_global = max(sigma_lower_global, contour_sigma_lower_bound(config))
+    factor = max(float(config.local_sigma_seed_bracket_factor), 1.01)
 
-    xs_raw = np.array([seed.real for seed in seeds], dtype=float)
-    # A near-contour fallback can sit microscopically outside the contour real
-    # span because of quadrature error. Clamp only the *bracket center*; the raw
-    # value remains reported unchanged and SVD must certify the actual minimum.
-    xs = np.clip(xs_raw, left_band + tiny, right_band - tiny)
+    seed_sigma_pairs: list[tuple[DiscoverySeed, float]] = []
+    cutoff = kb_cutoff(config)
+    for seed in seeds:
+        if not (0.0 < seed.real < cutoff):
+            continue
+        sigma_seed = sigma_from_kb(seed.real, config)
+        if sigma_seed <= sigma_lower_global:
+            continue
+        seed_sigma_pairs.append((seed, sigma_seed))
 
-    brackets: list[tuple[float, float]] = []
-    for i, x in enumerate(xs):
-        neighbor_left = 0.5 * (xs[i - 1] + x) if i > 0 else left_band
-        neighbor_right = 0.5 * (x + xs[i + 1]) if i + 1 < len(xs) else right_band
+    if not seed_sigma_pairs:
+        return []
 
-        left = max(left_band, neighbor_left, x - config.local_refine_half_width)
-        right = min(right_band, neighbor_right, x + config.local_refine_half_width)
+    seed_sigma_pairs.sort(key=lambda item: item[1])
+    tasks: list[tuple[DiscoverySeed, tuple[float, float]]] = []
+    for i, (seed, sigma_seed) in enumerate(seed_sigma_pairs):
+        neighbour_left = (
+            math.sqrt(seed_sigma_pairs[i - 1][1] * sigma_seed)
+            if i > 0
+            else sigma_lower_global
+        )
+        neighbour_right = (
+            math.sqrt(sigma_seed * seed_sigma_pairs[i + 1][1])
+            if i + 1 < len(seed_sigma_pairs)
+            else sigma_upper_global
+        )
 
-        if not left < right:
-            raise RuntimeError(
-                f"Could not build local bracket around discovery seed kb={xs_raw[i]}."
-            )
-        brackets.append((float(left), float(right)))
+        left = max(
+            sigma_lower_global,
+            neighbour_left,
+            sigma_seed / factor,
+        )
+        right = min(
+            sigma_upper_global,
+            neighbour_right,
+            sigma_seed * factor,
+        )
+        if left < right:
+            tasks.append((seed, (float(left), float(right))))
 
-    return brackets
+    return tasks
+
+
+def sigma_scan_fallback_task(
+    epsilon: float,
+    config: Config,
+) -> tuple[DiscoverySeed, tuple[float, float]] | None:
+    """Theory-independent fallback based on an ABSOLUTE sigma_min valley.
+
+    Two safeguards prevent the old false attraction to sigma->0:
+      1) the scan starts at the sigma corresponding to the Beyn contour's right
+         endpoint, so it cannot search outside the region Beyn actually counted;
+      2) localization uses sigma_min(A), not sigma_min/sigma_max.  The relative
+         ratio is retained later only as a scale-invariant certification metric.
+    """
+    lower_global, upper = sigma_search_limits(config)
+    lower = max(lower_global, contour_sigma_lower_bound(config))
+    if not (0.0 < lower < upper):
+        return None
+
+    points = max(int(config.local_sigma_scan_points), 12)
+    sigmas = np.geomspace(lower, upper, points)
+    M = int(config.local_sigma_scan_M)
+    values = np.array(
+        [
+            absolute_singular_value_from_sigma(float(sig), epsilon, M, config)
+            for sig in sigmas
+        ],
+        dtype=float,
+    )
+
+    finite = np.isfinite(values)
+    if np.count_nonzero(finite) < 3:
+        return None
+
+    local_minima = [
+        i
+        for i in range(1, len(sigmas) - 1)
+        if np.isfinite(values[i])
+        and values[i] < values[i - 1]
+        and values[i] < values[i + 1]
+    ]
+    if not local_minima:
+        print(
+            "  sigma-scan fallback found no interior absolute sigma_min valley; "
+            "no local seed created."
+        )
+        return None
+
+    index = min(local_minima, key=lambda i: values[i])
+    left = float(sigmas[index - 1])
+    right = float(sigmas[index + 1])
+    sigma_seed = float(sigmas[index])
+    kb_seed = kb_from_sigma(sigma_seed, config)
+    neighbour_level = min(values[index - 1], values[index + 1])
+    scan_drop = neighbour_level / max(values[index], np.finfo(float).tiny)
+    print(
+        "  sigma-scan fallback seed: "
+        f"sigma={sigma_seed:.8e}, kb={kb_seed:.12f}, "
+        f"sv_min={values[index]:.3e}, local_scan_drop={scan_drop:.2e}, "
+        f"sigma_bracket=[{left:.3e}, {right:.3e}]"
+    )
+    return (
+        DiscoverySeed(real=kb_seed, imag=0.0, source="sigma-scan"),
+        (left, right),
+    )
 
 
 def refine_candidate_for_M(
     epsilon: float,
     M: int,
-    left: float,
-    right: float,
+    sigma_left: float,
+    sigma_right: float,
     config: Config,
-) -> tuple[float, float, float, float, float, float, float, bool]:
+) -> tuple[float, float, float, float, float, float, float, float, bool]:
+    """Refine one candidate by minimizing ABSOLUTE sigma_min(A) in sigma.
+
+    The returned relative singular value sigma_min/sigma_max is still used for
+    certification.  Using the absolute sigma_min for localization avoids the
+    threshold artefact where sigma_max grows and makes the ratio look tiny even
+    though A is not actually close to singular.
+    """
     tiny = np.finfo(float).tiny
 
-    left_value = smallest_singular_value(left, epsilon, M, config)
-    right_value = smallest_singular_value(right, epsilon, M, config)
+    left_absolute = absolute_singular_value_from_sigma(
+        sigma_left, epsilon, M, config
+    )
+    right_absolute = absolute_singular_value_from_sigma(
+        sigma_right, epsilon, M, config
+    )
 
     result = minimize_scalar(
-        lambda kb: math.log10(
-            max(smallest_singular_value(float(kb), epsilon, M, config), tiny)
+        lambda sigma: math.log10(
+            max(
+                absolute_singular_value_from_sigma(
+                    float(sigma), epsilon, M, config
+                ),
+                tiny,
+            )
         ),
-        bounds=(left, right),
+        bounds=(sigma_left, sigma_right),
         method="bounded",
-        options={"xatol": config.minimizer_xatol},
+        options={"xatol": config.minimizer_sigma_xatol},
     )
     if not result.success:
         raise RuntimeError(
-            f"Local SVD refinement failed for epsilon={epsilon}, M={M}: {result.message}"
+            f"Local sigma-SVD refinement failed for epsilon={epsilon}, M={M}: "
+            f"{result.message}"
         )
 
-    kb = float(result.x)
-    sigma_min, sigma_max, relative_sv = singular_metrics(kb, epsilon, M, config)
-    drop = min(left_value, right_value) / max(sigma_min, tiny)
+    sigma_bem = float(result.x)
+    kb = kb_from_sigma(sigma_bem, config)
+    sigma_min, sigma_max, relative_sv = singular_metrics(
+        kb, epsilon, M, config
+    )
+    drop = min(left_absolute, right_absolute) / max(sigma_min, tiny)
 
-    width = right - left
-    edge_margin = 0.005 * width
-    interior = (kb > left + edge_margin) and (kb < right - edge_margin)
+    width = sigma_right - sigma_left
+    edge_margin = config.local_sigma_edge_margin_fraction * width
+    interior = (
+        sigma_bem > sigma_left + edge_margin
+        and sigma_bem < sigma_right - edge_margin
+    )
+
     return (
         kb,
+        sigma_bem,
         sigma_min,
         sigma_max,
         relative_sv,
-        left_value,
-        right_value,
+        left_absolute,
+        right_absolute,
         drop,
         interior,
     )
@@ -1308,21 +1733,23 @@ def run_candidate_refinement(
     epsilon: float,
     candidate_index: int,
     seed: DiscoverySeed,
-    bracket: tuple[float, float],
+    sigma_bracket: tuple[float, float],
     config: Config,
 ) -> tuple[list[ModeRefinementRow], ModeResult]:
     rows: list[ModeRefinementRow] = []
     previous_sigma = math.nan
-    left, right = bracket
+    sigma_left, sigma_right = sigma_bracket
 
     print(
-        f"  candidate {candidate_index} [{seed.source}]: seed kb={seed.real:.12f} "
-        f"{seed.imag:+.3e}i, local bracket=[{left:.12f}, {right:.12f}]"
+        f"  candidate {candidate_index} [{seed.source}]: "
+        f"seed kb={seed.real:.12f} {seed.imag:+.3e}i, "
+        f"sigma bracket=[{sigma_left:.8e}, {sigma_right:.8e}]"
     )
 
     for M in config.refinement_M:
         (
             kb,
+            sigma_bem,
             sigma_min,
             sigma_max,
             relative_sv,
@@ -1330,8 +1757,10 @@ def run_candidate_refinement(
             right_value,
             drop,
             interior,
-        ) = refine_candidate_for_M(epsilon, M, left, right, config)
-        sigma_bem = sigma_from_kb(kb, config)
+        ) = refine_candidate_for_M(
+            epsilon, M, sigma_left, sigma_right, config
+        )
+
         change = (
             abs(sigma_bem - previous_sigma) / max(abs(sigma_bem), 1.0e-30)
             if np.isfinite(previous_sigma)
@@ -1350,6 +1779,8 @@ def run_candidate_refinement(
             sigma_min=sigma_min,
             sigma_max=sigma_max,
             relative_singular_value=relative_sv,
+            # These store absolute sigma_min(A) at the two sigma-bracket
+            # endpoints.  Keeping the field names preserves CSV compatibility.
             left_value=left_value,
             right_value=right_value,
             drop_factor=drop,
@@ -1361,10 +1792,10 @@ def run_candidate_refinement(
 
         change_text = f"{change:.3%}" if np.isfinite(change) else "--"
         print(
-            f"    M={M:>2}: kb={kb:.12f}, sigma_BEM={sigma_bem:.8e}, "
+            f"    M={M:>2}: sigma_BEM={sigma_bem:.8e}, kb={kb:.12f}, "
             f"sv_min={sigma_min:.3e}, sv_min/sv_max={relative_sv:.3e}, "
             f"drop={drop:.2e}, mesh_change={change_text}, "
-            f"interior={'yes' if interior else 'no'}"
+            f"sigma-interior={'yes' if interior else 'no'}"
         )
 
     final = rows[-1]
@@ -1373,8 +1804,6 @@ def run_candidate_refinement(
         abs(final.sigma_bem), 1.0e-30
     )
 
-    # Certification uses the scale-invariant singular-value ratio rather than
-    # an absolute sigma_min threshold.  The absolute value is still reported.
     resolved = bool(
         final.minimum_is_interior
         and final.relative_singular_value <= config.relative_near_singular_tolerance
@@ -1402,7 +1831,7 @@ def run_candidate_refinement(
 
 
 # ---------------------------------------------------------------------------
-# Independent physical trapped-mode diagnostics
+# Independent physical / boundary diagnostics
 # ---------------------------------------------------------------------------
 
 
@@ -1416,9 +1845,7 @@ def make_extended_field_green(
     The lattice-sum representation used by greens_periodic requires the polar
     radius to stay below one period.  For beta=0 the periodic Green function is
     exactly periodic in Y, so we wrap each image separation into the nearest
-    periodic representative before evaluating it.  This extends the usable x
-    range for the independent decay diagnostics without changing the Green
-    function mathematically.
+    periodic representative before evaluating it.
     """
     b = config.b
     d = 2.0 * b
@@ -1509,6 +1936,95 @@ def cross_section_field(
     )
 
 
+def periodic_fourier_interpolate(
+    theta_nodes: np.ndarray,
+    values: np.ndarray,
+    theta_targets: np.ndarray,
+) -> np.ndarray:
+    """
+    Trigonometric interpolation for values sampled on the shifted uniform grid
+        theta_j = theta_0 + 2*pi*j/M.
+
+    This is preferable to piecewise-linear interpolation for the smooth periodic
+    boundary density used by the Nyström discretization.
+    """
+    M = len(theta_nodes)
+    if M != len(values):
+        raise ValueError("theta_nodes and values must have the same length")
+    if M == 0:
+        return np.array([], dtype=np.complex128)
+
+    theta0 = float(theta_nodes[0])
+    coefficients = np.fft.fft(values) / M
+    frequencies = np.fft.fftfreq(M, d=1.0 / M)
+    phase = np.exp(
+        1j * np.outer(np.asarray(theta_targets, dtype=float) - theta0, frequencies)
+    )
+    return phase @ coefficients
+
+
+def offgrid_boundary_integral_residual(
+    epsilon: float,
+    kb: float,
+    boundary_vector: np.ndarray,
+    theta: np.ndarray,
+    config: Config,
+) -> float:
+    """
+    Test the boundary integral equation at collocation points not used to build A.
+
+        1/2 u(p) - int_gamma u(q) dG(p,q)/dn_q ds_q = 0.
+
+    This replaces the old direct Neumann finite-difference diagnostic.  A direct
+    normal derivative of a double-layer potential on gamma is hypersingular and
+    requires a dedicated hypersingular / near-singular quadrature; ordinary
+    one-sided differences are not a trustworthy Neumann test.
+    """
+    sample_count = max(
+        int(config.physical_boundary_residual_samples),
+        2 * len(theta),
+    )
+    # Irrational-looking offset prevents accidental alignment with the source
+    # grid for common M/sample_count combinations.
+    targets = (
+        (np.arange(sample_count, dtype=float) + 0.371)
+        * (2.0 * PI / sample_count)
+    ) % (2.0 * PI)
+
+    u_targets = periodic_fourier_interpolate(theta, boundary_vector, targets)
+    G, G_regularized = make_green_functions(complex(kb, 0.0), config)
+    delta_theta = 2.0 * PI / len(theta)
+
+    residuals = np.empty(sample_count, dtype=np.complex128)
+    rhs_values = np.empty(sample_count, dtype=np.complex128)
+    for i, psi in enumerate(targets):
+        kernel = np.array(
+            [
+                weighted_normal_kernel(
+                    float(psi),
+                    float(source_theta),
+                    epsilon,
+                    config,
+                    G,
+                    G_regularized,
+                )
+                for source_theta in theta
+            ],
+            dtype=np.complex128,
+        )
+        rhs = delta_theta * np.dot(kernel, boundary_vector)
+        rhs_values[i] = rhs
+        residuals[i] = 0.5 * u_targets[i] - rhs
+
+    scale = max(
+        float(np.max(np.abs(0.5 * u_targets))),
+        float(np.max(np.abs(rhs_values))),
+        float(np.max(np.abs(boundary_vector))),
+        1.0e-30,
+    )
+    return float(np.max(np.abs(residuals)) / scale)
+
+
 def physical_mode_diagnostics(
     epsilon: float,
     kb: float,
@@ -1516,16 +2032,15 @@ def physical_mode_diagnostics(
     config: Config,
 ) -> PhysicalDiagnostics:
     """
-    Independently inspect the reconstructed trapped mode.
+    Inspect the reconstructed trapped mode independently of the eigenvalue search.
 
     Checks:
-      * Dirichlet walls y=+-b (in obstacle-centred coordinates y=-b-a,b-a),
-      * approximate homogeneous Neumann data on the obstacle,
+      * wall Dirichlet values,
+      * the boundary integral equation at off-grid boundary points,
       * exponential L2 decay of cross sections as |x| grows.
 
-    The Neumann test is deliberately a diagnostic rather than part of spectral
-    certification because evaluating a double-layer field very close to its
-    boundary is numerically delicate.
+    The wall check is mostly an implementation consistency check because the
+    waveguide Green function satisfies the wall condition by construction.
     """
     _, _, _, boundary_vector = smallest_singular_pair(kb, epsilon, M, config)
     theta = boundary_nodes(M)
@@ -1535,7 +2050,6 @@ def physical_mode_diagnostics(
     y_lower = -b - config.a
     y_upper = b - config.a
 
-    # Gauss-Legendre rule for cross-section L2 norms.
     nodes, weights = leggauss(config.physical_quadrature_points)
     y_values = 0.5 * (y_upper - y_lower) * nodes + 0.5 * (y_upper + y_lower)
     y_weights = 0.5 * (y_upper - y_lower) * weights
@@ -1563,7 +2077,9 @@ def physical_mode_diagnostics(
 
     left_arr = np.asarray(left_norms, dtype=float)
     right_arr = np.asarray(right_norms, dtype=float)
-    monotone_left = bool(np.all(np.diff(left_arr) <= 1.0e-10 * max(left_arr[0], 1.0)))
+    monotone_left = bool(
+        np.all(np.diff(left_arr) <= 1.0e-10 * max(left_arr[0], 1.0))
+    )
     monotone_right = bool(
         np.all(np.diff(right_arr) <= 1.0e-10 * max(right_arr[0], 1.0))
     )
@@ -1576,59 +2092,45 @@ def physical_mode_diagnostics(
     decay_left = fit_decay(left_arr)
     decay_right = fit_decay(right_arr)
     expected_decay = sigma_from_kb(kb, config)
-    decay_error_left = abs(decay_left - expected_decay) / max(expected_decay, 1.0e-30)
-    decay_error_right = abs(decay_right - expected_decay) / max(expected_decay, 1.0e-30)
+    decay_error_left = abs(decay_left - expected_decay) / max(
+        expected_decay, 1.0e-30
+    )
+    decay_error_right = abs(decay_right - expected_decay) / max(
+        expected_decay, 1.0e-30
+    )
 
-    # Wall values at three longitudinal locations.  Because the waveguide Green
-    # function already satisfies Dirichlet data, these should be near roundoff.
+    # Wall values at three longitudinal locations.
     x0 = float(distances[0]) if len(distances) else 2.0 * b
     wall_points = [
-        (-x0, y_lower), (-x0, y_upper),
-        (0.0, y_lower), (0.0, y_upper),
-        (x0, y_lower), (x0, y_upper),
+        (-x0, y_lower),
+        (-x0, y_upper),
+        (0.0, y_lower),
+        (0.0, y_upper),
+        (x0, y_lower),
+        (x0, y_upper),
     ]
     wall_values = reconstruct_field_at_points(
         wall_points, boundary_vector, theta, epsilon, config, G
     )
     amplitude_scale = max(
-        float(np.max(np.abs(boundary_vector))), cross_section_peak, 1.0e-30
+        float(np.max(np.abs(boundary_vector))),
+        cross_section_peak,
+        1.0e-30,
     )
     wall_relative = float(np.max(np.abs(wall_values)) / amplitude_scale)
 
-    # One-sided second-order normal derivative from the fluid side of a circle.
-    sample_t = np.linspace(
-        0.0, 2.0 * PI, config.physical_neumann_samples, endpoint=False
-    )
-    offset = max(
-        config.physical_neumann_offset_fraction_of_epsilon * epsilon,
-        2.0e-5 * b,
-    )
-    periodic_theta = np.r_[theta[-1] - 2.0 * PI, theta, theta[0] + 2.0 * PI]
-    periodic_values = np.r_[boundary_vector[-1], boundary_vector, boundary_vector[0]]
-    boundary_samples = np.interp(sample_t, periodic_theta, periodic_values)
-    normal_derivatives: list[complex] = []
-    for t, u0 in zip(sample_t, boundary_samples, strict=True):
-        x0q = epsilon * math.cos(float(t))
-        y0q = epsilon * math.sin(float(t))
-        nx = math.cos(float(t))
-        ny = math.sin(float(t))
-        points = [
-            (x0q + offset * nx, y0q + offset * ny),
-            (x0q + 2.0 * offset * nx, y0q + 2.0 * offset * ny),
-        ]
-        u1, u2 = reconstruct_field_at_points(
-            points, boundary_vector, theta, epsilon, config, G
-        )
-        derivative = (-3.0 * u0 + 4.0 * u1 - u2) / (2.0 * offset)
-        normal_derivatives.append(complex(derivative))
-
-    neumann_scale = max(float(np.max(np.abs(boundary_vector))), 1.0e-30)
-    neumann_relative = float(
-        epsilon * np.max(np.abs(np.asarray(normal_derivatives))) / neumann_scale
+    boundary_residual = offgrid_boundary_integral_residual(
+        epsilon,
+        kb,
+        boundary_vector,
+        theta,
+        config,
     )
 
     walls_ok = wall_relative <= config.physical_wall_relative_tolerance
-    neumann_ok = neumann_relative <= config.physical_neumann_relative_tolerance
+    boundary_ok = (
+        boundary_residual <= config.physical_boundary_residual_tolerance
+    )
     decay_ok = bool(
         monotone_left
         and monotone_right
@@ -1641,7 +2143,7 @@ def physical_mode_diagnostics(
         kb=kb,
         M=M,
         wall_relative_residual=wall_relative,
-        neumann_relative_residual=neumann_relative,
+        boundary_integral_relative_residual=boundary_residual,
         decay_rate_left=decay_left,
         decay_rate_right=decay_right,
         expected_decay_rate=expected_decay,
@@ -1650,7 +2152,7 @@ def physical_mode_diagnostics(
         monotone_decay_left=monotone_left,
         monotone_decay_right=monotone_right,
         walls_verified=walls_ok,
-        neumann_verified=neumann_ok,
+        boundary_integral_verified=boundary_ok,
         decay_verified=decay_ok,
     )
 
@@ -1693,22 +2195,6 @@ def validate_epsilon(
         aitken_estimate,
     ) = run_beyn_convergence_study(epsilon, config)
 
-    brackets = candidate_brackets(local_seeds, config)
-    print(f"  effective cutoff margin               = {config.beyn_cutoff_margin:.3e}")
-    print(f"  final strict near-real Beyn candidates = {len(strict_candidates)}")
-    print(f"  local refinement seeds                 = {len(local_seeds)}")
-
-    all_refinement: list[ModeRefinementRow] = []
-    mode_results: list[ModeResult] = []
-    for i, (seed, bracket) in enumerate(
-        zip(local_seeds, brackets, strict=True), start=1
-    ):
-        rows, mode = run_candidate_refinement(epsilon, i, seed, bracket, config)
-        all_refinement.extend(rows)
-        mode_results.append(mode)
-
-    resolved = [mode for mode in mode_results if mode.resolved]
-
     rank_stable = bool(
         len(convergence_rows) >= 2
         and convergence_rows[-1].estimated_rank == convergence_rows[-2].estimated_rank
@@ -1719,6 +2205,61 @@ def validate_epsilon(
         and convergence_rows[-1].max_candidate_shift_from_previous
         <= config.beyn_candidate_convergence_tolerance
     )
+    final_s0_change = (
+        convergence_rows[-1].s0_relative_change_from_previous
+        if convergence_rows
+        else math.nan
+    )
+
+    sigma_tasks = candidate_sigma_tasks(local_seeds, config)
+    print(f"  effective cutoff margin               = {config.beyn_cutoff_margin:.3e}")
+    print(f"  final strict near-real Beyn candidates = {len(strict_candidates)}")
+    print(f"  kb seeds available for local search    = {len(local_seeds)}")
+    print(f"  sigma refinement tasks                 = {len(sigma_tasks)}")
+
+    # Near the cutoff Beyn can robustly indicate rank one while its raw kb
+    # estimate remains microscopically above Lambda_1.  In that case we do not
+    # discard the mode: use a theory-independent log scan in sigma only to seed
+    # local SVD verification.
+    if not sigma_tasks and final_diag.estimated_rank == 1 and rank_stable:
+        fallback = sigma_scan_fallback_task(epsilon, config)
+        if fallback is not None:
+            sigma_tasks = [fallback]
+
+    all_refinement: list[ModeRefinementRow] = []
+    mode_results: list[ModeResult] = []
+    for i, (seed, sigma_bracket) in enumerate(sigma_tasks, start=1):
+        rows, mode = run_candidate_refinement(
+            epsilon, i, seed, sigma_bracket, config
+        )
+        all_refinement.extend(rows)
+        mode_results.append(mode)
+
+    resolved = [mode for mode in mode_results if mode.resolved]
+
+    # If a Beyn-provided seed existed but its sigma bracket did not certify a
+    # mode, make one independent sigma-scan attempt before declaring the local
+    # problem unresolved.
+    used_sigma_scan = any(mode.seed_source == "sigma-scan" for mode in mode_results)
+    if (
+        not resolved
+        and not used_sigma_scan
+        and final_diag.estimated_rank == 1
+        and rank_stable
+    ):
+        fallback = sigma_scan_fallback_task(epsilon, config)
+        if fallback is not None:
+            seed, sigma_bracket = fallback
+            rows, mode = run_candidate_refinement(
+                epsilon,
+                len(mode_results) + 1,
+                seed,
+                sigma_bracket,
+                config,
+            )
+            all_refinement.extend(rows)
+            mode_results.append(mode)
+            resolved = [m for m in mode_results if m.resolved]
 
     # Independent contour-geometry check: move the right endpoint closer to the
     # cutoff and verify that the enclosed rank is unchanged.  This specifically
@@ -1789,7 +2330,8 @@ def validate_epsilon(
             )
             print(
                 f"    wall residual={physical.wall_relative_residual:.3e}, "
-                f"Neumann residual={physical.neumann_relative_residual:.3e}"
+                f"off-grid BIE residual="
+                f"{physical.boundary_integral_relative_residual:.3e}"
             )
             print(
                 f"    decay rates left/right="
@@ -1816,6 +2358,15 @@ def validate_epsilon(
             f"than {config.beyn_candidate_convergence_tolerance:.1e} between the "
             "last two Nq levels. Local SVD refinement remains the trusted position."
         )
+    if (
+        np.isfinite(final_s0_change)
+        and final_s0_change > config.beyn_s0_change_warning_tolerance
+    ):
+        print(
+            "  NOTE: Beyn S0 is still changing appreciably between the last two "
+            f"Nq levels (relative change={final_s0_change:.3e}). The integer rank "
+            "is stable, but the contour moments are not fully converged."
+        )
 
     seed_source = (
         ",".join(sorted({mode.seed_source for mode in mode_results})) or "none"
@@ -1833,8 +2384,9 @@ def validate_epsilon(
         beyn_final_quadrature_points=final_diag.quadrature_points,
         beyn_estimated_rank=final_diag.estimated_rank,
         beyn_rank_stable=rank_stable,
+        beyn_final_s0_relative_change=float(final_s0_change),
         beyn_near_real_candidates=len(strict_candidates),
-        local_refinement_seed_count=len(local_seeds),
+        local_refinement_seed_count=len(mode_results),
         local_refinement_seed_source=seed_source,
         aitken_estimate=aitken_estimate,
         resolved_mode_count=len(resolved),
@@ -1854,11 +2406,16 @@ def validate_epsilon(
         wall_relative_residual=(
             physical.wall_relative_residual if physical is not None else math.nan
         ),
-        neumann_relative_residual=(
-            physical.neumann_relative_residual if physical is not None else math.nan
+        boundary_integral_relative_residual=(
+            physical.boundary_integral_relative_residual
+            if physical is not None
+            else math.nan
         ),
         decay_rate_left=(physical.decay_rate_left if physical is not None else math.nan),
         decay_rate_right=(physical.decay_rate_right if physical is not None else math.nan),
+        physical_boundary_integral_verified=(
+            physical.boundary_integral_verified if physical is not None else None
+        ),
         physical_decay_verified=(physical.decay_verified if physical is not None else None),
     )
 
@@ -1886,6 +2443,143 @@ def write_dataclass_csv(path: Path, rows: list[object]) -> None:
         writer.writerows(dictionaries)
 
 
+def _csv_bool(value: str) -> bool:
+    return str(value).strip().lower() in {"1", "true", "yes", "y"}
+
+
+def _csv_float(value: str) -> float:
+    value = str(value).strip()
+    if value == "":
+        return math.nan
+    return float(value)
+
+
+def _csv_int(value: str) -> int:
+    value = str(value).strip()
+    if value == "":
+        return 0
+    return int(float(value))
+
+
+def read_paper_sweep_csv(path: Path) -> list[PaperSweepRow]:
+    """Reload a previously completed paper sweep without recomputing it."""
+    if not path.exists():
+        return []
+
+    rows: list[PaperSweepRow] = []
+    with path.open("r", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        for item in reader:
+            rows.append(
+                PaperSweepRow(
+                    a=_csv_float(item.get("a", "")),
+                    epsilon=_csv_float(item.get("epsilon", "")),
+                    M=_csv_int(item.get("M", "")),
+                    status=str(item.get("status", "")),
+                    beyn_rank=_csv_int(item.get("beyn_rank", "")),
+                    beyn_rank_stable=_csv_bool(item.get("beyn_rank_stable", "")),
+                    tighter_margin_rank_consistent=_csv_bool(
+                        item.get("tighter_margin_rank_consistent", "")
+                    ),
+                    local_mode_count=_csv_int(item.get("local_mode_count", "")),
+                    kb=_csv_float(item.get("kb", "")),
+                    sigma_bem=_csv_float(item.get("sigma_bem", "")),
+                    relative_singular_value=_csv_float(
+                        item.get("relative_singular_value", "")
+                    ),
+                    drop_factor=_csv_float(item.get("drop_factor", "")),
+                    minimum_is_interior=_csv_bool(
+                        item.get("minimum_is_interior", "")
+                    ),
+                    asymptotic_prediction_valid=_csv_bool(
+                        item.get("asymptotic_prediction_valid", "")
+                    ),
+                    kb_asymptotic=_csv_float(item.get("kb_asymptotic", "")),
+                    sigma_asymptotic=_csv_float(item.get("sigma_asymptotic", "")),
+                    asymptotic_coefficient=_csv_float(
+                        item.get("asymptotic_coefficient", "")
+                    ),
+                    cutoff_margin_used=_csv_float(item.get("cutoff_margin_used", "")),
+                    beyn_quadrature_points=_csv_int(
+                        item.get("beyn_quadrature_points", "")
+                    ),
+                    geometry_reason=str(item.get("geometry_reason", "ok")),
+                )
+            )
+
+    rows.sort(key=lambda row: (row.a, row.epsilon))
+    return rows
+
+
+def admissible_paper_epsilon_values(
+    a: float,
+    config: Config,
+) -> tuple[float, ...]:
+    """Filter the fixed paper epsilon grid for one obstacle height.
+
+    This helper deliberately does not generate or resample epsilon values.
+    It only removes candidate values that fail the geometry or Green-series
+    admissibility test for the selected ``a``.
+    """
+    return tuple(
+        float(epsilon)
+        for epsilon in config.paper_epsilon_values
+        if geometry_admissibility(float(epsilon), float(a), config)[0]
+    )
+
+
+def paper_sweep_grid_matches_config(
+    rows: list[PaperSweepRow],
+    config: Config,
+) -> bool:
+    """Require the cached CSV to match the requested paper grid exactly."""
+    expected = {
+        (round(float(a), 12), round(float(epsilon), 12))
+        for a in config.paper_a_values
+        for epsilon in admissible_paper_epsilon_values(a, config)
+    }
+    observed = {
+        (round(float(row.a), 12), round(float(row.epsilon), 12))
+        for row in rows
+    }
+    return observed == expected and len(rows) == len(expected)
+
+
+def load_or_run_paper_a_sweep(
+    config: Config,
+    output_directory: Path,
+) -> list[PaperSweepRow]:
+    """Reuse a complete cached sweep when possible; otherwise compute it."""
+    if not config.run_paper_a_sweep:
+        return []
+
+    csv_path = output_directory / f"paper_a_sweep_M{config.paper_M}.csv"
+    if config.paper_reuse_existing_csv and csv_path.exists():
+        try:
+            cached = read_paper_sweep_csv(csv_path)
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"\nExisting paper sweep CSV could not be reloaded ({type(exc).__name__}: {exc}). "
+                "Recomputing the sweep."
+            )
+        else:
+            if paper_sweep_grid_matches_config(cached, config):
+                print(
+                    f"\n=== PAPER SWEEP: reusing existing CSV ===\n"
+                    f"  file = {csv_path}\n"
+                    f"  rows = {len(cached)} (grid matches current configuration)"
+                )
+                return cached
+            print(
+                "\nExisting paper sweep CSV does not match the configured "
+                "(a, epsilon) grid; recomputing it."
+            )
+
+    rows = run_paper_a_sweep(config)
+    write_dataclass_csv(csv_path, rows)
+    return rows
+
+
 def run_internal_convergence_study(
     results: list[ValidationResult],
     base_config: Config,
@@ -1907,10 +2601,11 @@ def run_internal_convergence_study(
     baseline_sigma = target.sigma_numerical
     config = config_for_epsilon(epsilon, base_config)
     M = base_config.internal_convergence_M
-    half = base_config.internal_refine_half_width
-    left = max(config.beyn_low_k_margin, baseline_kb - half)
-    right = min(kb_cutoff(config) - config.beyn_cutoff_margin, baseline_kb + half)
-    if not left < right:
+    factor = max(base_config.internal_sigma_bracket_factor, 1.001)
+    sigma_lower_global, sigma_upper_global = sigma_search_limits(config)
+    sigma_left = max(sigma_lower_global, baseline_sigma / factor)
+    sigma_right = min(sigma_upper_global, baseline_sigma * factor)
+    if not sigma_left < sigma_right:
         return []
 
     variants: list[tuple[str, float, Config]] = []
@@ -1926,6 +2621,7 @@ def run_internal_convergence_study(
     for parameter, value, variant_config in variants:
         (
             kb,
+            sigma,
             _,
             _,
             relative_sv,
@@ -1933,8 +2629,9 @@ def run_internal_convergence_study(
             _,
             _,
             _,
-        ) = refine_candidate_for_M(epsilon, M, left, right, variant_config)
-        sigma = sigma_from_kb(kb, variant_config)
+        ) = refine_candidate_for_M(
+            epsilon, M, sigma_left, sigma_right, variant_config
+        )
         kb_shift = abs(kb - baseline_kb) / max(abs(baseline_kb), 1.0e-30)
         sigma_shift = abs(sigma - baseline_sigma) / max(abs(baseline_sigma), 1.0e-30)
         rows.append(
@@ -1977,16 +2674,23 @@ def classify_mode_count_for_geometry(
         _,
     ) = run_beyn_convergence_study(epsilon, config)
 
-    brackets = candidate_brackets(local_seeds, config)
-    resolved_count = 0
-    for i, (seed, bracket) in enumerate(zip(local_seeds, brackets, strict=True), start=1):
-        _, mode = run_candidate_refinement(epsilon, i, seed, bracket, config)
-        resolved_count += int(mode.resolved)
-
     rank_stable = bool(
         len(convergence_rows) >= 2
         and convergence_rows[-1].estimated_rank == convergence_rows[-2].estimated_rank
     )
+
+    sigma_tasks = candidate_sigma_tasks(local_seeds, config)
+    if not sigma_tasks and final_diag.estimated_rank == 1 and rank_stable:
+        fallback = sigma_scan_fallback_task(epsilon, config)
+        if fallback is not None:
+            sigma_tasks = [fallback]
+
+    resolved_count = 0
+    for i, (seed, sigma_bracket) in enumerate(sigma_tasks, start=1):
+        _, mode = run_candidate_refinement(
+            epsilon, i, seed, sigma_bracket, config
+        )
+        resolved_count += int(mode.resolved)
 
     # Near-cutoff safeguard for the critical-height test.
     tighter_consistent = True
@@ -2077,6 +2781,621 @@ def run_critical_height_study(base_config: Config) -> list[CriticalHeightRow]:
             f"width={width:.3e}, (a_c-a0*)/epsilon={(estimate-a0)/epsilon:.6e}"
         )
     return rows
+
+
+def _paper_empty_row(
+    epsilon: float,
+    a: float,
+    config: Config,
+    status: str,
+    reason: str,
+) -> PaperSweepRow:
+    trial = replace(config, a=float(a))
+    asym_valid, kb_asym, sigma_asym, coefficient = safe_asymptotic_prediction(
+        epsilon, trial
+    )
+    return PaperSweepRow(
+        a=float(a),
+        epsilon=float(epsilon),
+        M=int(config.paper_M),
+        status=status,
+        beyn_rank=-1,
+        beyn_rank_stable=False,
+        tighter_margin_rank_consistent=False,
+        local_mode_count=0,
+        kb=math.nan,
+        sigma_bem=math.nan,
+        relative_singular_value=math.nan,
+        drop_factor=math.nan,
+        minimum_is_interior=False,
+        asymptotic_prediction_valid=bool(asym_valid),
+        kb_asymptotic=float(kb_asym),
+        sigma_asymptotic=float(sigma_asym),
+        asymptotic_coefficient=float(coefficient),
+        geometry_reason=reason,
+    )
+
+
+def _paper_discover_at_margin(
+    epsilon: float,
+    trial_config: Config,
+    margin: float,
+    quadrature_points: int,
+) -> tuple[Config, np.ndarray, BeynDiagnostics, list[BeynEigenvalueRow], list[complex]]:
+    """One fixed-margin Beyn solve used only by the paper-production sweep."""
+    config = replace(trial_config, beyn_cutoff_margin=float(margin))
+    raw, _, diag, rows, _ = beyn_discover(
+        epsilon, int(quadrature_points), config
+    )
+    candidates = cluster_real_candidates(raw, rows, config)
+    return config, raw, diag, rows, candidates
+
+
+def _paper_localize_one_mode(
+    epsilon: float,
+    config: Config,
+    seed: DiscoverySeed,
+) -> tuple[bool, float, float, float, float, bool]:
+    tasks = candidate_sigma_tasks([seed], config)
+    if not tasks:
+        fallback = sigma_scan_fallback_task(epsilon, config)
+        tasks = [fallback] if fallback is not None else []
+    if not tasks:
+        return False, math.nan, math.nan, math.nan, math.nan, False
+
+    seed2, (sigma_left, sigma_right) = tasks[0]
+    (
+        kb,
+        sigma_bem,
+        _,
+        _,
+        relative_sv,
+        _,
+        _,
+        drop,
+        interior,
+    ) = refine_candidate_for_M(
+        epsilon,
+        int(config.paper_M),
+        sigma_left,
+        sigma_right,
+        config,
+    )
+    resolved = bool(
+        interior
+        and relative_sv <= config.relative_near_singular_tolerance
+        and drop >= config.minimum_drop_factor
+    )
+    return resolved, kb, sigma_bem, relative_sv, drop, interior
+
+
+def _paper_evaluate_subcritical(
+    epsilon: float,
+    a: float,
+    trial: Config,
+    asym_valid: bool,
+    kb_asym: float,
+    sigma_asym: float,
+    coefficient: float,
+) -> PaperSweepRow:
+    """Cheap non-existence diagnostic without entering the threshold singularity.
+
+    We deliberately DO NOT move an empty contour to 1e-10.  Instead we test a
+    fixed numerical ladder down to paper_subcritical_cutoff_margins[-1].  A
+    'zero' result therefore means zero enclosed modes on all tested contours;
+    an unstable/nonzero rank is reported as ambiguous rather than being forced
+    into a false mode by a sigma->0 SVD scan.
+    """
+    records: list[tuple[float, int, int]] = []  # margin, rank, Nq
+    last_config: Config | None = None
+    last_diag: BeynDiagnostics | None = None
+
+    for margin in trial.paper_subcritical_cutoff_margins:
+        cfg, _, diag, _, candidates = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            margin,
+            trial.paper_search_quadrature,
+        )
+        last_config, last_diag = cfg, diag
+        records.append((float(margin), int(diag.estimated_rank), int(diag.quadrature_points)))
+        # A genuine strict candidate on the nominal non-existence side is
+        # scientifically interesting; do not hide it.  Mark ambiguous and let
+        # the dedicated critical-height study investigate it with full settings.
+        if candidates:
+            return PaperSweepRow(
+                a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+                status="ambiguous", beyn_rank=int(diag.estimated_rank),
+                beyn_rank_stable=False, tighter_margin_rank_consistent=False,
+                local_mode_count=0, kb=math.nan, sigma_bem=math.nan,
+                relative_singular_value=math.nan, drop_factor=math.nan,
+                minimum_is_interior=False,
+                asymptotic_prediction_valid=bool(asym_valid),
+                kb_asymptotic=float(kb_asym), sigma_asymptotic=float(sigma_asym),
+                asymptotic_coefficient=float(coefficient),
+                cutoff_margin_used=float(margin),
+                beyn_quadrature_points=int(diag.quadrature_points),
+                geometry_reason="strict Beyn candidate on subcritical test",
+            )
+
+    assert last_config is not None and last_diag is not None
+    final_margin = float(trial.paper_subcritical_cutoff_margins[-1])
+    _, _, verify_diag, _, verify_candidates = _paper_discover_at_margin(
+        epsilon,
+        trial,
+        final_margin,
+        trial.paper_verify_quadrature,
+    )
+    rank_stable = bool(verify_diag.estimated_rank == last_diag.estimated_rank)
+    all_zero = all(rank == 0 for _, rank, _ in records)
+    status = "zero" if (all_zero and rank_stable and not verify_candidates) else "ambiguous"
+
+    return PaperSweepRow(
+        a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+        status=status, beyn_rank=int(last_diag.estimated_rank),
+        beyn_rank_stable=rank_stable,
+        tighter_margin_rank_consistent=bool(all_zero),
+        local_mode_count=0, kb=math.nan, sigma_bem=math.nan,
+        relative_singular_value=math.nan, drop_factor=math.nan,
+        minimum_is_interior=False,
+        asymptotic_prediction_valid=bool(asym_valid),
+        kb_asymptotic=float(kb_asym), sigma_asymptotic=float(sigma_asym),
+        asymptotic_coefficient=float(coefficient),
+        cutoff_margin_used=final_margin,
+        beyn_quadrature_points=int(last_diag.quadrature_points),
+        geometry_reason=(
+            "zero modes on tested subcritical contour ladder"
+            if status == "zero"
+            else "subcritical Beyn count not cleanly zero/stable"
+        ),
+    )
+
+
+def _paper_evaluate_supercritical(
+    epsilon: float,
+    a: float,
+    trial: Config,
+    asym_valid: bool,
+    kb_asym: float,
+    sigma_asym: float,
+    coefficient: float,
+) -> PaperSweepRow:
+    """Numerically approach the cutoff until a strict rank-one candidate appears.
+
+    The margin ladder is fixed in Config and is independent of the asymptotic
+    prediction.  Most points stop at 1e-5; only genuinely near-cutoff branches
+    pay for tighter contours.
+    """
+    margins = tuple(float(x) for x in trial.paper_supercritical_cutoff_margins)
+    final_diag: BeynDiagnostics | None = None
+    final_config: Config | None = None
+    final_candidates: list[complex] = []
+    final_margin = math.nan
+
+    for margin in margins:
+        cfg, _, diag, _, candidates = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            margin,
+            trial.paper_search_quadrature,
+        )
+        final_config, final_diag = cfg, diag
+        final_candidates = candidates
+        final_margin = margin
+        if diag.estimated_rank == 1 and len(candidates) == 1:
+            break
+
+    assert final_config is not None and final_diag is not None
+
+    # Verify the integer count at a second Nq only at the selected margin.
+    _, _, verify_diag, _, verify_candidates = _paper_discover_at_margin(
+        epsilon,
+        trial,
+        final_margin,
+        trial.paper_verify_quadrature,
+    )
+    rank_stable = bool(verify_diag.estimated_rank == final_diag.estimated_rank)
+
+    # If the two cheap levels disagree, spend one 768-point solve instead of
+    # marching every failed point all the way through 96,192,384,768,1536.
+    if not rank_stable:
+        cfg_hi, _, diag_hi, _, candidates_hi = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            final_margin,
+            trial.paper_escalation_quadrature,
+        )
+        rank_stable = bool(diag_hi.estimated_rank == final_diag.estimated_rank)
+        if diag_hi.estimated_rank == 1 and len(candidates_hi) == 1:
+            final_config = cfg_hi
+            final_diag = diag_hi
+            final_candidates = candidates_hi
+
+    # If no strict candidate survived, try ONE contour-respecting absolute-SVD
+    # fallback.  Unlike v5, this cannot drift into sigma~0 outside the contour.
+    seed: DiscoverySeed | None = None
+    if final_diag.estimated_rank == 1 and len(final_candidates) == 1:
+        z = final_candidates[0]
+        seed = DiscoverySeed(float(z.real), float(z.imag), "strict-beyn")
+    elif final_diag.estimated_rank == 1 and rank_stable:
+        fallback = sigma_scan_fallback_task(epsilon, final_config)
+        if fallback is not None:
+            seed = fallback[0]
+
+    resolved = False
+    kb = sigma_bem = relative_sv = drop = math.nan
+    interior = False
+    if seed is not None:
+        resolved, kb, sigma_bem, relative_sv, drop, interior = _paper_localize_one_mode(
+            epsilon, final_config, seed
+        )
+
+    # Independent one-step tighter-margin count check when possible.
+    tighter_consistent = True
+    current_index = margins.index(final_margin)
+    if current_index + 1 < len(margins):
+        tighter_margin = margins[current_index + 1]
+        _, _, tight_diag, _, _ = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            tighter_margin,
+            trial.paper_search_quadrature,
+        )
+        tighter_consistent = bool(tight_diag.estimated_rank == final_diag.estimated_rank)
+
+    status = "one" if (
+        resolved
+        and rank_stable
+        and tighter_consistent
+        and final_diag.estimated_rank == 1
+    ) else "ambiguous"
+
+    if status != "one":
+        kb = sigma_bem = relative_sv = drop = math.nan
+        interior = False
+
+    return PaperSweepRow(
+        a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+        status=status, beyn_rank=int(final_diag.estimated_rank),
+        beyn_rank_stable=rank_stable,
+        tighter_margin_rank_consistent=tighter_consistent,
+        local_mode_count=int(resolved),
+        kb=float(kb), sigma_bem=float(sigma_bem),
+        relative_singular_value=float(relative_sv), drop_factor=float(drop),
+        minimum_is_interior=bool(interior),
+        asymptotic_prediction_valid=bool(asym_valid),
+        kb_asymptotic=float(kb_asym), sigma_asymptotic=float(sigma_asym),
+        asymptotic_coefficient=float(coefficient),
+        cutoff_margin_used=float(final_margin),
+        beyn_quadrature_points=int(final_diag.quadrature_points),
+        geometry_reason=("ok" if status == "one" else "supercritical point not fully certified"),
+    )
+
+
+def evaluate_paper_sweep_geometry(
+    epsilon: float,
+    a: float,
+    base_config: Config,
+) -> PaperSweepRow:
+    """Evaluate one independent (a,epsilon) paper point at fixed M=paper_M."""
+    valid, reason, _, _ = geometry_admissibility(epsilon, a, base_config)
+    if not valid:
+        return _paper_empty_row(
+            epsilon, a, base_config, "invalid-geometry", reason
+        )
+
+    trial = replace(
+        base_config,
+        a=float(a),
+        run_physical_diagnostics=False,
+    )
+    asym_valid, kb_asym, sigma_asym, coefficient = safe_asymptotic_prediction(
+        epsilon, trial
+    )
+    a0 = critical_height_leading_order(trial)
+
+    if a <= a0:
+        return _paper_evaluate_subcritical(
+            epsilon, a, trial, asym_valid, kb_asym, sigma_asym, coefficient
+        )
+    return _paper_evaluate_supercritical(
+        epsilon, a, trial, asym_valid, kb_asym, sigma_asym, coefficient
+    )
+
+
+def _paper_worker(payload: tuple[float, float, Config]) -> PaperSweepRow:
+    """Top-level picklable worker for macOS spawn-based multiprocessing."""
+    a, epsilon, config = payload
+    if config.paper_worker_quiet:
+        buffer = io.StringIO()
+        with redirect_stdout(buffer), redirect_stderr(buffer):
+            return evaluate_paper_sweep_geometry(epsilon, a, config)
+    return evaluate_paper_sweep_geometry(epsilon, a, config)
+
+
+def run_paper_a_sweep(base_config: Config) -> list[PaperSweepRow]:
+    if not base_config.run_paper_a_sweep:
+        return []
+
+    jobs = [
+        (float(a), float(epsilon), base_config)
+        for a in base_config.paper_a_values
+        for epsilon in admissible_paper_epsilon_values(a, base_config)
+    ]
+    total = len(jobs)
+    a0 = critical_height_leading_order(base_config)
+    workers = paper_worker_count(base_config) if base_config.paper_parallel else 1
+
+    print("\n=== PAPER SWEEP: kb(epsilon) for multiple obstacle heights ===")
+    print(f"  leading a0* = {a0:.12f}")
+    print(f"  fixed plotted BEM order M = {base_config.paper_M}")
+    print(f"  jobs = {total}")
+    print(
+        f"  CPU policy: detected={detected_cpu_count()}, "
+        f"fraction={base_config.paper_cpu_fraction:.0%}, workers={workers}"
+    )
+    print(
+        "  subcritical policy: numerical empty-contour ladder, no sigma->0 fallback"
+    )
+    print(
+        "  supercritical policy: numerical cutoff-margin ladder + one M=32 SVD localization"
+    )
+
+    rows: list[PaperSweepRow] = []
+    if workers <= 1:
+        for index, (a, epsilon, _) in enumerate(jobs, start=1):
+            try:
+                row = _paper_worker((a, epsilon, base_config))
+            except Exception as exc:  # noqa: BLE001
+                row = _paper_empty_row(
+                    epsilon, a, base_config, "error", f"{type(exc).__name__}: {exc}"
+                )
+            rows.append(row)
+            print(
+                f"  [{index:>3}/{total}] a={a:.3f}, eps={epsilon:.3f}: "
+                f"{row.status}, rank={row.beyn_rank}, margin={row.cutoff_margin_used:.1e}"
+            )
+    else:
+        ctx = mp.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as executor:
+            future_to_job = {
+                executor.submit(_paper_worker, job): (job[0], job[1])
+                for job in jobs
+            }
+            completed = 0
+            for future in as_completed(future_to_job):
+                a, epsilon = future_to_job[future]
+                completed += 1
+                try:
+                    row = future.result()
+                except Exception as exc:  # noqa: BLE001
+                    row = _paper_empty_row(
+                        epsilon,
+                        a,
+                        base_config,
+                        "error",
+                        f"{type(exc).__name__}: {exc}",
+                    )
+                rows.append(row)
+                kb_text = f"{row.kb:.12f}" if np.isfinite(row.kb) else "--"
+                margin_text = (
+                    f"{row.cutoff_margin_used:.1e}"
+                    if np.isfinite(row.cutoff_margin_used)
+                    else "--"
+                )
+                print(
+                    f"  [{completed:>3}/{total}] a={a:.3f}, eps={epsilon:.3f}: "
+                    f"{row.status}, rank={row.beyn_rank}, "
+                    f"margin={margin_text}, kb_M{row.M}={kb_text}"
+                )
+
+    rows.sort(key=lambda row: (row.a, row.epsilon))
+    return rows
+
+
+def paper_color_map(a_values: list[float] | tuple[float, ...]) -> dict[float, object]:
+    """Deterministic a->color map shared by every paper figure."""
+    values = sorted(float(a) for a in a_values)
+    cmap = plt.get_cmap("tab10")
+    return {
+        round(a, 12): cmap(index % 10)
+        for index, a in enumerate(values)
+    }
+
+
+def save_paper_figure(
+    output_directory: Path,
+    stem: str,
+    dpi: int,
+) -> None:
+    """Save both a high-resolution PNG and a vector PDF for the paper."""
+    plt.savefig(output_directory / f"{stem}.png", dpi=dpi)
+    plt.savefig(output_directory / f"{stem}.pdf")
+    plt.close()
+
+
+def plot_paper_kb_vs_epsilon_individual(
+    paper_rows: list[PaperSweepRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    if not paper_rows:
+        return
+
+    a_values = sorted({row.a for row in paper_rows})
+    colors = paper_color_map(a_values)
+    a0 = critical_height_leading_order(config)
+
+    for a in a_values:
+        rows = sorted(
+            (row for row in paper_rows if math.isclose(row.a, a, abs_tol=1.0e-12)),
+            key=lambda row: row.epsilon,
+        )
+        color = colors[round(a, 12)]
+        numerical = [
+            row for row in rows
+            if row.status == "one" and np.isfinite(row.kb)
+        ]
+        asymptotic = [
+            row for row in rows
+            if row.asymptotic_prediction_valid
+            and np.isfinite(row.kb_asymptotic)
+        ]
+
+        plt.figure(figsize=(8, 5))
+
+        if numerical:
+            plt.plot(
+                [row.epsilon for row in numerical],
+                [row.kb for row in numerical],
+                "o-",
+                color=color,
+                markersize=4,
+                linewidth=1.6,
+                label=rf"$kb_{{\mathrm{{BEM}}}}$ ($M={config.paper_M}$)",
+            )
+
+        # In each individual figure the asymptotic branch is black, while the
+        # BEM branch keeps exactly the same a-dependent color as in the joint plot.
+        if asymptotic:
+            plt.plot(
+                [row.epsilon for row in asymptotic],
+                [row.kb_asymptotic for row in asymptotic],
+                "k--",
+                linewidth=2.0,
+                label=r"$kb_{\mathrm{asym}}$",
+            )
+
+        if not numerical:
+            plt.text(
+                0.5,
+                0.50,
+                r"No resolved discrete trapped mode"
+                "\n"
+                r"for the sampled $\varepsilon$ values",
+                transform=plt.gca().transAxes,
+                ha="center",
+                va="center",
+                fontsize=10,
+            )
+
+        plt.axhline(
+            kb_cutoff(replace(config, a=float(a))),
+            linestyle=":",
+            linewidth=1.0,
+            alpha=0.65,
+            label=r"$\sqrt{\Lambda_1}b$",
+        )
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(r"$kb$")
+        plt.title(
+            rf"Theorem 2.1: $kb$ versus $\varepsilon$, "
+            rf"$a={a:.2f}$, $M={config.paper_M}$"
+        )
+        plt.grid(True, linestyle="--", alpha=0.35)
+        plt.legend(fontsize=9)
+        plt.tight_layout()
+
+        tag = f"{a:.2f}".replace(".", "p")
+        save_paper_figure(
+            output_directory,
+            f"paper_kb_vs_epsilon_a_{tag}_M{config.paper_M}",
+            config.paper_plot_dpi,
+        )
+
+
+def plot_paper_kb_vs_epsilon_all_a(
+    paper_rows: list[PaperSweepRow],
+    config: Config,
+    output_directory: Path,
+) -> None:
+    if not paper_rows:
+        return
+
+    plt.figure(figsize=(9, 5.5))
+    a_values = sorted({row.a for row in paper_rows})
+    colors = paper_color_map(a_values)
+
+    for a in a_values:
+        rows = sorted(
+            (row for row in paper_rows if math.isclose(row.a, a, abs_tol=1.0e-12)),
+            key=lambda row: row.epsilon,
+        )
+        color = colors[round(a, 12)]
+        numerical = [
+            row for row in rows
+            if row.status == "one" and np.isfinite(row.kb)
+        ]
+        asymptotic = [
+            row for row in rows
+            if row.asymptotic_prediction_valid
+            and np.isfinite(row.kb_asymptotic)
+        ]
+
+        if numerical:
+            plt.plot(
+                [row.epsilon for row in numerical],
+                [row.kb for row in numerical],
+                "o-",
+                color=color,
+                markersize=3.5,
+                linewidth=1.5,
+                label=fr"$a={a:.2f}$, BEM",
+            )
+        else:
+            # Keep subcritical/empty cases visible in the legend without
+            # fabricating a kb value at the cutoff.
+            plt.plot(
+                [],
+                [],
+                "o-",
+                color=color,
+                markersize=3.5,
+                linewidth=1.5,
+                label=fr"$a={a:.2f}$, no resolved mode",
+            )
+
+        # In the joint figure BEM and asymptotic curves for the same a share
+        # exactly the same color; line style separates them.
+        if asymptotic:
+            plt.plot(
+                [row.epsilon for row in asymptotic],
+                [row.kb_asymptotic for row in asymptotic],
+                "--",
+                color=color,
+                linewidth=1.4,
+                label=fr"$a={a:.2f}$, asymptotic",
+            )
+
+    a0 = critical_height_leading_order(config)
+    plt.axhline(
+        kb_cutoff(config),
+        linestyle=":",
+        linewidth=1.0,
+        alpha=0.65,
+        label=r"$\sqrt{\Lambda_1}b$",
+    )
+    plt.text(
+        0.015,
+        0.02,
+        rf"$a_0^*\approx{a0:.4f}$; subcritical cases are not assigned "
+        r"an asymptotic trapped-mode branch",
+        transform=plt.gca().transAxes,
+        fontsize=8,
+    )
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$kb$")
+    plt.title(
+        rf"Theorem 2.1: dependence on obstacle height ($M={config.paper_M}$)"
+    )
+    plt.grid(True, linestyle="--", alpha=0.35)
+    plt.legend(fontsize=7.5, ncol=2)
+    plt.tight_layout()
+    save_paper_figure(
+        output_directory,
+        f"paper_kb_vs_epsilon_all_a_M{config.paper_M}",
+        config.paper_plot_dpi,
+    )
 
 
 def plot_beyn_contour(
@@ -2185,6 +3504,7 @@ def plot_candidate_refinement(
         sv = np.array([row.sigma_min for row in subset])
         relative_sv = np.array([row.relative_singular_value for row in subset])
         kb = np.array([row.kb for row in subset])
+        sigma = np.array([row.sigma_bem for row in subset])
 
         plt.figure(figsize=(7, 4.5))
         plt.semilogy(M, sv, "o-")
@@ -2227,6 +3547,42 @@ def plot_candidate_refinement(
         plt.savefig(
             output_directory
             / f"candidate_{candidate_index}_kb_epsilon_{epsilon:.2f}.png",
+            dpi=180,
+        )
+        plt.close()
+
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(M, sigma, "o-")
+        plt.xlabel(r"$M$")
+        plt.ylabel(r"$\sigma$")
+        plt.title(
+            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: "
+            r"$\sigma$ convergence"
+        )
+        plt.tight_layout()
+        plt.savefig(
+            output_directory
+            / f"candidate_{candidate_index}_sigma_epsilon_{epsilon:.2f}.png",
+            dpi=180,
+        )
+        plt.close()
+
+        sigma_ref = sigma[-1]
+        relative_sigma_error = np.abs(sigma - sigma_ref) / max(
+            abs(sigma_ref), 1.0e-30
+        )
+        plt.figure(figsize=(7, 4.5))
+        plt.semilogy(M, np.maximum(relative_sigma_error, 1.0e-16), "o-")
+        plt.xlabel(r"$M$")
+        plt.ylabel(r"$|\sigma_M-\sigma_{M_{\max}}|/|\sigma_{M_{\max}}|$")
+        plt.title(
+            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: "
+            r"mesh convergence in $\sigma$"
+        )
+        plt.tight_layout()
+        plt.savefig(
+            output_directory
+            / f"candidate_{candidate_index}_sigma_mesh_error_epsilon_{epsilon:.2f}.png",
             dpi=180,
         )
         plt.close()
@@ -2353,13 +3709,18 @@ def plot_critical_height(
 
 
 def print_result(result: ValidationResult, config: Config) -> None:
-    print("\n  --- Beyn-v4 + local-SVD validation result ---")
+    print("\n  --- Beyn-v5 + local-sigma-SVD validation result ---")
     print(f"  effective cutoff margin        = {result.effective_beyn_cutoff_margin:.3e}")
     print(f"  final Beyn quadrature Nq       = {result.beyn_final_quadrature_points}")
     print(f"  final Beyn estimated rank      = {result.beyn_estimated_rank}")
     print(
         f"  Beyn rank stable (last 2 Nq)   = {'YES' if result.beyn_rank_stable else 'no'}"
     )
+    if np.isfinite(result.beyn_final_s0_relative_change):
+        print(
+            f"  final relative S0 change       = "
+            f"{result.beyn_final_s0_relative_change:.3e}"
+        )
     if result.tighter_margin_rank_consistent is None:
         tighter_text = "N/A"
     else:
@@ -2397,7 +3758,16 @@ def print_result(result: ValidationResult, config: Config) -> None:
         print(f"  relative sigma error           = {result.relative_error_sigma:.3%}")
         if np.isfinite(result.wall_relative_residual):
             print(f"  wall Dirichlet residual        = {result.wall_relative_residual:.3e}")
-            print(f"  obstacle Neumann residual      = {result.neumann_relative_residual:.3e}")
+            print(
+                f"  off-grid BIE residual          = "
+                f"{result.boundary_integral_relative_residual:.3e}"
+            )
+            boundary_text = (
+                "PASS"
+                if result.physical_boundary_integral_verified is True
+                else "FAIL"
+            )
+            print(f"  off-grid BIE residual check    = {boundary_text}")
             print(
                 f"  decay rate left/right          = "
                 f"{result.decay_rate_left:.6e}/{result.decay_rate_right:.6e}"
@@ -2432,43 +3802,21 @@ def main() -> None:
     config = CONFIG
     output_directory = Path(config.output_directory)
     output_directory.mkdir(parents=True, exist_ok=True)
-
     a0_star = critical_height_leading_order(config)
 
-    print("=== Theorem 2.1 numerical validation: Beyn + BEM + SVD (v4) ===")
+    print("=== Theorem 2.1 numerical validation: Beyn + BEM + sigma-SVD (v6 parallel) ===")
     print(f"b = {config.b}")
-    print(f"a = {config.a}")
+    print(f"baseline a = {config.a}")
     print(f"leading-order a0* = {a0_star:.12f}")
-    print(f"geometric leading condition a > a0*: {'PASS' if config.a > a0_star else 'FAIL'}")
     print(f"Lambda_1 = {lambda_1(config):.12f}")
     print(f"sqrt(Lambda_1)b = {kb_cutoff(config):.12f}")
-    print(f"epsilons = {config.epsilon_values}")
-    print(
-        f"Beyn global discovery uses fixed M={config.beyn_M} "
-        "(no multi-M global Beyn sweep, by design)."
-    )
-    print(
-        f"Beyn Nq base={config.beyn_quadrature_levels}, "
-        f"adaptive={config.beyn_adaptive_quadrature_levels}, "
-        f"probe_dim={config.beyn_probe_dim}"
-    )
-    print(
-        f"rank diagnostics: empty-S0={config.beyn_empty_s0_tolerance:.1e}, "
-        f"rel_tol={config.beyn_rank_relative_tolerance:.1e}, "
-        f"gap_threshold={config.beyn_rank_gap_threshold:.1e}"
-    )
-    print(f"local BEM refinement M = {config.refinement_M}")
+    print(f"detected CPUs = {detected_cpu_count()}")
+    print(f"paper workers = {paper_worker_count(config) if config.paper_parallel else 1}")
 
-    if config.a <= a0_star:
-        raise RuntimeError(
-            "The main epsilon-scaling experiment is configured on the existence "
-            "side and requires a > a0*. Use run_critical_height_study for the "
-            "zero/one-mode transition around a*."
-        )
-
-    first_config = config_for_epsilon(config.epsilon_values[0], config)
+    # One cheap startup check shared by both modes.
+    smoke_config = replace(config, beyn_cutoff_margin=config.beyn_cutoff_margin)
     print("\nChecking complex-kb support required by Beyn...")
-    complex_support_smoke_test(config.epsilon_values[0], first_config)
+    complex_support_smoke_test(config.epsilon_values[0], smoke_config)
     print("  complex-kb assembly: PASS")
 
     summaries: list[ValidationResult] = []
@@ -2479,128 +3827,130 @@ def main() -> None:
     all_mode_results: list[ModeResult] = []
     all_physical: list[PhysicalDiagnostics] = []
 
-    for epsilon in config.epsilon_values:
-        work_config = config_for_epsilon(epsilon, config)
-        left, right, center, rx, ry = contour_geometry(work_config)
-        print(f"\n=== epsilon={epsilon:.8f} ===")
-        kb_asym, sigma_asym = asymptotic_prediction(epsilon, work_config)
-        print(f"  predicted kb = {kb_asym:.12f}")
-        print(f"  predicted sigma = {sigma_asym:.8e}")
-        print(f"  predicted cutoff gap = {kb_cutoff(work_config) - kb_asym:.3e}")
+    if config.run_main_epsilon_validation:
+        if config.a <= a0_star:
+            raise RuntimeError(
+                "The baseline epsilon-scaling experiment requires a>a0*."
+            )
+        print("\n=== BASELINE FULL MULTI-M VALIDATION ===")
+        print(f"epsilons = {config.epsilon_values}")
         print(
-            "  Beyn ellipse: "
-            f"real=[{left:.12f}, {right:.12f}], "
-            f"center={center:.12f}, rx={rx:.12f}, ry={ry:.3e}"
+            f"Beyn global discovery fixed M={config.beyn_M}; "
+            f"Nq base={config.beyn_quadrature_levels}, "
+            f"adaptive={config.beyn_adaptive_quadrature_levels}"
         )
+        print(f"local BEM refinement M = {config.refinement_M}")
 
-        (
-            result,
-            beyn_diags,
-            eigen_rows,
-            convergence_rows,
-            refinement_rows,
-            mode_results,
-            final_s0_singular_values,
-            final_eigen_rows,
-            aitken_estimate,
-            physical,
-        ) = validate_epsilon(epsilon, config)
+        for epsilon in config.epsilon_values:
+            work_config = config_for_epsilon(epsilon, config)
+            left, right, center, rx, ry = contour_geometry(work_config)
+            print(f"\n=== epsilon={epsilon:.8f} ===")
+            kb_asym, sigma_asym = asymptotic_prediction(epsilon, work_config)
+            print(f"  predicted kb = {kb_asym:.12f}")
+            print(f"  predicted sigma = {sigma_asym:.8e}")
+            print(f"  predicted cutoff gap = {kb_cutoff(work_config) - kb_asym:.3e}")
+            print(
+                "  Beyn ellipse: "
+                f"real=[{left:.12f}, {right:.12f}], "
+                f"center={center:.12f}, rx={rx:.12f}, ry={ry:.3e}"
+            )
 
-        summaries.append(result)
-        all_beyn_diagnostics.extend(beyn_diags)
-        all_eigen_rows.extend(eigen_rows)
-        all_convergence_rows.extend(convergence_rows)
-        all_refinement_rows.extend(refinement_rows)
-        all_mode_results.extend(mode_results)
-        if physical is not None:
-            all_physical.append(physical)
+            (
+                result,
+                beyn_diags,
+                eigen_rows,
+                convergence_rows,
+                refinement_rows,
+                mode_results,
+                final_s0_singular_values,
+                final_eigen_rows,
+                aitken_estimate,
+                physical,
+            ) = validate_epsilon(epsilon, config)
 
-        print_result(result, work_config)
-        plot_beyn_contour(epsilon, final_eigen_rows, output_directory, work_config)
-        plot_s0_singular_values(epsilon, final_s0_singular_values, output_directory)
-        plot_beyn_convergence(
-            epsilon, convergence_rows, output_directory, work_config, aitken_estimate
+            summaries.append(result)
+            all_beyn_diagnostics.extend(beyn_diags)
+            all_eigen_rows.extend(eigen_rows)
+            all_convergence_rows.extend(convergence_rows)
+            all_refinement_rows.extend(refinement_rows)
+            all_mode_results.extend(mode_results)
+            if physical is not None:
+                all_physical.append(physical)
+
+            print_result(result, work_config)
+            plot_beyn_contour(epsilon, final_eigen_rows, output_directory, work_config)
+            plot_s0_singular_values(epsilon, final_s0_singular_values, output_directory)
+            plot_beyn_convergence(
+                epsilon, convergence_rows, output_directory, work_config, aitken_estimate
+            )
+            plot_candidate_refinement(epsilon, refinement_rows, output_directory)
+
+        write_dataclass_csv(output_directory / "summary.csv", summaries)
+        write_dataclass_csv(output_directory / "beyn_diagnostics.csv", all_beyn_diagnostics)
+        write_dataclass_csv(output_directory / "beyn_convergence.csv", all_convergence_rows)
+        write_dataclass_csv(output_directory / "beyn_raw_eigenvalues.csv", all_eigen_rows)
+        write_dataclass_csv(output_directory / "mode_refinement.csv", all_refinement_rows)
+        write_dataclass_csv(output_directory / "mode_results.csv", all_mode_results)
+        write_dataclass_csv(output_directory / "physical_diagnostics.csv", all_physical)
+        plot_summary(summaries, output_directory, config)
+
+        internal_rows = run_internal_convergence_study(summaries, config)
+        write_dataclass_csv(output_directory / "internal_convergence.csv", internal_rows)
+        plot_internal_convergence(internal_rows, output_directory)
+    else:
+        print(
+            "\nBaseline full validation: SKIPPED "
+            "(run_main_epsilon_validation=False)."
         )
-        plot_candidate_refinement(epsilon, refinement_rows, output_directory)
-
-    write_dataclass_csv(output_directory / "summary.csv", summaries)
-    write_dataclass_csv(output_directory / "beyn_diagnostics.csv", all_beyn_diagnostics)
-    write_dataclass_csv(output_directory / "beyn_convergence.csv", all_convergence_rows)
-    write_dataclass_csv(output_directory / "beyn_raw_eigenvalues.csv", all_eigen_rows)
-    write_dataclass_csv(output_directory / "mode_refinement.csv", all_refinement_rows)
-    write_dataclass_csv(output_directory / "mode_results.csv", all_mode_results)
-    write_dataclass_csv(output_directory / "physical_diagnostics.csv", all_physical)
-    plot_summary(summaries, output_directory, config)
-
-    internal_rows = run_internal_convergence_study(summaries, config)
-    write_dataclass_csv(output_directory / "internal_convergence.csv", internal_rows)
-    plot_internal_convergence(internal_rows, output_directory)
 
     critical_rows = run_critical_height_study(config)
     write_dataclass_csv(output_directory / "critical_height.csv", critical_rows)
     plot_critical_height(critical_rows, output_directory)
 
-    one_mode_supported = sum(row.unique_mode_verified for row in summaries)
-    asymptotic_evaluated = [
-        row for row in summaries if row.asymptotic_agreement_verified is not None
-    ]
-    asymptotic_passed = sum(
-        row.asymptotic_agreement_verified is True for row in asymptotic_evaluated
-    )
-    physical_evaluated = [row for row in summaries if row.physical_decay_verified is not None]
-    physical_passed = sum(row.physical_decay_verified is True for row in physical_evaluated)
+    paper_rows = load_or_run_paper_a_sweep(config, output_directory)
+    plot_paper_kb_vs_epsilon_individual(paper_rows, config, output_directory)
+    plot_paper_kb_vs_epsilon_all_a(paper_rows, config, output_directory)
 
     print("\n=== FINAL SUMMARY ===")
-    print("Global discovery: adaptive Beyn contour method with Nq convergence study")
-    print("Global Beyn BEM order: one fixed M, as requested")
-    print("Local certification: relative SVD singularity + BEM mesh refinement")
-    print("Near-cutoff safeguard: epsilon-adaptive margin + tighter-margin rank check")
-    print("Asymptotics: direct sigma/epsilon^2 and scaled O(epsilon^3 log epsilon) diagnostics")
-    print(
-        f"Stable rank=1 + exactly one locally resolved mode: "
-        f"{one_mode_supported}/{len(summaries)}"
-    )
-    print(
-        f"Leading asymptotic sigma within {config.relative_sigma_error_tolerance:.1%}: "
-        f"{asymptotic_passed}/{len(asymptotic_evaluated)}"
-    )
-    if physical_evaluated:
-        print(
-            f"Independent physical decay checks: "
-            f"{physical_passed}/{len(physical_evaluated)}"
+    if summaries:
+        one_mode_supported = sum(row.unique_mode_verified for row in summaries)
+        asymptotic_evaluated = [
+            row for row in summaries if row.asymptotic_agreement_verified is not None
+        ]
+        asymptotic_passed = sum(
+            row.asymptotic_agreement_verified is True for row in asymptotic_evaluated
         )
-    if not config.run_critical_height_study:
         print(
-            "Critical-height a*(epsilon) study: IMPLEMENTED but disabled. "
-            "Set run_critical_height_study=True for the full existence/non-existence transition test."
+            f"Baseline: stable rank=1 + exactly one locally resolved mode: "
+            f"{one_mode_supported}/{len(summaries)}"
+        )
+        print(
+            f"Baseline leading asymptotic sigma within "
+            f"{config.relative_sigma_error_tolerance:.1%}: "
+            f"{asymptotic_passed}/{len(asymptotic_evaluated)}"
         )
 
-    for row in summaries:
-        sigma_error_text = (
-            f"{row.relative_error_sigma:.3%}"
-            if np.isfinite(row.relative_error_sigma)
-            else "N/A"
-        )
-        asym_text = (
-            "N/A"
-            if row.asymptotic_agreement_verified is None
-            else ("PASS" if row.asymptotic_agreement_verified else "FAIL")
-        )
-        margin_text = (
-            "N/A"
-            if row.tighter_margin_rank_consistent is None
-            else ("PASS" if row.tighter_margin_rank_consistent else "FAIL")
+    if paper_rows:
+        paper_one = sum(row.status == "one" for row in paper_rows)
+        paper_zero = sum(row.status == "zero" for row in paper_rows)
+        paper_ambiguous = sum(row.status == "ambiguous" for row in paper_rows)
+        paper_invalid = sum(row.status == "invalid-geometry" for row in paper_rows)
+        paper_error = sum(row.status == "error" for row in paper_rows)
+        print(
+            f"Paper a-sweep M={config.paper_M}: one={paper_one}, zero={paper_zero}, "
+            f"ambiguous={paper_ambiguous}, invalid={paper_invalid}, "
+            f"error={paper_error}, total={len(paper_rows)}"
         )
         print(
-            f"  epsilon={row.epsilon:.5f}: "
-            f"margin={row.effective_beyn_cutoff_margin:.2e}, "
-            f"Nq={row.beyn_final_quadrature_points}, "
-            f"rank={row.beyn_estimated_rank}, "
-            f"rank_stable={'yes' if row.beyn_rank_stable else 'no'}, "
-            f"margin_check={margin_text}, "
-            f"resolved={row.resolved_mode_count}, "
-            f"one-mode={'PASS' if row.unique_mode_verified else 'FAIL'}, "
-            f"asymptotic={asym_text}, sigma_error={sigma_error_text}"
+            "Subcritical 'zero' means zero enclosed modes on the configured "
+            "numerical cutoff-margin ladder down to 1e-5; cases that are not "
+            "cleanly zero are intentionally reported as ambiguous."
+        )
+
+    if not config.run_critical_height_study:
+        print(
+            "Critical-height a*(epsilon) bisection study: disabled. "
+            "Enable run_critical_height_study only for the dedicated transition run."
         )
 
     print(f"\nFiles written to: {output_directory.resolve()}")
