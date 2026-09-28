@@ -100,6 +100,13 @@ class Config:
     cutoff_delta_floor: float = 1.0e-9
     minimizer_xatol: float = 2.0e-10
 
+    # Paper sweep continuation search in sigma (delta = sigma**2). The
+    # asymptotic bracket seeds each branch; subsequent epsilons use the
+    # previous/extrapolated sigma and expand the local bracket as needed.
+    continuation_initial_halfwidth: float = 0.30
+    continuation_expansion_factor: float = 1.8
+    continuation_max_expansions: int = 8
+
     # A resolved minimum should be substantially lower than the values at
     # the two ends of its search bracket. 100 means two orders of magnitude.
     minimum_drop_factor: float = 100.0
@@ -417,6 +424,70 @@ def expected_mode_bracket(epsilon: float, config: Config) -> tuple[float, float]
     if not left < right:
         raise RuntimeError("Invalid expected-mode search bracket.")
     return left, right
+
+
+def refine_continued_mode_for_M(
+    epsilon: float,
+    M: int,
+    sigma_prediction: float,
+    config: Config,
+) -> tuple[float, float, float, float, float, bool]:
+    """Find a mode near the continued sigma prediction with adaptive bounds.
+
+    Unlike ``expected_mode_bracket``, this search has no asymptotic lower
+    bound: its admissible range is the physical subcutoff band.
+    """
+    sigma_max = math.sqrt(0.95 * lambda_1(config))
+    center = min(
+        max(float(sigma_prediction), 1.0e-10), sigma_max * (1.0 - 1.0e-10)
+    )
+    halfwidth = max(config.continuation_initial_halfwidth * center, 1.0e-8)
+    tiny = np.finfo(float).tiny
+    best: tuple[float, float, float, float, float, bool] | None = None
+
+    for _ in range(config.continuation_max_expansions + 1):
+        sigma_left = max(1.0e-10, center - halfwidth)
+        sigma_right = min(sigma_max, center + halfwidth)
+        kb_left = kb_from_delta(sigma_right**2, config)
+        kb_right = kb_from_delta(sigma_left**2, config)
+        left_value = smallest_singular_value(kb_left, epsilon, M, config)
+        right_value = smallest_singular_value(kb_right, epsilon, M, config)
+
+        result: Any = minimize_scalar(
+            lambda sigma: math.log10(
+                max(
+                    smallest_singular_value(
+                        kb_from_delta(float(sigma) ** 2, config), epsilon, M, config
+                    ),
+                    tiny,
+                )
+            ),
+            bounds=(sigma_left, sigma_right),
+            method="bounded",
+            options={"xatol": config.minimizer_xatol},
+        )
+        if not result.success:
+            raise RuntimeError(
+                f"Continued-mode minimization failed for M={M}: {result.message}"
+            )
+
+        sigma = float(result.x)
+        kb = kb_from_delta(sigma**2, config)
+        sigma_min = smallest_singular_value(kb, epsilon, M, config)
+        drop_factor = min(left_value, right_value) / max(sigma_min, tiny)
+        width = sigma_right - sigma_left
+        edge_margin = 0.01 * width
+        interior = sigma > sigma_left + edge_margin and sigma < sigma_right - edge_margin
+        best = (kb, sigma_min, left_value, right_value, drop_factor, interior)
+
+        if interior and drop_factor >= config.minimum_drop_factor:
+            break
+        if sigma_left <= 1.0e-10 and sigma_right >= sigma_max:
+            break
+        halfwidth *= config.continuation_expansion_factor
+
+    assert best is not None
+    return best
 
 
 def refine_expected_mode_for_M(
@@ -883,6 +954,7 @@ def paper_sweep_case(
     epsilon: float,
     a: float,
     config: Config,
+    sigma_prediction: float | None = None,
 ) -> PaperSweepRow:
     """Compute one Figure 2 point using the fixed paper resolution M=32."""
     case_config = replace(config, a=a, epsilon_values=(epsilon,))
@@ -934,6 +1006,14 @@ def paper_sweep_case(
             mode_status=status,
         )
 
+    if sigma_prediction is None:
+        refinement = refine_expected_mode_for_M(
+            epsilon, config.paper_fixed_M, case_config
+        )
+    else:
+        refinement = refine_continued_mode_for_M(
+            epsilon, config.paper_fixed_M, sigma_prediction, case_config
+        )
     (
         kb,
         sigma_min,
@@ -941,7 +1021,7 @@ def paper_sweep_case(
         _right_value,
         drop_factor,
         interior,
-    ) = refine_expected_mode_for_M(epsilon, config.paper_fixed_M, case_config)
+    ) = refinement
     sigma_bem = sigma_from_kb(kb, case_config)
     relative_error_kb = abs(kb - kb_asym) / max(abs(kb_asym), 1.0e-30)
     relative_error_sigma = abs(sigma_bem - sigma_asym) / max(
@@ -1018,16 +1098,35 @@ def run_parallel_validations(
 def run_parallel_paper_sweep(
     config: Config,
 ) -> list[PaperSweepRow]:
-    tasks = [
-        (float(epsilon), float(a), config)
-        for a in config.paper_a_values
-        for epsilon in paper_epsilon_values(a, config)
-    ]
+    """Run the paper sweep in epsilon order to continue each mode branch.
+
+    The historical name is retained for compatibility, but continuation makes
+    points within each ``a`` sweep intentionally sequential.
+    """
     rows: list[PaperSweepRow] = []
-    with ProcessPoolExecutor(max_workers=config.parallel_workers) as executor:
-        futures = [executor.submit(_paper_sweep_worker, task) for task in tasks]
-        for future in as_completed(futures):
-            rows.append(future.result())
+    for a in config.paper_a_values:
+        previous: list[tuple[float, float]] = []
+        for epsilon in paper_epsilon_values(a, config):
+            sigma_prediction: float | None = None
+            if previous:
+                epsilon_prev, sigma_prev = previous[-1]
+                sigma_prediction = sigma_prev
+                if len(previous) >= 2:
+                    epsilon_prevprev, sigma_prevprev = previous[-2]
+                    step = epsilon - epsilon_prev
+                    previous_step = epsilon_prev - epsilon_prevprev
+                    if previous_step > 0.0:
+                        extrapolated = sigma_prev + (step / previous_step) * (
+                            sigma_prev - sigma_prevprev
+                        )
+                        if np.isfinite(extrapolated) and extrapolated > 0.0:
+                            sigma_prediction = extrapolated
+
+            row = paper_sweep_case(epsilon, a, config, sigma_prediction)
+            rows.append(row)
+            if np.isfinite(row.sigma_bem) and row.sigma_bem > 0.0:
+                previous.append((float(epsilon), float(row.sigma_bem)))
+                previous = previous[-2:]
     return sorted(rows, key=lambda row: (row.a, row.epsilon))
 
 
