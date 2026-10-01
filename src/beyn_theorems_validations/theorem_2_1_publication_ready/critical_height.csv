@@ -1,0 +1,5 @@
+epsilon,a_lower_zero_mode,a_upper_one_mode,a_critical_estimate,bracket_width,a0_star,normalized_shift_over_epsilon,status
+0.04,0.2718265520306073,0.39182655203060734,0.3318265520306073,0.12000000000000005,0.3918265520306073,-1.5,partial-bracket-ambiguous
+0.06,nan,0.5118265520306073,nan,nan,0.3918265520306073,nan,unbracketed-or-ambiguous
+0.08,nan,0.5118265520306073,nan,nan,0.3918265520306073,nan,unbracketed-or-ambiguous
+0.1,nan,0.5118265520306073,nan,nan,0.3918265520306073,nan,unbracketed-or-ambiguous

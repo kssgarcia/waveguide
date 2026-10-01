@@ -50,6 +50,14 @@ class Config:
         0.12, 0.14, 0.16, 0.18, 0.20,
     )
 
+    # Publication reporting window for the asymptotic statement.  This is a
+    # numerical reporting choice, NOT a theorem constant: Theorem 2.1 only says
+    # "for sufficiently small epsilon".  Points above this value are retained
+    # as finite-size exploration but are not used in the formal small-epsilon
+    # scaling summary.
+    publication_asymptotic_epsilon_max: float = 0.10
+    publication_min_asymptotic_points: int = 4
+
     # Run the single-geometry baseline at a=0.6 for the ten epsilon values
     # through 0.20, independently of the multi-a paper sweep below.
     run_main_epsilon_validation: bool = True
@@ -62,13 +70,14 @@ class Config:
     # Internal numerical-convergence diagnostics. These do NOT alter the main
     # mathematical discretization; they probe sensitivity to implementation
     # parameters at one representative epsilon.
-    run_internal_convergence_study: bool = False
-    internal_convergence_epsilon: float = 0.09
-    internal_convergence_M: int = 32
-    internal_sigma_bracket_factor: float = 1.15
-    finite_difference_steps_test: tuple[float, ...] = (3.0e-6, 1.0e-6, 3.0e-7)
-    lattice_terms_test: tuple[int, ...] = (100, 200, 300)
-    harmonic_orders_test: tuple[int, ...] = (12, 20, 28)
+    run_internal_convergence_study: bool = True
+    internal_convergence_epsilon: float = 0.10
+    internal_convergence_M: int = 48
+    internal_sigma_bracket_factor: float = 1.20
+    boundary_orders_test: tuple[int, ...] = (16, 24, 32, 40, 48)
+    finite_difference_steps_test: tuple[float, ...] = (1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4)
+    lattice_terms_test: tuple[int, ...] = (25, 50, 100, 200)
+    harmonic_orders_test: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
 
     # ------------------------------------------------------------------
     # Beyn global discovery.
@@ -200,14 +209,40 @@ class Config:
     physical_boundary_residual_tolerance: float = 5.0e-3
     physical_decay_relative_tolerance: float = 0.20
 
-    # Full theorem-side diagnostic for the critical height a*.  This is costly
-    # because each bisection point launches a complete Beyn+SVD mode-count
-    # calculation.  It is implemented here but disabled by default; enable it
-    # for the final publication-quality validation run.
-    run_critical_height_study: bool = False
-    critical_height_epsilon_values: tuple[float, ...] = (0.05, 0.07, 0.09)
+    # Full theorem-side diagnostic for the critical height a*(epsilon).  The
+    # publication profile enables it by default.  The classifier below does NOT
+    # infer zero/one mode from the asymptotic coefficient: it combines numerical
+    # Beyn discovery with an independent whole-band absolute-SVD scan.
+    run_critical_height_study: bool = True
+    critical_height_epsilon_values: tuple[float, ...] = (0.04, 0.06, 0.08, 0.10)
     critical_height_half_width: float = 0.12
-    critical_height_bisection_iterations: int = 5
+    critical_height_bisection_iterations: int = 8
+    critical_parallel: bool = True
+    critical_cpu_fraction: float = 0.50
+    critical_max_workers: int = 0
+    critical_worker_quiet: bool = True
+    # Keep Beyn itself away from the branch point in the transition study.
+    # Nearer-than-1e-5 modes are recovered by the independent sigma-SVD scan,
+    # which can distinguish an interior valley from endpoint attraction.
+    critical_classifier_cutoff_margins: tuple[float, ...] = (1.0e-4, 1.0e-5)
+    critical_classifier_search_quadrature: int = 384
+    critical_classifier_verify_quadrature: int = 192
+    critical_classifier_escalation_quadrature: int = 768
+
+    # Independent non-existence / whole-band SVD scan.  This scan deliberately
+    # ignores the endpoint at sigma=0: only strict INTERIOR valleys of absolute
+    # sigma_min(A) can become mode candidates.  The lower sigma floor corresponds
+    # to an extremely small but finite cutoff gap and is a numerical resolution
+    # parameter, not a theorem assumption.
+    run_independent_nonexistence_scan: bool = True
+    nonexistence_scan_M_levels: tuple[int, ...] = (16, 24, 32)
+    nonexistence_refinement_M: tuple[int, ...] = (24, 32, 40)
+    nonexistence_scan_points: int = 160
+    nonexistence_scan_min_cutoff_gap: float = 1.0e-12
+    nonexistence_scan_max_candidates: int = 12
+    nonexistence_scan_cluster_relative_tolerance: float = 0.03
+    nonexistence_scan_suspicious_relative_factor: float = 10.0
+    nonexistence_scan_suspicious_drop_fraction: float = 0.10
 
     # ------------------------------------------------------------------
     # Paper sweep in obstacle height a.
@@ -267,7 +302,7 @@ class Config:
         1.0e-3, 1.0e-4, 1.0e-5,
     )
 
-    output_directory: str = "theorem_2_1_beyn_v6_parallel_paper"
+    output_directory: str = "theorem_2_1_publication_ready"
 
 
 @dataclass
@@ -402,6 +437,41 @@ class InternalConvergenceRow:
 
 
 @dataclass
+class IndependentScanSummary:
+    epsilon: float
+    a: float
+    context: str
+    sigma_lower: float
+    sigma_upper: float
+    scan_points_total: int
+    scan_M_levels: str
+    local_minima_count: int
+    refined_candidate_count: int
+    resolved_mode_count: int
+    suspicious_unresolved_count: int
+    best_relative_singular_value: float
+    best_drop_factor: float
+    near_cutoff_edge_attraction: bool
+    nonexistence_supported: bool
+    status: str
+
+
+@dataclass
+class CriticalHeightProbeRow:
+    epsilon: float
+    a: float
+    status: str
+    beyn_rank: int
+    rank_stable: bool
+    resolved_mode_count: int
+    svd_scan_resolved_mode_count: int
+    svd_scan_local_minima_count: int
+    svd_scan_nonexistence_supported: bool
+    selected_cutoff_margin: float
+    note: str
+
+
+@dataclass
 class CriticalHeightRow:
     epsilon: float
     a_lower_zero_mode: float
@@ -414,11 +484,19 @@ class CriticalHeightRow:
 
 
 @dataclass
+class PublicationClaimRow:
+    claim: str
+    status: str
+    evidence: str
+    limitation: str
+
+
+@dataclass
 class PaperSweepRow:
     a: float
     epsilon: float
     M: int
-    status: str  # zero | one | ambiguous | invalid-geometry | error
+    status: str  # zero | zero-supported | one | ambiguous | invalid-geometry | error
     beyn_rank: int
     beyn_rank_stable: bool
     tighter_margin_rank_consistent: bool
@@ -434,6 +512,10 @@ class PaperSweepRow:
     asymptotic_coefficient: float
     cutoff_margin_used: float = math.nan
     beyn_quadrature_points: int = 0
+    nonexistence_supported: bool = False
+    svd_scan_resolved_modes: int = 0
+    svd_scan_local_minima: int = 0
+    svd_scan_suspicious_unresolved: int = 0
     geometry_reason: str = "ok"
 
 
@@ -504,6 +586,14 @@ def paper_worker_count(config: Config) -> int:
     if config.paper_max_workers > 0:
         return max(1, min(int(config.paper_max_workers), available))
     fraction = min(max(float(config.paper_cpu_fraction), 0.05), 1.0)
+    return max(1, min(available, int(math.floor(available * fraction))))
+
+
+def critical_worker_count(config: Config) -> int:
+    available = detected_cpu_count()
+    if config.critical_max_workers > 0:
+        return max(1, min(int(config.critical_max_workers), available))
+    fraction = min(max(float(config.critical_cpu_fraction), 0.05), 1.0)
     return max(1, min(available, int(math.floor(available * fraction))))
 
 
@@ -1660,6 +1750,217 @@ def sigma_scan_fallback_task(
     )
 
 
+def _hybrid_sigma_scan_grid(
+    sigma_lower: float,
+    sigma_upper: float,
+    points: int,
+) -> np.ndarray:
+    """Hybrid log/linear sigma grid for whole-band diagnostic scans.
+
+    The logarithmic component resolves the near-cutoff region while the linear
+    component prevents the deep part of [0,Lambda_1) from being undersampled.
+    This grid is only a discovery device; every candidate is subsequently
+    refined by the same absolute-SVD minimizer used elsewhere.
+    """
+    points = max(int(points), 48)
+    log_grid = np.geomspace(float(sigma_lower), float(sigma_upper), points)
+    linear_start = max(float(sigma_lower), 1.0e-3 * float(sigma_upper))
+    linear_grid = np.linspace(linear_start, float(sigma_upper), max(points // 2, 32))
+    return np.unique(np.concatenate((log_grid, linear_grid)))
+
+
+def independent_whole_band_svd_scan(
+    epsilon: float,
+    a: float,
+    config: Config,
+    context: str,
+) -> tuple[IndependentScanSummary, list[ModeResult]]:
+    """Search [0,Lambda_1) for strict interior singular-value valleys.
+
+    This is intentionally independent of the asymptotic prediction and of the
+    integer rank returned by Beyn.  It is used as a *numerical non-existence
+    support* diagnostic when contour moments are polluted by the branch point at
+    the first cutoff.  Absence of a detected valley is not a mathematical proof;
+    it means no resolved interior mode was found above the stated numerical
+    resolution floor.
+
+    The endpoint sigma=0 is never accepted.  A threshold attraction can make
+    sigma_min(A) small at the first sample, but only strict interior local minima
+    are refined as eigenvalue candidates.
+    """
+    trial = replace(config, a=float(a), run_physical_diagnostics=False)
+    cutoff = kb_cutoff(trial)
+    gap = max(
+        float(trial.nonexistence_scan_min_cutoff_gap),
+        100.0 * np.finfo(float).eps * max(cutoff, 1.0),
+    )
+    kb_right = max(float(trial.beyn_low_k_margin), cutoff - gap)
+    sigma_lower = sigma_from_kb(kb_right, trial)
+    sigma_upper = sigma_from_kb(float(trial.beyn_low_k_margin), trial)
+    if not (0.0 < sigma_lower < sigma_upper):
+        raise ValueError(
+            "Invalid independent whole-band SVD scan interval: "
+            f"[{sigma_lower}, {sigma_upper}]"
+        )
+
+    sigmas = _hybrid_sigma_scan_grid(
+        sigma_lower, sigma_upper, trial.nonexistence_scan_points
+    )
+
+    # (absolute sv, sigma seed, bracket left/right, scan M)
+    candidate_records: list[tuple[float, float, float, float, int]] = []
+    edge_attraction = False
+    total_local_minima = 0
+
+    for M in trial.nonexistence_scan_M_levels:
+        values = np.array(
+            [
+                absolute_singular_value_from_sigma(float(sigma), epsilon, int(M), trial)
+                for sigma in sigmas
+            ],
+            dtype=float,
+        )
+        finite = np.isfinite(values)
+        if np.count_nonzero(finite) < 3:
+            continue
+
+        # A low value at the first sigma sample is a cutoff-edge diagnostic, not
+        # an eigenvalue.  Record it but never turn it into a candidate.
+        first = np.flatnonzero(finite)
+        if len(first) >= 3:
+            i0, i1, i2 = map(int, first[:3])
+            if values[i0] <= values[i1] <= values[i2]:
+                edge_attraction = True
+        finite_indices = np.flatnonzero(finite)
+        if len(finite_indices) and int(finite_indices[np.argmin(values[finite])]) == 0:
+            edge_attraction = True
+
+        local_minima = [
+            i
+            for i in range(1, len(sigmas) - 1)
+            if np.isfinite(values[i - 1])
+            and np.isfinite(values[i])
+            and np.isfinite(values[i + 1])
+            and values[i] < values[i - 1]
+            and values[i] < values[i + 1]
+        ]
+        total_local_minima += len(local_minima)
+        for i in local_minima:
+            candidate_records.append(
+                (
+                    float(values[i]),
+                    float(sigmas[i]),
+                    float(sigmas[i - 1]),
+                    float(sigmas[i + 1]),
+                    int(M),
+                )
+            )
+
+    # Cluster the same valley found at different scan-M levels.  Keep the
+    # deepest sampled representative of each cluster.
+    candidate_records.sort(key=lambda item: item[1])
+    clustered: list[tuple[float, float, float, float, int]] = []
+    rel_tol = max(float(trial.nonexistence_scan_cluster_relative_tolerance), 1.0e-6)
+    for record in candidate_records:
+        if not clustered:
+            clustered.append(record)
+            continue
+        prev = clustered[-1]
+        rel = abs(record[1] - prev[1]) / max(abs(record[1]), abs(prev[1]), 1.0e-30)
+        if rel <= rel_tol:
+            if record[0] < prev[0]:
+                clustered[-1] = record
+        else:
+            clustered.append(record)
+
+    if len(clustered) > trial.nonexistence_scan_max_candidates:
+        clustered = sorted(clustered, key=lambda item: item[0])[
+            : int(trial.nonexistence_scan_max_candidates)
+        ]
+        clustered.sort(key=lambda item: item[1])
+
+    refine_config = replace(
+        trial,
+        refinement_M=tuple(int(M) for M in trial.nonexistence_refinement_M),
+    )
+    modes: list[ModeResult] = []
+    suspicious_unresolved = 0
+    best_relative = math.nan
+    best_drop = math.nan
+
+    for index, (_, sigma_seed, left, right, _) in enumerate(clustered, start=1):
+        seed = DiscoverySeed(
+            real=kb_from_sigma(float(sigma_seed), refine_config),
+            imag=0.0,
+            source="independent-whole-band-svd",
+        )
+        try:
+            _, mode = run_candidate_refinement(
+                epsilon, index, seed, (float(left), float(right)), refine_config
+            )
+        except Exception as exc:  # noqa: BLE001
+            print(
+                "  independent SVD candidate refinement failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+            continue
+        modes.append(mode)
+        if not np.isfinite(best_relative) or mode.relative_singular_value_final < best_relative:
+            best_relative = float(mode.relative_singular_value_final)
+        if not np.isfinite(best_drop) or mode.final_drop_factor > best_drop:
+            best_drop = float(mode.final_drop_factor)
+        if not mode.resolved:
+            suspicious = bool(
+                mode.relative_singular_value_final
+                <= trial.nonexistence_scan_suspicious_relative_factor
+                * trial.relative_near_singular_tolerance
+                or mode.final_drop_factor
+                >= trial.nonexistence_scan_suspicious_drop_fraction
+                * trial.minimum_drop_factor
+            )
+            suspicious_unresolved += int(suspicious)
+
+    resolved_modes = [mode for mode in modes if mode.resolved]
+    nonexistence_supported = bool(
+        len(resolved_modes) == 0 and suspicious_unresolved == 0
+    )
+    if resolved_modes:
+        status = "resolved-interior-mode-found"
+    elif suspicious_unresolved:
+        status = "unresolved-interior-valley"
+    else:
+        status = "no-resolved-interior-mode"
+
+    summary = IndependentScanSummary(
+        epsilon=float(epsilon),
+        a=float(a),
+        context=str(context),
+        sigma_lower=float(sigma_lower),
+        sigma_upper=float(sigma_upper),
+        scan_points_total=int(len(sigmas) * len(trial.nonexistence_scan_M_levels)),
+        scan_M_levels=",".join(str(int(M)) for M in trial.nonexistence_scan_M_levels),
+        local_minima_count=int(total_local_minima),
+        refined_candidate_count=int(len(modes)),
+        resolved_mode_count=int(len(resolved_modes)),
+        suspicious_unresolved_count=int(suspicious_unresolved),
+        best_relative_singular_value=float(best_relative),
+        best_drop_factor=float(best_drop),
+        near_cutoff_edge_attraction=bool(edge_attraction),
+        nonexistence_supported=bool(nonexistence_supported),
+        status=status,
+    )
+    print(
+        "  independent whole-band SVD scan: "
+        f"local_minima={summary.local_minima_count}, "
+        f"refined={summary.refined_candidate_count}, "
+        f"resolved={summary.resolved_mode_count}, "
+        f"suspicious={summary.suspicious_unresolved_count}, "
+        f"edge_attraction={'yes' if summary.near_cutoff_edge_attraction else 'no'}, "
+        f"status={summary.status}"
+    )
+    return summary, modes
+
+
 def refine_candidate_for_M(
     epsilon: float,
     M: int,
@@ -2503,6 +2804,18 @@ def read_paper_sweep_csv(path: Path) -> list[PaperSweepRow]:
                     beyn_quadrature_points=_csv_int(
                         item.get("beyn_quadrature_points", "")
                     ),
+                    nonexistence_supported=_csv_bool(
+                        item.get("nonexistence_supported", "")
+                    ),
+                    svd_scan_resolved_modes=_csv_int(
+                        item.get("svd_scan_resolved_modes", "")
+                    ),
+                    svd_scan_local_minima=_csv_int(
+                        item.get("svd_scan_local_minima", "")
+                    ),
+                    svd_scan_suspicious_unresolved=_csv_int(
+                        item.get("svd_scan_suspicious_unresolved", "")
+                    ),
                     geometry_reason=str(item.get("geometry_reason", "ok")),
                 )
             )
@@ -2584,7 +2897,11 @@ def run_internal_convergence_study(
     results: list[ValidationResult],
     base_config: Config,
 ) -> list[InternalConvergenceRow]:
-    """One-at-a-time sensitivity to h, lattice truncation, and harmonic order."""
+    """One-at-a-time convergence study in M, h, lattice terms, and harmonics.
+
+    Every non-M parameter is varied at one common reference boundary order, so
+    the reported shift is not contaminated by changing M at the same time.
+    """
     if not base_config.run_internal_convergence_study:
         return []
 
@@ -2596,29 +2913,43 @@ def run_internal_convergence_study(
         finite,
         key=lambda row: abs(row.epsilon - base_config.internal_convergence_epsilon),
     )
-    epsilon = target.epsilon
-    baseline_kb = target.kb_numerical
-    baseline_sigma = target.sigma_numerical
+    epsilon = float(target.epsilon)
     config = config_for_epsilon(epsilon, base_config)
-    M = base_config.internal_convergence_M
     factor = max(base_config.internal_sigma_bracket_factor, 1.001)
     sigma_lower_global, sigma_upper_global = sigma_search_limits(config)
-    sigma_left = max(sigma_lower_global, baseline_sigma / factor)
-    sigma_right = min(sigma_upper_global, baseline_sigma * factor)
+    sigma_left = max(sigma_lower_global, float(target.sigma_numerical) / factor)
+    sigma_right = min(sigma_upper_global, float(target.sigma_numerical) * factor)
     if not sigma_left < sigma_right:
         return []
 
-    variants: list[tuple[str, float, Config]] = []
-    for h in base_config.finite_difference_steps_test:
-        variants.append(("finite_difference_step", float(h), replace(config, finite_difference_step=float(h))))
-    for terms in base_config.lattice_terms_test:
-        variants.append(("lattice_terms", float(terms), replace(config, lattice_terms=int(terms))))
-    for order in base_config.harmonic_orders_test:
-        variants.append(("harmonic_order", float(order), replace(config, harmonic_order=int(order))))
+    reference_M = max(
+        (int(M) for M in base_config.boundary_orders_test),
+        default=int(base_config.internal_convergence_M),
+    )
+    (
+        reference_kb,
+        reference_sigma,
+        _,
+        _,
+        reference_relative_sv,
+        _,
+        _,
+        _,
+        _,
+    ) = refine_candidate_for_M(
+        epsilon, reference_M, sigma_left, sigma_right, config
+    )
 
     rows: list[InternalConvergenceRow] = []
-    print(f"\n=== INTERNAL GREEN / DERIVATIVE CONVERGENCE at epsilon={epsilon:.3f} ===")
-    for parameter, value, variant_config in variants:
+    print(
+        f"\n=== PUBLICATION NUMERICAL CONVERGENCE at epsilon={epsilon:.3f} ==="
+    )
+    print(
+        f"  common reference: M={reference_M}, kb={reference_kb:.12f}, "
+        f"sigma={reference_sigma:.8e}, rel_sv={reference_relative_sv:.3e}"
+    )
+
+    def append_row(parameter: str, value: float, M: int, variant_config: Config) -> None:
         (
             kb,
             sigma,
@@ -2630,15 +2961,15 @@ def run_internal_convergence_study(
             _,
             _,
         ) = refine_candidate_for_M(
-            epsilon, M, sigma_left, sigma_right, variant_config
+            epsilon, int(M), sigma_left, sigma_right, variant_config
         )
-        kb_shift = abs(kb - baseline_kb) / max(abs(baseline_kb), 1.0e-30)
-        sigma_shift = abs(sigma - baseline_sigma) / max(abs(baseline_sigma), 1.0e-30)
+        kb_shift = abs(kb - reference_kb) / max(abs(reference_kb), 1.0e-30)
+        sigma_shift = abs(sigma - reference_sigma) / max(abs(reference_sigma), 1.0e-30)
         rows.append(
             InternalConvergenceRow(
                 epsilon=epsilon,
                 parameter=parameter,
-                value=value,
+                value=float(value),
                 kb=kb,
                 sigma_bem=sigma,
                 relative_singular_value=relative_sv,
@@ -2647,9 +2978,35 @@ def run_internal_convergence_study(
             )
         )
         print(
-            f"  {parameter}={value:g}: kb={kb:.12f}, sigma={sigma:.8e}, "
-            f"rel_sv={relative_sv:.3e}, delta_sigma={sigma_shift:.3%}"
+            f"  {parameter}={value:g}: M={M}, kb={kb:.12f}, "
+            f"sigma={sigma:.8e}, rel_sv={relative_sv:.3e}, "
+            f"delta_sigma={sigma_shift:.3%}"
         )
+
+    for M in base_config.boundary_orders_test:
+        append_row("M", float(M), int(M), config)
+    for h in base_config.finite_difference_steps_test:
+        append_row(
+            "finite_difference_step",
+            float(h),
+            reference_M,
+            replace(config, finite_difference_step=float(h)),
+        )
+    for terms in base_config.lattice_terms_test:
+        append_row(
+            "lattice_terms",
+            float(terms),
+            reference_M,
+            replace(config, lattice_terms=int(terms)),
+        )
+    for order in base_config.harmonic_orders_test:
+        append_row(
+            "harmonic_order",
+            float(order),
+            reference_M,
+            replace(config, harmonic_order=int(order)),
+        )
+
     return rows
 
 
@@ -2657,130 +3014,366 @@ def classify_mode_count_for_geometry(
     epsilon: float,
     a: float,
     base_config: Config,
-) -> tuple[str, int, int]:
-    """Return ('zero'|'one'|'ambiguous', Beyn rank, resolved count)."""
+) -> CriticalHeightProbeRow:
+    """Publication classifier for the zero/one transition near a*(epsilon).
+
+    The classification is deliberately numerical and theory-independent:
+      1. fixed-margin Beyn searches are used for global discovery/counting;
+      2. every strict real candidate is verified by multi-M absolute-SVD refinement;
+      3. if contour moments are contaminated by the first-cutoff branch point, an
+         independent whole-band SVD scan decides whether any *interior* mode is
+         actually resolved.
+
+    ``zero-supported`` means no resolved interior mode was found above the stated
+    numerical resolution floor.  It is numerical evidence for non-existence, not
+    a mathematical proof.
+    """
     trial = replace(base_config, a=float(a), run_physical_diagnostics=False)
-    config = config_for_epsilon(epsilon, trial)
-    (
-        _,
-        _,
-        final_diag,
-        _,
-        _,
-        local_seeds,
-        _,
-        _,
-        convergence_rows,
-        _,
-    ) = run_beyn_convergence_study(epsilon, config)
+    geometry_ok, geometry_reason, _, _ = geometry_admissibility(epsilon, a, trial)
+    if not geometry_ok:
+        return CriticalHeightProbeRow(
+            epsilon=float(epsilon),
+            a=float(a),
+            status="invalid-geometry",
+            beyn_rank=0,
+            rank_stable=False,
+            resolved_mode_count=0,
+            svd_scan_resolved_mode_count=0,
+            svd_scan_local_minima_count=0,
+            svd_scan_nonexistence_supported=False,
+            selected_cutoff_margin=math.nan,
+            note=geometry_reason,
+        )
 
-    rank_stable = bool(
-        len(convergence_rows) >= 2
-        and convergence_rows[-1].estimated_rank == convergence_rows[-2].estimated_rank
+    last_diag: BeynDiagnostics | None = None
+    last_margin = math.nan
+    last_rank_stable = False
+    all_ranks: list[int] = []
+    resolved_from_beyn: list[ModeResult] = []
+
+    refine_config = replace(
+        trial,
+        refinement_M=tuple(int(M) for M in trial.nonexistence_refinement_M),
     )
 
-    sigma_tasks = candidate_sigma_tasks(local_seeds, config)
-    if not sigma_tasks and final_diag.estimated_rank == 1 and rank_stable:
-        fallback = sigma_scan_fallback_task(epsilon, config)
-        if fallback is not None:
-            sigma_tasks = [fallback]
-
-    resolved_count = 0
-    for i, (seed, sigma_bracket) in enumerate(sigma_tasks, start=1):
-        _, mode = run_candidate_refinement(
-            epsilon, i, seed, sigma_bracket, config
+    for margin in trial.critical_classifier_cutoff_margins:
+        cfg, _, diag, _, candidates = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            float(margin),
+            int(trial.critical_classifier_search_quadrature),
         )
-        resolved_count += int(mode.resolved)
+        last_diag = diag
+        last_margin = float(margin)
+        all_ranks.append(int(diag.estimated_rank))
 
-    # Near-cutoff safeguard for the critical-height test.
-    tighter_consistent = True
-    tighter_margin = max(
-        config.beyn_min_cutoff_margin,
-        config.beyn_cutoff_margin * config.beyn_tighter_cutoff_margin_factor,
+        # Verify the integer rank at a second contour quadrature whenever the
+        # discovery stage reports a strict candidate or a clean empty contour.
+        _, _, verify_diag, _, _ = _paper_discover_at_margin(
+            epsilon,
+            trial,
+            float(margin),
+            int(trial.critical_classifier_verify_quadrature),
+        )
+        rank_stable = bool(verify_diag.estimated_rank == diag.estimated_rank)
+        last_rank_stable = rank_stable
+
+        if candidates:
+            for candidate_index, z in enumerate(candidates, start=1):
+                seed = DiscoverySeed(float(z.real), float(z.imag), "critical-beyn")
+                tasks = candidate_sigma_tasks([seed], cfg)
+                if not tasks:
+                    continue
+                seed2, bracket = tasks[0]
+                _, mode = run_candidate_refinement(
+                    epsilon,
+                    candidate_index,
+                    seed2,
+                    bracket,
+                    replace(refine_config, beyn_cutoff_margin=float(margin)),
+                )
+                if mode.resolved:
+                    resolved_from_beyn.append(mode)
+
+            # A rank-one contour with exactly one multi-M resolved mode is a
+            # strong one-mode classification; no theory is used here.
+            if (
+                rank_stable
+                and int(diag.estimated_rank) == 1
+                and len(resolved_from_beyn) == 1
+            ):
+                return CriticalHeightProbeRow(
+                    epsilon=float(epsilon),
+                    a=float(a),
+                    status="one",
+                    beyn_rank=int(diag.estimated_rank),
+                    rank_stable=True,
+                    resolved_mode_count=1,
+                    svd_scan_resolved_mode_count=0,
+                    svd_scan_local_minima_count=0,
+                    svd_scan_nonexistence_supported=False,
+                    selected_cutoff_margin=float(margin),
+                    note="stable rank-one Beyn count + one multi-M SVD mode",
+                )
+
+    # When Beyn is polluted by the cutoff (the common subcritical failure mode),
+    # do not interpret its nonzero rank as a physical mode.  Search the whole
+    # discrete band for strict interior absolute-SVD valleys.
+    if trial.run_independent_nonexistence_scan:
+        scan_summary, scan_modes = independent_whole_band_svd_scan(
+            epsilon, a, trial, context="critical-height"
+        )
+        resolved_scan = [mode for mode in scan_modes if mode.resolved]
+        if len(resolved_scan) == 1:
+            return CriticalHeightProbeRow(
+                epsilon=float(epsilon),
+                a=float(a),
+                status="one",
+                beyn_rank=int(last_diag.estimated_rank if last_diag is not None else 0),
+                rank_stable=bool(last_rank_stable),
+                resolved_mode_count=1,
+                svd_scan_resolved_mode_count=1,
+                svd_scan_local_minima_count=int(scan_summary.local_minima_count),
+                svd_scan_nonexistence_supported=False,
+                selected_cutoff_margin=float(last_margin),
+                note="one mode recovered by independent whole-band SVD scan",
+            )
+        if len(resolved_scan) > 1:
+            return CriticalHeightProbeRow(
+                epsilon=float(epsilon),
+                a=float(a),
+                status="ambiguous",
+                beyn_rank=int(last_diag.estimated_rank if last_diag is not None else 0),
+                rank_stable=bool(last_rank_stable),
+                resolved_mode_count=len(resolved_scan),
+                svd_scan_resolved_mode_count=len(resolved_scan),
+                svd_scan_local_minima_count=int(scan_summary.local_minima_count),
+                svd_scan_nonexistence_supported=False,
+                selected_cutoff_margin=float(last_margin),
+                note="multiple independently resolved interior SVD modes",
+            )
+        if scan_summary.nonexistence_supported:
+            clean_zero = bool(all_ranks and all(rank == 0 for rank in all_ranks))
+            return CriticalHeightProbeRow(
+                epsilon=float(epsilon),
+                a=float(a),
+                status="zero" if clean_zero else "zero-supported",
+                beyn_rank=int(last_diag.estimated_rank if last_diag is not None else 0),
+                rank_stable=bool(last_rank_stable),
+                resolved_mode_count=0,
+                svd_scan_resolved_mode_count=0,
+                svd_scan_local_minima_count=int(scan_summary.local_minima_count),
+                svd_scan_nonexistence_supported=True,
+                selected_cutoff_margin=float(last_margin),
+                note=(
+                    "clean zero Beyn count + no resolved whole-band SVD mode"
+                    if clean_zero
+                    else "Beyn rank contaminated/unclean; no resolved interior mode in independent whole-band SVD scan"
+                ),
+            )
+
+        return CriticalHeightProbeRow(
+            epsilon=float(epsilon),
+            a=float(a),
+            status="ambiguous",
+            beyn_rank=int(last_diag.estimated_rank if last_diag is not None else 0),
+            rank_stable=bool(last_rank_stable),
+            resolved_mode_count=0,
+            svd_scan_resolved_mode_count=0,
+            svd_scan_local_minima_count=int(scan_summary.local_minima_count),
+            svd_scan_nonexistence_supported=False,
+            selected_cutoff_margin=float(last_margin),
+            note=scan_summary.status,
+        )
+
+    # Fallback if the independent scan is explicitly disabled.
+    if all_ranks and all(rank == 0 for rank in all_ranks) and last_rank_stable:
+        status = "zero"
+        note = "clean zero Beyn count on all configured margins"
+    else:
+        status = "ambiguous"
+        note = "Beyn count not sufficient without independent scan"
+    return CriticalHeightProbeRow(
+        epsilon=float(epsilon),
+        a=float(a),
+        status=status,
+        beyn_rank=int(last_diag.estimated_rank if last_diag is not None else 0),
+        rank_stable=bool(last_rank_stable),
+        resolved_mode_count=0,
+        svd_scan_resolved_mode_count=0,
+        svd_scan_local_minima_count=0,
+        svd_scan_nonexistence_supported=False,
+        selected_cutoff_margin=float(last_margin),
+        note=note,
     )
-    if tighter_margin < config.beyn_cutoff_margin * (1.0 - 1.0e-12):
-        tight_config = replace(config, beyn_cutoff_margin=tighter_margin)
-        _, _, tight_diag, _, _ = beyn_discover(
-            epsilon, final_diag.quadrature_points, tight_config
-        )
-        tighter_consistent = tight_diag.estimated_rank == final_diag.estimated_rank
-
-    if rank_stable and tighter_consistent and final_diag.estimated_rank == 0 and resolved_count == 0:
-        return "zero", final_diag.estimated_rank, resolved_count
-    if rank_stable and tighter_consistent and final_diag.estimated_rank == 1 and resolved_count == 1:
-        return "one", final_diag.estimated_rank, resolved_count
-    return "ambiguous", final_diag.estimated_rank, resolved_count
 
 
-def run_critical_height_study(base_config: Config) -> list[CriticalHeightRow]:
-    """Numerically bracket a_c(epsilon) and test a_c(epsilon)->a0*."""
-    if not base_config.run_critical_height_study:
-        return []
-
+def _run_critical_height_single_epsilon(
+    epsilon: float,
+    base_config: Config,
+) -> tuple[CriticalHeightRow, list[CriticalHeightProbeRow]]:
+    """Sequential zero/one bisection for one epsilon."""
     a0 = critical_height_leading_order(base_config)
-    rows: list[CriticalHeightRow] = []
-    cache: dict[tuple[float, float], tuple[str, int, int]] = {}
+    probes: list[CriticalHeightProbeRow] = []
+    cache: dict[tuple[float, float], CriticalHeightProbeRow] = {}
 
-    def classify(epsilon: float, a: float) -> tuple[str, int, int]:
+    def classify(a: float) -> CriticalHeightProbeRow:
         key = (round(float(epsilon), 12), round(float(a), 12))
         if key not in cache:
-            print(f"\n  critical-height probe: epsilon={epsilon:.4f}, a={a:.8f}")
-            cache[key] = classify_mode_count_for_geometry(epsilon, a, base_config)
-            print(f"    classification={cache[key][0]}, rank={cache[key][1]}, resolved={cache[key][2]}")
+            print(f"\n  critical-height probe: epsilon={epsilon:.4f}, a={a:.10f}")
+            probe = classify_mode_count_for_geometry(epsilon, a, base_config)
+            cache[key] = probe
+            probes.append(probe)
+            print(
+                f"    classification={probe.status}, rank={probe.beyn_rank}, "
+                f"resolved={probe.resolved_mode_count}, note={probe.note}"
+            )
         return cache[key]
 
-    print("\n=== CRITICAL-HEIGHT STUDY a*(epsilon) ===")
-    for epsilon in base_config.critical_height_epsilon_values:
-        geom_limit = base_config.b - epsilon - 1.0e-5
-        lower = max(-geom_limit, a0 - base_config.critical_height_half_width)
-        upper = min(geom_limit, a0 + base_config.critical_height_half_width)
-        lower_status, _, _ = classify(epsilon, lower)
-        upper_status, _, _ = classify(epsilon, upper)
+    def zero_like(status: str) -> bool:
+        return status in {"zero", "zero-supported"}
 
-        if lower_status != "zero" or upper_status != "one":
-            rows.append(
-                CriticalHeightRow(
-                    epsilon=epsilon,
-                    a_lower_zero_mode=lower if lower_status == "zero" else math.nan,
-                    a_upper_one_mode=upper if upper_status == "one" else math.nan,
-                    a_critical_estimate=math.nan,
-                    bracket_width=math.nan,
-                    a0_star=a0,
-                    normalized_shift_over_epsilon=math.nan,
-                    status="unbracketed-or-ambiguous",
-                )
-            )
-            continue
+    geom_limit = base_config.b - epsilon - 1.0e-5
+    lower = max(-geom_limit, a0 - base_config.critical_height_half_width)
+    upper = min(geom_limit, a0 + base_config.critical_height_half_width)
+    lower_probe = classify(lower)
+    upper_probe = classify(upper)
 
-        for _ in range(base_config.critical_height_bisection_iterations):
-            mid = 0.5 * (lower + upper)
-            status, _, _ = classify(epsilon, mid)
-            if status == "zero":
-                lower = mid
-            elif status == "one":
-                upper = mid
-            else:
-                break
-
-        estimate = 0.5 * (lower + upper)
-        width = upper - lower
-        rows.append(
-            CriticalHeightRow(
-                epsilon=epsilon,
-                a_lower_zero_mode=lower,
-                a_upper_one_mode=upper,
-                a_critical_estimate=estimate,
-                bracket_width=width,
-                a0_star=a0,
-                normalized_shift_over_epsilon=(estimate - a0) / epsilon,
-                status="bracketed",
-            )
+    if not zero_like(lower_probe.status) or upper_probe.status != "one":
+        row = CriticalHeightRow(
+            epsilon=float(epsilon),
+            a_lower_zero_mode=(lower if zero_like(lower_probe.status) else math.nan),
+            a_upper_one_mode=(upper if upper_probe.status == "one" else math.nan),
+            a_critical_estimate=math.nan,
+            bracket_width=math.nan,
+            a0_star=float(a0),
+            normalized_shift_over_epsilon=math.nan,
+            status="unbracketed-or-ambiguous",
         )
+        return row, probes
+
+    completed = True
+    for _ in range(int(base_config.critical_height_bisection_iterations)):
+        mid = 0.5 * (lower + upper)
+        probe = classify(mid)
+        if zero_like(probe.status):
+            lower = mid
+        elif probe.status == "one":
+            upper = mid
+        else:
+            completed = False
+            break
+
+    estimate = 0.5 * (lower + upper)
+    width = upper - lower
+    row = CriticalHeightRow(
+        epsilon=float(epsilon),
+        a_lower_zero_mode=float(lower),
+        a_upper_one_mode=float(upper),
+        a_critical_estimate=float(estimate),
+        bracket_width=float(width),
+        a0_star=float(a0),
+        normalized_shift_over_epsilon=float((estimate - a0) / epsilon),
+        status="bracketed" if completed else "partial-bracket-ambiguous",
+    )
+    print(
+        f"  epsilon={epsilon:.4f}: a_c~{estimate:.10f}, "
+        f"width={width:.3e}, (a_c-a0*)/epsilon={(estimate-a0)/epsilon:.6e}, "
+        f"status={'bracketed' if completed else 'partial'}"
+    )
+    return row, probes
+
+
+def _critical_height_worker(
+    payload: tuple[float, Config],
+) -> tuple[CriticalHeightRow, list[CriticalHeightProbeRow]]:
+    """Picklable macOS-spawn worker for one critical-height epsilon."""
+    epsilon, config = payload
+    try:
+        if config.critical_worker_quiet:
+            buffer = io.StringIO()
+            with redirect_stdout(buffer), redirect_stderr(buffer):
+                return _run_critical_height_single_epsilon(float(epsilon), config)
+        return _run_critical_height_single_epsilon(float(epsilon), config)
+    except Exception as exc:  # noqa: BLE001
+        a0 = critical_height_leading_order(config)
+        row = CriticalHeightRow(
+            epsilon=float(epsilon),
+            a_lower_zero_mode=math.nan,
+            a_upper_one_mode=math.nan,
+            a_critical_estimate=math.nan,
+            bracket_width=math.nan,
+            a0_star=float(a0),
+            normalized_shift_over_epsilon=math.nan,
+            status=f"error:{type(exc).__name__}",
+        )
+        probe = CriticalHeightProbeRow(
+            epsilon=float(epsilon),
+            a=math.nan,
+            status="error",
+            beyn_rank=0,
+            rank_stable=False,
+            resolved_mode_count=0,
+            svd_scan_resolved_mode_count=0,
+            svd_scan_local_minima_count=0,
+            svd_scan_nonexistence_supported=False,
+            selected_cutoff_margin=math.nan,
+            note=f"{type(exc).__name__}: {exc}",
+        )
+        return row, [probe]
+
+
+def run_critical_height_study(
+    base_config: Config,
+) -> tuple[list[CriticalHeightRow], list[CriticalHeightProbeRow]]:
+    """Bracket a_c(epsilon) and test a_c(epsilon)=a0*+O(epsilon)."""
+    if not base_config.run_critical_height_study:
+        return [], []
+
+    epsilons = [float(eps) for eps in base_config.critical_height_epsilon_values]
+    rows: list[CriticalHeightRow] = []
+    probes: list[CriticalHeightProbeRow] = []
+
+    print("\n=== PUBLICATION CRITICAL-HEIGHT STUDY a*(epsilon) ===")
+    if base_config.critical_parallel and len(epsilons) > 1:
+        workers = min(critical_worker_count(base_config), len(epsilons))
         print(
-            f"  epsilon={epsilon:.4f}: a_c~{estimate:.10f}, "
-            f"width={width:.3e}, (a_c-a0*)/epsilon={(estimate-a0)/epsilon:.6e}"
+            f"  parallel policy: detected={detected_cpu_count()}, "
+            f"fraction={base_config.critical_cpu_fraction:.0%}, workers={workers}"
         )
-    return rows
+        ctx = mp.get_context("spawn")
+        with ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as executor:
+            futures = {
+                executor.submit(_critical_height_worker, (epsilon, base_config)): epsilon
+                for epsilon in epsilons
+            }
+            completed = 0
+            for future in as_completed(futures):
+                epsilon = futures[future]
+                row, local_probes = future.result()
+                rows.append(row)
+                probes.extend(local_probes)
+                completed += 1
+                estimate_text = (
+                    f"{row.a_critical_estimate:.10f}"
+                    if np.isfinite(row.a_critical_estimate)
+                    else "--"
+                )
+                print(
+                    f"  [{completed:>2}/{len(epsilons)}] epsilon={epsilon:.4f}: "
+                    f"{row.status}, a_c={estimate_text}"
+                )
+    else:
+        for epsilon in epsilons:
+            row, local_probes = _run_critical_height_single_epsilon(
+                epsilon, base_config
+            )
+            rows.append(row)
+            probes.extend(local_probes)
+
+    rows.sort(key=lambda row: row.epsilon)
+    probes.sort(key=lambda row: (row.epsilon, row.a if np.isfinite(row.a) else math.inf))
+    return rows, probes
 
 
 def _paper_empty_row(
@@ -2878,17 +3471,21 @@ def _paper_evaluate_subcritical(
     sigma_asym: float,
     coefficient: float,
 ) -> PaperSweepRow:
-    """Cheap non-existence diagnostic without entering the threshold singularity.
+    """Publication non-existence diagnostic on the nominal subcritical side.
 
-    We deliberately DO NOT move an empty contour to 1e-10.  Instead we test a
-    fixed numerical ladder down to paper_subcritical_cutoff_margins[-1].  A
-    'zero' result therefore means zero enclosed modes on all tested contours;
-    an unstable/nonzero rank is reported as ambiguous rather than being forced
-    into a false mode by a sigma->0 SVD scan.
+    A nonzero Beyn rank near Lambda_1 is *not* treated as a physical mode by
+    itself.  Strict Beyn candidates are locally tested, then an independent
+    whole-band absolute-SVD scan searches for any interior singularity.  This
+    allows the output to distinguish:
+
+      zero            clean rank-zero contour count + no SVD mode,
+      zero-supported  contaminated/unclean Beyn rank but no resolved interior mode,
+      ambiguous       an unresolved/suspicious interior valley or a candidate mode.
     """
-    records: list[tuple[float, int, int]] = []  # margin, rank, Nq
+    records: list[tuple[float, int, int]] = []
     last_config: Config | None = None
     last_diag: BeynDiagnostics | None = None
+    resolved_beyn_candidates = 0
 
     for margin in trial.paper_subcritical_cutoff_margins:
         cfg, _, diag, _, candidates = _paper_discover_at_margin(
@@ -2899,15 +3496,21 @@ def _paper_evaluate_subcritical(
         )
         last_config, last_diag = cfg, diag
         records.append((float(margin), int(diag.estimated_rank), int(diag.quadrature_points)))
-        # A genuine strict candidate on the nominal non-existence side is
-        # scientifically interesting; do not hide it.  Mark ambiguous and let
-        # the dedicated critical-height study investigate it with full settings.
-        if candidates:
+
+        # A nonzero moment rank can be a threshold artefact.  Only count it as a
+        # physical mode if a strict candidate also survives local SVD testing.
+        for z in candidates:
+            seed = DiscoverySeed(float(z.real), float(z.imag), "subcritical-beyn")
+            resolved, *_ = _paper_localize_one_mode(epsilon, cfg, seed)
+            resolved_beyn_candidates += int(resolved)
+
+        if resolved_beyn_candidates > 0:
             return PaperSweepRow(
                 a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
                 status="ambiguous", beyn_rank=int(diag.estimated_rank),
                 beyn_rank_stable=False, tighter_margin_rank_consistent=False,
-                local_mode_count=0, kb=math.nan, sigma_bem=math.nan,
+                local_mode_count=int(resolved_beyn_candidates),
+                kb=math.nan, sigma_bem=math.nan,
                 relative_singular_value=math.nan, drop_factor=math.nan,
                 minimum_is_interior=False,
                 asymptotic_prediction_valid=bool(asym_valid),
@@ -2915,7 +3518,14 @@ def _paper_evaluate_subcritical(
                 asymptotic_coefficient=float(coefficient),
                 cutoff_margin_used=float(margin),
                 beyn_quadrature_points=int(diag.quadrature_points),
-                geometry_reason="strict Beyn candidate on subcritical test",
+                nonexistence_supported=False,
+                svd_scan_resolved_modes=0,
+                svd_scan_local_minima=0,
+                svd_scan_suspicious_unresolved=0,
+                geometry_reason=(
+                    "locally resolved candidate on nominal subcritical side; "
+                    "requires dedicated transition analysis"
+                ),
             )
 
     assert last_config is not None and last_diag is not None
@@ -2928,7 +3538,39 @@ def _paper_evaluate_subcritical(
     )
     rank_stable = bool(verify_diag.estimated_rank == last_diag.estimated_rank)
     all_zero = all(rank == 0 for _, rank, _ in records)
-    status = "zero" if (all_zero and rank_stable and not verify_candidates) else "ambiguous"
+
+    scan_summary: IndependentScanSummary | None = None
+    if trial.run_independent_nonexistence_scan:
+        scan_summary, _ = independent_whole_band_svd_scan(
+            epsilon, a, trial, context="paper-subcritical"
+        )
+
+    if scan_summary is not None and scan_summary.resolved_mode_count > 0:
+        status = "ambiguous"
+        reason = (
+            "independent whole-band SVD scan found an interior mode on nominal "
+            "subcritical side"
+        )
+        nonexistence_supported = False
+    elif scan_summary is not None and scan_summary.nonexistence_supported:
+        nonexistence_supported = True
+        if all_zero and rank_stable and not verify_candidates:
+            status = "zero"
+            reason = "clean zero contour count + no resolved whole-band SVD mode"
+        else:
+            status = "zero-supported"
+            reason = (
+                "Beyn rank is contaminated/unclean near cutoff, but no resolved "
+                "interior mode was found by the independent whole-band SVD scan"
+            )
+    else:
+        nonexistence_supported = False
+        status = "ambiguous"
+        reason = (
+            scan_summary.status
+            if scan_summary is not None
+            else "subcritical Beyn count not cleanly zero/stable"
+        )
 
     return PaperSweepRow(
         a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
@@ -2943,11 +3585,17 @@ def _paper_evaluate_subcritical(
         asymptotic_coefficient=float(coefficient),
         cutoff_margin_used=final_margin,
         beyn_quadrature_points=int(last_diag.quadrature_points),
-        geometry_reason=(
-            "zero modes on tested subcritical contour ladder"
-            if status == "zero"
-            else "subcritical Beyn count not cleanly zero/stable"
+        nonexistence_supported=bool(nonexistence_supported),
+        svd_scan_resolved_modes=(
+            int(scan_summary.resolved_mode_count) if scan_summary is not None else 0
         ),
+        svd_scan_local_minima=(
+            int(scan_summary.local_minima_count) if scan_summary is not None else 0
+        ),
+        svd_scan_suspicious_unresolved=(
+            int(scan_summary.suspicious_unresolved_count) if scan_summary is not None else 0
+        ),
+        geometry_reason=reason,
     )
 
 
@@ -3267,16 +3915,29 @@ def plot_paper_kb_vs_epsilon_individual(
             )
 
         if not numerical:
+            has_ambiguous = any(row.status == "ambiguous" for row in rows)
+            all_nonexistence_supported = bool(rows) and all(
+                row.status in {"zero", "zero-supported", "invalid-geometry"}
+                for row in rows
+            )
+            if all_nonexistence_supported:
+                message = (
+                    r"No resolved discrete trapped mode"
+                    "\n"
+                    r"on the tested numerical searches"
+                )
+            elif has_ambiguous:
+                message = (
+                    r"No certified branch; some sampled points"
+                    "\n"
+                    r"remain numerically ambiguous"
+                )
+            else:
+                message = r"No certified BEM branch on the sampled points"
             plt.text(
-                0.5,
-                0.50,
-                r"No resolved discrete trapped mode"
-                "\n"
-                r"for the sampled $\varepsilon$ values",
+                0.5, 0.50, message,
                 transform=plt.gca().transAxes,
-                ha="center",
-                va="center",
-                fontsize=10,
+                ha="center", va="center", fontsize=10,
             )
 
         plt.axhline(
@@ -3345,6 +4006,15 @@ def plot_paper_kb_vs_epsilon_all_a(
         else:
             # Keep subcritical/empty cases visible in the legend without
             # fabricating a kb value at the cutoff.
+            supported = bool(rows) and all(
+                row.status in {"zero", "zero-supported", "invalid-geometry"}
+                for row in rows
+            )
+            label_suffix = (
+                "no resolved mode (supported)"
+                if supported
+                else "no certified branch / ambiguous"
+            )
             plt.plot(
                 [],
                 [],
@@ -3352,7 +4022,7 @@ def plot_paper_kb_vs_epsilon_all_a(
                 color=color,
                 markersize=3.5,
                 linewidth=1.5,
-                label=fr"$a={a:.2f}$, no resolved mode",
+                label=fr"$a={a:.2f}$, {label_suffix}",
             )
 
         # In the joint figure BEM and asymptotic curves for the same a share
@@ -3640,6 +4310,39 @@ def plot_summary(
         plt.savefig(output_directory / "scaled_asymptotic_remainder.png", dpi=180)
         plt.close()
 
+    # Publication small-epsilon window: keep the formal asymptotic evidence
+    # visually separate from the finite-size exploration.
+    small = [
+        row for row in finite_kb
+        if row.epsilon <= config.publication_asymptotic_epsilon_max + 1.0e-15
+    ]
+    if small:
+        eps_small = np.array([row.epsilon for row in small], dtype=float)
+        ratio_small = np.array([row.sigma_over_epsilon_squared for row in small], dtype=float)
+        coefficient_small = np.array([row.asymptotic_coefficient for row in small], dtype=float)
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(eps_small, ratio_small, "o-", label=r"$\sigma_{\mathrm{BEM}}/\varepsilon^2$")
+        plt.plot(eps_small, coefficient_small, "--", label=r"$C(a)$")
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(r"$\sigma/\varepsilon^2$")
+        plt.title(
+            rf"Small-$\varepsilon$ asymptotic window: $\varepsilon\leq{config.publication_asymptotic_epsilon_max:g}$"
+        )
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(output_directory / "publication_sigma_over_epsilon_squared_small.png", dpi=220)
+        plt.close()
+
+        q_small = np.array([row.scaled_asymptotic_remainder for row in small], dtype=float)
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(eps_small, q_small, "o-")
+        plt.xlabel(r"$\varepsilon$")
+        plt.ylabel(r"$|\sigma-C\varepsilon^2|/(\varepsilon^3|\log\varepsilon|)$")
+        plt.title("Small-epsilon scaled remainder diagnostic")
+        plt.tight_layout()
+        plt.savefig(output_directory / "publication_scaled_remainder_small.png", dpi=220)
+        plt.close()
+
     plt.figure(figsize=(7, 4.5))
     plt.plot(eps, counts, "o-")
     plt.xlabel(r"$\varepsilon$")
@@ -3693,23 +4396,40 @@ def plot_critical_height(
     finite = [row for row in rows if np.isfinite(row.a_critical_estimate)]
     if not finite:
         return
-    eps = np.array([row.epsilon for row in finite])
-    ac = np.array([row.a_critical_estimate for row in finite])
-    a0 = finite[0].a0_star
+    eps = np.array([row.epsilon for row in finite], dtype=float)
+    ac = np.array([row.a_critical_estimate for row in finite], dtype=float)
+    lower = np.array([row.a_lower_zero_mode for row in finite], dtype=float)
+    upper = np.array([row.a_upper_one_mode for row in finite], dtype=float)
+    a0 = float(finite[0].a0_star)
+
     plt.figure(figsize=(7, 4.5))
-    plt.plot(eps, ac, "o-", label=r"$a_c(\varepsilon)$ numerical")
+    yerr = np.vstack((np.maximum(ac - lower, 0.0), np.maximum(upper - ac, 0.0)))
+    plt.errorbar(eps, ac, yerr=yerr, fmt="o-", capsize=3, label=r"$a_c(\varepsilon)$ numerical bracket")
     plt.axhline(a0, linestyle="--", label=r"$a_0^*$")
     plt.xlabel(r"$\varepsilon$")
     plt.ylabel(r"critical height $a$")
     plt.title(r"Critical-height test: $a_c(\varepsilon)\to a_0^*$")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(output_directory / "critical_height_vs_epsilon.png", dpi=180)
+    plt.savefig(output_directory / "critical_height_vs_epsilon.png", dpi=220)
+    plt.close()
+
+    normalized = np.array(
+        [row.normalized_shift_over_epsilon for row in finite], dtype=float
+    )
+    plt.figure(figsize=(7, 4.5))
+    plt.plot(eps, normalized, "o-")
+    plt.axhline(0.0, linewidth=0.8)
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$(a_c(\varepsilon)-a_0^*)/\varepsilon$")
+    plt.title(r"Direct $a_c(\varepsilon)=a_0^*+O(\varepsilon)$ diagnostic")
+    plt.tight_layout()
+    plt.savefig(output_directory / "critical_height_normalized_shift.png", dpi=220)
     plt.close()
 
 
 def print_result(result: ValidationResult, config: Config) -> None:
-    print("\n  --- Beyn-v5 + local-sigma-SVD validation result ---")
+    print("\n  --- publication Beyn + local-sigma-SVD validation result ---")
     print(f"  effective cutoff margin        = {result.effective_beyn_cutoff_margin:.3e}")
     print(f"  final Beyn quadrature Nq       = {result.beyn_final_quadrature_points}")
     print(f"  final Beyn estimated rank      = {result.beyn_estimated_rank}")
@@ -3793,6 +4513,298 @@ def print_result(result: ValidationResult, config: Config) -> None:
     )
 
 
+def publication_asymptotic_window(
+    results: list[ValidationResult], config: Config
+) -> list[ValidationResult]:
+    return sorted(
+        [
+            row
+            for row in results
+            if np.isfinite(row.sigma_numerical)
+            and row.epsilon <= config.publication_asymptotic_epsilon_max + 1.0e-15
+        ],
+        key=lambda row: row.epsilon,
+    )
+
+
+def build_publication_claims(
+    summaries: list[ValidationResult],
+    paper_rows: list[PaperSweepRow],
+    critical_rows: list[CriticalHeightRow],
+    internal_rows: list[InternalConvergenceRow],
+    config: Config,
+) -> list[PublicationClaimRow]:
+    """Summarize only numerically testable parts of Theorem 2.1."""
+    claims: list[PublicationClaimRow] = []
+    small = publication_asymptotic_window(summaries, config)
+
+    if small:
+        unique_supported = sum(row.unique_mode_verified for row in small)
+        physical_supported = sum(
+            row.physical_boundary_integral_verified is True
+            and row.physical_decay_verified is True
+            for row in small
+        )
+        existence_status = (
+            "supported"
+            if len(small) >= config.publication_min_asymptotic_points
+            and unique_supported == len(small)
+            else "partial"
+        )
+        claims.append(
+            PublicationClaimRow(
+                claim="Existence and uniqueness for sampled supercritical small-epsilon cases",
+                status=existence_status,
+                evidence=(
+                    f"{unique_supported}/{len(small)} sampled cases have stable Beyn rank one "
+                    f"and exactly one locally resolved multi-M mode; "
+                    f"{physical_supported}/{len(small)} also pass off-grid BIE + decay checks."
+                ),
+                limitation="Finite numerical sampling supports, but does not prove, theorem-wide uniqueness.",
+            )
+        )
+
+        coefficient = float(small[0].asymptotic_coefficient)
+        relative_ratio_errors = np.array(
+            [
+                abs(row.sigma_over_epsilon_squared - coefficient)
+                / max(abs(coefficient), 1.0e-30)
+                for row in small
+            ],
+            dtype=float,
+        )
+        q = np.array([row.scaled_asymptotic_remainder for row in small], dtype=float)
+        finite_q = q[np.isfinite(q)]
+        scaling_supported = bool(
+            len(small) >= config.publication_min_asymptotic_points
+            and np.all(np.isfinite(relative_ratio_errors))
+            and len(finite_q) == len(small)
+            and relative_ratio_errors[0] <= relative_ratio_errors[-1]
+        )
+        q_text = (
+            f"Q range [{np.min(finite_q):.3g}, {np.max(finite_q):.3g}]"
+            if len(finite_q)
+            else "Q unavailable"
+        )
+        claims.append(
+            PublicationClaimRow(
+                claim=r"Leading asymptotic sigma = C(a) epsilon^2 + O(epsilon^3 |log epsilon|)",
+                status="supported" if scaling_supported else "partial",
+                evidence=(
+                    f"On epsilon <= {config.publication_asymptotic_epsilon_max:g}, "
+                    f"relative error of sigma/epsilon^2 from C(a) changes from "
+                    f"{relative_ratio_errors[0]:.3%} at epsilon={small[0].epsilon:g} to "
+                    f"{relative_ratio_errors[-1]:.3%} at epsilon={small[-1].epsilon:g}; {q_text}."
+                ),
+                limitation=(
+                    "Bounded Q on a finite sample is numerical consistency with the Big-O remainder, "
+                    "not a proof of the asymptotic estimate."
+                ),
+            )
+        )
+    else:
+        claims.append(
+            PublicationClaimRow(
+                claim="Existence/uniqueness and leading asymptotic",
+                status="not-run",
+                evidence="No finite baseline results are available.",
+                limitation="Run the baseline validation.",
+            )
+        )
+
+    a0 = critical_height_leading_order(config)
+    subcritical_small = [
+        row
+        for row in paper_rows
+        if row.a < a0
+        and row.epsilon <= config.publication_asymptotic_epsilon_max + 1.0e-15
+        and row.status != "invalid-geometry"
+    ]
+    supported_subcritical = [
+        row for row in subcritical_small if row.status in {"zero", "zero-supported"}
+    ]
+    claims.append(
+        PublicationClaimRow(
+            claim="Non-existence on sampled subcritical small-epsilon geometries",
+            status=(
+                "supported"
+                if subcritical_small
+                and len(supported_subcritical) == len(subcritical_small)
+                else "partial"
+            ),
+            evidence=(
+                f"{len(supported_subcritical)}/{len(subcritical_small)} sampled subcritical cases "
+                "have no resolved interior mode; zero-supported cases use an independent whole-band "
+                "absolute-SVD scan when Beyn rank is contaminated by the cutoff."
+            ),
+            limitation=(
+                "Numerical non-detection has a finite resolution floor and is not a mathematical "
+                "proof of absence arbitrarily close to the threshold."
+            ),
+        )
+    )
+
+    critical_finite = [
+        row
+        for row in critical_rows
+        if np.isfinite(row.a_critical_estimate)
+        and row.status in {"bracketed", "partial-bracket-ambiguous"}
+    ]
+    if critical_finite:
+        normalized = np.array(
+            [row.normalized_shift_over_epsilon for row in critical_finite], dtype=float
+        )
+        widths = np.array([row.bracket_width for row in critical_finite], dtype=float)
+        claims.append(
+            PublicationClaimRow(
+                claim=r"Critical height a*(epsilon) = a0* + O(epsilon)",
+                status=(
+                    "supported"
+                    if len(critical_finite) >= 3
+                    and all(row.status == "bracketed" for row in critical_finite)
+                    else "partial"
+                ),
+                evidence=(
+                    f"{len(critical_finite)} epsilon values bracket the zero/one transition; "
+                    f"(a_c-a0*)/epsilon lies in [{np.min(normalized):.4g}, {np.max(normalized):.4g}] "
+                    f"with maximum final a-bracket width {np.max(widths):.3e}."
+                ),
+                limitation="Finite epsilon values demonstrate bounded sampled scaling, not a limit proof.",
+            )
+        )
+    else:
+        claims.append(
+            PublicationClaimRow(
+                claim=r"Critical height a*(epsilon) = a0* + O(epsilon)",
+                status="not-established",
+                evidence="No numerical zero/one transition was successfully bracketed.",
+                limitation="Critical-height study must produce finite brackets.",
+            )
+        )
+
+    if internal_rows:
+        parts: list[str] = []
+        for parameter in sorted({row.parameter for row in internal_rows}):
+            subset = [row for row in internal_rows if row.parameter == parameter]
+            maximum = max(row.relative_sigma_shift_from_baseline for row in subset)
+            parts.append(f"{parameter}: max delta_sigma={maximum:.3e}")
+        convergence_evidence = "; ".join(parts)
+    else:
+        convergence_evidence = "Internal convergence study was not run."
+    claims.append(
+        PublicationClaimRow(
+            claim="Numerical discretization/implementation convergence",
+            status="documented" if internal_rows else "not-run",
+            evidence=convergence_evidence,
+            limitation="One-at-a-time convergence study is representative rather than exhaustive over every geometry.",
+        )
+    )
+
+    claims.append(
+        PublicationClaimRow(
+            claim=r"Analyticity in epsilon and epsilon log epsilon",
+            status="theoretical-only",
+            evidence="The code reports numerical consistency with the leading expansion but does not test analyticity.",
+            limitation="Analyticity is a theorem-level functional property and cannot be established from finitely many numerical samples.",
+        )
+    )
+    return claims
+
+
+def write_publication_report(
+    output_directory: Path,
+    claims: list[PublicationClaimRow],
+    summaries: list[ValidationResult],
+    paper_rows: list[PaperSweepRow],
+    critical_rows: list[CriticalHeightRow],
+    config: Config,
+) -> None:
+    """Write a compact, paper-facing Markdown audit of the numerical evidence."""
+    lines: list[str] = []
+    lines.append("# Numerical validation audit — Theorem 2.1")
+    lines.append("")
+    lines.append(
+        "Scope: circular Neumann obstacle with S=pi and mu=1. The computation is a "
+        "numerical validation/support study, not a mathematical proof."
+    )
+    lines.append("")
+    lines.append(f"- b = {config.b:g}")
+    lines.append(f"- baseline a = {config.a:g}")
+    lines.append(f"- leading a0* = {critical_height_leading_order(config):.12f}")
+    lines.append(f"- first cutoff sqrt(Lambda_1)b = {kb_cutoff(config):.12f}")
+    lines.append(
+        f"- formal small-epsilon reporting window: epsilon <= {config.publication_asymptotic_epsilon_max:g}"
+    )
+    lines.append("")
+    lines.append("## Claim audit")
+    lines.append("")
+    lines.append("| Claim | Status | Numerical evidence | Limitation |")
+    lines.append("|---|---|---|---|")
+    for claim in claims:
+        evidence = claim.evidence.replace("|", "\\|")
+        limitation = claim.limitation.replace("|", "\\|")
+        lines.append(f"| {claim.claim} | {claim.status} | {evidence} | {limitation} |")
+
+    small = publication_asymptotic_window(summaries, config)
+    if small:
+        lines.append("")
+        lines.append("## Small-epsilon asymptotic data")
+        lines.append("")
+        lines.append("| epsilon | sigma_BEM | sigma/epsilon^2 | C(a) | relative sigma error | scaled remainder Q |")
+        lines.append("|---:|---:|---:|---:|---:|---:|")
+        for row in small:
+            lines.append(
+                f"| {row.epsilon:.6g} | {row.sigma_numerical:.9e} | "
+                f"{row.sigma_over_epsilon_squared:.9e} | {row.asymptotic_coefficient:.9e} | "
+                f"{row.relative_error_sigma:.4%} | {row.scaled_asymptotic_remainder:.6g} |"
+            )
+
+    if critical_rows:
+        lines.append("")
+        lines.append("## Critical-height brackets")
+        lines.append("")
+        lines.append("| epsilon | zero-side a | one-side a | a_c estimate | width | (a_c-a0*)/epsilon | status |")
+        lines.append("|---:|---:|---:|---:|---:|---:|---|")
+        for row in critical_rows:
+            lines.append(
+                f"| {row.epsilon:.6g} | {row.a_lower_zero_mode:.9g} | "
+                f"{row.a_upper_one_mode:.9g} | {row.a_critical_estimate:.9g} | "
+                f"{row.bracket_width:.3e} | {row.normalized_shift_over_epsilon:.6g} | {row.status} |"
+            )
+
+    subcritical = [
+        row for row in paper_rows if row.a < critical_height_leading_order(config)
+    ]
+    if subcritical:
+        zero = sum(row.status == "zero" for row in subcritical)
+        zero_supported = sum(row.status == "zero-supported" for row in subcritical)
+        ambiguous = sum(row.status == "ambiguous" for row in subcritical)
+        lines.append("")
+        lines.append("## Subcritical non-existence search")
+        lines.append("")
+        lines.append(
+            f"Across {len(subcritical)} admissible subcritical paper-sweep points: "
+            f"clean zero={zero}, zero-supported={zero_supported}, ambiguous={ambiguous}."
+        )
+        lines.append(
+            "`zero-supported` means the Beyn moment rank was not cleanly zero, but an independent "
+            "whole-band absolute-SVD search found no resolved interior eigenvalue above the numerical "
+            "resolution floor."
+        )
+
+    lines.append("")
+    lines.append("## Interpretation boundary")
+    lines.append("")
+    lines.append(
+        "Points outside the configured small-epsilon reporting window are retained as finite-size "
+        "exploration. Turning points or other non-monotone behavior there are not used as evidence "
+        "for or against the small-obstacle asymptotic statement."
+    )
+    (output_directory / "publication_validation_report.md").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -3804,7 +4816,7 @@ def main() -> None:
     output_directory.mkdir(parents=True, exist_ok=True)
     a0_star = critical_height_leading_order(config)
 
-    print("=== Theorem 2.1 numerical validation: Beyn + BEM + sigma-SVD (v6 parallel) ===")
+    print("=== Theorem 2.1 numerical validation: publication-ready Beyn + BEM + sigma-SVD (v7) ===")
     print(f"b = {config.b}")
     print(f"baseline a = {config.a}")
     print(f"leading-order a0* = {a0_star:.12f}")
@@ -3826,6 +4838,7 @@ def main() -> None:
     all_refinement_rows: list[ModeRefinementRow] = []
     all_mode_results: list[ModeResult] = []
     all_physical: list[PhysicalDiagnostics] = []
+    internal_rows: list[InternalConvergenceRow] = []
 
     if config.run_main_epsilon_validation:
         if config.a <= a0_star:
@@ -3903,13 +4916,28 @@ def main() -> None:
             "(run_main_epsilon_validation=False)."
         )
 
-    critical_rows = run_critical_height_study(config)
+    critical_rows, critical_probes = run_critical_height_study(config)
     write_dataclass_csv(output_directory / "critical_height.csv", critical_rows)
+    write_dataclass_csv(output_directory / "critical_height_probes.csv", critical_probes)
     plot_critical_height(critical_rows, output_directory)
 
     paper_rows = load_or_run_paper_a_sweep(config, output_directory)
     plot_paper_kb_vs_epsilon_individual(paper_rows, config, output_directory)
     plot_paper_kb_vs_epsilon_all_a(paper_rows, config, output_directory)
+
+    small_window = publication_asymptotic_window(summaries, config)
+    write_dataclass_csv(
+        output_directory / "publication_asymptotic_window.csv", small_window
+    )
+    publication_claims = build_publication_claims(
+        summaries, paper_rows, critical_rows, internal_rows, config
+    )
+    write_dataclass_csv(
+        output_directory / "publication_claims.csv", publication_claims
+    )
+    write_publication_report(
+        output_directory, publication_claims, summaries, paper_rows, critical_rows, config
+    )
 
     print("\n=== FINAL SUMMARY ===")
     if summaries:
@@ -3933,19 +4961,32 @@ def main() -> None:
     if paper_rows:
         paper_one = sum(row.status == "one" for row in paper_rows)
         paper_zero = sum(row.status == "zero" for row in paper_rows)
+        paper_zero_supported = sum(row.status == "zero-supported" for row in paper_rows)
         paper_ambiguous = sum(row.status == "ambiguous" for row in paper_rows)
         paper_invalid = sum(row.status == "invalid-geometry" for row in paper_rows)
         paper_error = sum(row.status == "error" for row in paper_rows)
         print(
             f"Paper a-sweep M={config.paper_M}: one={paper_one}, zero={paper_zero}, "
-            f"ambiguous={paper_ambiguous}, invalid={paper_invalid}, "
-            f"error={paper_error}, total={len(paper_rows)}"
+            f"zero-supported={paper_zero_supported}, ambiguous={paper_ambiguous}, "
+            f"invalid={paper_invalid}, error={paper_error}, total={len(paper_rows)}"
         )
         print(
-            "Subcritical 'zero' means zero enclosed modes on the configured "
-            "numerical cutoff-margin ladder down to 1e-5; cases that are not "
-            "cleanly zero are intentionally reported as ambiguous."
+            "Subcritical 'zero-supported' means that Beyn rank may be contaminated "
+            "near the first cutoff, but no resolved interior mode was found by the "
+            "independent whole-band absolute-SVD scan."
         )
+
+    if critical_rows:
+        bracketed = sum(row.status == "bracketed" for row in critical_rows)
+        print(
+            f"Critical-height study: bracketed={bracketed}/{len(critical_rows)} "
+            f"for epsilon={config.critical_height_epsilon_values}"
+        )
+
+    if publication_claims:
+        print("Publication claim audit:")
+        for claim in publication_claims:
+            print(f"  - {claim.status:>16}: {claim.claim}")
 
     if not config.run_critical_height_study:
         print(
@@ -3954,6 +4995,7 @@ def main() -> None:
         )
 
     print(f"\nFiles written to: {output_directory.resolve()}")
+    print(f"Publication audit: {(output_directory / 'publication_validation_report.md').resolve()}")
 
 
 if __name__ == "__main__":

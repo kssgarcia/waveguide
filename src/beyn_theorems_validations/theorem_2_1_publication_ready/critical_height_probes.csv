@@ -1,0 +1,11 @@
+epsilon,a,status,beyn_rank,rank_stable,resolved_mode_count,svd_scan_resolved_mode_count,svd_scan_local_minima_count,svd_scan_nonexistence_supported,selected_cutoff_margin,note
+0.04,0.2718265520306073,zero-supported,1,True,0,0,0,True,1e-05,Beyn rank contaminated/unclean; no resolved interior mode in independent whole-band SVD scan
+0.04,0.3318265520306073,ambiguous,1,True,0,0,1,False,1e-05,unresolved-interior-valley
+0.04,0.39182655203060734,one,1,True,1,1,4,False,1e-05,one mode recovered by independent whole-band SVD scan
+0.04,0.5118265520306073,one,1,True,1,1,4,False,1e-05,one mode recovered by independent whole-band SVD scan
+0.06,0.2718265520306073,ambiguous,1,True,0,0,3,False,1e-05,unresolved-interior-valley
+0.06,0.5118265520306073,one,1,True,1,1,10,False,1e-05,one mode recovered by independent whole-band SVD scan
+0.08,0.2718265520306073,ambiguous,1,True,0,0,6,False,1e-05,unresolved-interior-valley
+0.08,0.5118265520306073,one,1,True,1,0,0,False,1e-05,stable rank-one Beyn count + one multi-M SVD mode
+0.1,0.2718265520306073,ambiguous,1,True,0,0,9,False,1e-05,unresolved-interior-valley
+0.1,0.5118265520306073,one,1,True,1,0,0,False,0.0001,stable rank-one Beyn count + one multi-M SVD mode
