@@ -6,7 +6,8 @@ import math
 import multiprocessing as mp
 import os
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from typing import Any, cast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stderr, redirect_stdout
 from dataclasses import asdict, dataclass, replace
@@ -72,9 +73,7 @@ class Config:
     # parameters at one representative epsilon.
     run_internal_convergence_study: bool = True
     internal_convergence_epsilon: float = 0.10
-    internal_convergence_M: int = 48
     internal_sigma_bracket_factor: float = 1.20
-    boundary_orders_test: tuple[int, ...] = (16, 24, 32, 40, 48)
     finite_difference_steps_test: tuple[float, ...] = (1.0e-8, 1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4)
     lattice_terms_test: tuple[int, ...] = (25, 50, 100, 200)
     harmonic_orders_test: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
@@ -82,9 +81,8 @@ class Config:
     # ------------------------------------------------------------------
     # Beyn global discovery.
     # ------------------------------------------------------------------
-    # BEM order used only for contour discovery. Local candidates are then
-    # validated at the higher refinement_M values below.
-    beyn_M: int = 24
+    # Single physical boundary discretization used by every BEM/SVD/Beyn path.
+    bem_M: int = 24
 
     # Base quadrature-convergence study. These levels are always run so the
     # rank and raw Beyn eigenvalue sequence can be diagnosed consistently.
@@ -164,9 +162,7 @@ class Config:
     # ------------------------------------------------------------------
     # Local SVD verification of each Beyn-discovered candidate.
     # ------------------------------------------------------------------
-    refinement_M: tuple[int, ...] = (16, 24, 32, 40, 48)
-
-    # IMPORTANT: local refinement is performed in sigma rather than in kb:
+    # IMPORTANT: fixed-M local refinement is performed in sigma rather than kb:
     #
     #     k^2 = Lambda_1 - sigma^2.
     #
@@ -177,7 +173,6 @@ class Config:
     local_sigma_min_fraction_of_cutoff: float = 1.0e-8
     local_sigma_max_fraction_of_cutoff: float = 0.50
     local_sigma_scan_points: int = 96
-    local_sigma_scan_M: int = 16
     local_sigma_edge_margin_fraction: float = 0.002
     minimizer_sigma_xatol: float = 1.0e-12
 
@@ -186,7 +181,6 @@ class Config:
     # the scale-invariant ratio sigma_min/sigma_max below.
     near_singular_tolerance: float = 1.0e-4
     relative_near_singular_tolerance: float = 1.0e-4
-    mesh_sigma_relative_tolerance: float = 0.03
 
     # Asymptotic accuracy is intentionally separate from mode existence.
     relative_sigma_error_tolerance: float = 0.05
@@ -235,8 +229,6 @@ class Config:
     # to an extremely small but finite cutoff gap and is a numerical resolution
     # parameter, not a theorem assumption.
     run_independent_nonexistence_scan: bool = True
-    nonexistence_scan_M_levels: tuple[int, ...] = (16, 24, 32)
-    nonexistence_refinement_M: tuple[int, ...] = (24, 32, 40)
     nonexistence_scan_points: int = 160
     nonexistence_scan_min_cutoff_gap: float = 1.0e-12
     nonexistence_scan_max_candidates: int = 12
@@ -250,8 +242,7 @@ class Config:
     # This sweep deliberately crosses the leading critical value a0*.  Values
     # below a0* test the non-existence side; values above a0* generate the
     # kb(epsilon) branches used in the paper figures.  The plotted BEM value is
-    # always taken at one fixed discretization M=32, as requested.  The main
-    # validation above still retains the full multi-M refinement study.
+    # uses the single fixed boundary order bem_M.
     run_paper_a_sweep: bool = True
     paper_a_values: tuple[float, ...] = (
         0.35, 0.50, 0.55, 0.60, 0.65, 0.70,
@@ -264,7 +255,6 @@ class Config:
         0.272632, 0.297895, 0.323158, 0.348421, 0.373684,
         0.398947, 0.424211, 0.449474, 0.474737, 0.500000,
     )
-    paper_M: int = 32
     paper_plot_dpi: int = 220
 
     # Parallel paper production.  max_workers=0 means automatic: use 50% of the
@@ -282,9 +272,8 @@ class Config:
     # sweep has already completed.
     paper_reuse_existing_csv: bool = True
 
-    # The paper sweep deliberately uses a cheaper discovery policy than the full
-    # certification run.  Each (a,epsilon) point is independent and M=32 is the
-    # single plotted BEM order.
+    # The paper sweep uses cheaper contour quadrature; its BEM boundary order
+    # remains the same fixed bem_M as every other solver path.
     paper_search_quadrature: int = 384
     paper_verify_quadrature: int = 192
     paper_escalation_quadrature: int = 768
@@ -385,7 +374,7 @@ class ModeRefinementRow:
     right_value: float
     drop_factor: float
     minimum_is_interior: bool
-    relative_sigma_change_from_previous: float
+    relative_sigma_change_from_previous: float  # NaN: retained for CSV compatibility; no M sweep.
 
 
 @dataclass
@@ -401,7 +390,7 @@ class ModeResult:
     sigma_max_final: float
     relative_singular_value_final: float
     final_drop_factor: float
-    final_relative_mesh_change: float
+    final_relative_mesh_change: float  # NaN for compatibility: no M sweep.
     resolved: bool
 
 
@@ -444,7 +433,7 @@ class IndependentScanSummary:
     sigma_lower: float
     sigma_upper: float
     scan_points_total: int
-    scan_M_levels: str
+    scan_M: int
     local_minima_count: int
     refined_candidate_count: int
     resolved_mode_count: int
@@ -547,7 +536,7 @@ class ValidationResult:
     sigma_max_final: float
     relative_singular_value_final: float
     final_drop_factor: float
-    final_relative_mesh_change: float
+    final_relative_mesh_change: float  # NaN for compatibility: no M sweep.
     relative_error_kb: float
     relative_error_sigma: float
     unique_mode_verified: bool
@@ -1020,7 +1009,7 @@ def complex_support_smoke_test(epsilon: float, config: Config) -> None:
     _, _, center, _, ry = contour_geometry(config)
     z_test = complex(center, 0.37 * ry)
     try:
-        A = assemble_matrix(z_test, epsilon, min(8, config.beyn_M), config)
+        A = assemble_matrix(z_test, epsilon, config.bem_M, config)
     except Exception as exc:  # noqa: BLE001
         raise RuntimeError(
             "Beyn requires A(kb) for complex kb, but lattice_sums / Green "
@@ -1103,7 +1092,7 @@ def beyn_discover(
     np.ndarray,
 ]:
     """Run one Beyn contour solve at a prescribed quadrature level."""
-    M = config.beyn_M
+    M = config.bem_M
     Nq = int(quadrature_points)
     V = probing_matrix(M, config)
 
@@ -1704,7 +1693,7 @@ def sigma_scan_fallback_task(
 
     points = max(int(config.local_sigma_scan_points), 12)
     sigmas = np.geomspace(lower, upper, points)
-    M = int(config.local_sigma_scan_M)
+    M = int(config.bem_M)
     values = np.array(
         [
             absolute_singular_value_from_sigma(float(sig), epsilon, M, config)
@@ -1812,7 +1801,7 @@ def independent_whole_band_svd_scan(
     edge_attraction = False
     total_local_minima = 0
 
-    for M in trial.nonexistence_scan_M_levels:
+    for M in (trial.bem_M,):
         values = np.array(
             [
                 absolute_singular_value_from_sigma(float(sigma), epsilon, int(M), trial)
@@ -1856,8 +1845,7 @@ def independent_whole_band_svd_scan(
                 )
             )
 
-    # Cluster the same valley found at different scan-M levels.  Keep the
-    # deepest sampled representative of each cluster.
+    # Cluster nearby valleys from the single fixed-M scan.
     candidate_records.sort(key=lambda item: item[1])
     clustered: list[tuple[float, float, float, float, int]] = []
     rel_tol = max(float(trial.nonexistence_scan_cluster_relative_tolerance), 1.0e-6)
@@ -1879,10 +1867,7 @@ def independent_whole_band_svd_scan(
         ]
         clustered.sort(key=lambda item: item[1])
 
-    refine_config = replace(
-        trial,
-        refinement_M=tuple(int(M) for M in trial.nonexistence_refinement_M),
-    )
+    refine_config = trial
     modes: list[ModeResult] = []
     suspicious_unresolved = 0
     best_relative = math.nan
@@ -1937,8 +1922,8 @@ def independent_whole_band_svd_scan(
         context=str(context),
         sigma_lower=float(sigma_lower),
         sigma_upper=float(sigma_upper),
-        scan_points_total=int(len(sigmas) * len(trial.nonexistence_scan_M_levels)),
-        scan_M_levels=",".join(str(int(M)) for M in trial.nonexistence_scan_M_levels),
+        scan_points_total=int(len(sigmas)),
+        scan_M=int(trial.bem_M),
         local_minima_count=int(total_local_minima),
         refined_candidate_count=int(len(modes)),
         resolved_mode_count=int(len(resolved_modes)),
@@ -1984,7 +1969,7 @@ def refine_candidate_for_M(
         sigma_right, epsilon, M, config
     )
 
-    result = minimize_scalar(
+    result = cast(Any, minimize_scalar(
         lambda sigma: math.log10(
             max(
                 absolute_singular_value_from_sigma(
@@ -1996,7 +1981,7 @@ def refine_candidate_for_M(
         bounds=(sigma_left, sigma_right),
         method="bounded",
         options={"xatol": config.minimizer_sigma_xatol},
-    )
+    ))
     if not result.success:
         raise RuntimeError(
             f"Local sigma-SVD refinement failed for epsilon={epsilon}, M={M}: "
@@ -2038,7 +2023,6 @@ def run_candidate_refinement(
     config: Config,
 ) -> tuple[list[ModeRefinementRow], ModeResult]:
     rows: list[ModeRefinementRow] = []
-    previous_sigma = math.nan
     sigma_left, sigma_right = sigma_bracket
 
     print(
@@ -2047,7 +2031,7 @@ def run_candidate_refinement(
         f"sigma bracket=[{sigma_left:.8e}, {sigma_right:.8e}]"
     )
 
-    for M in config.refinement_M:
+    for M in (config.bem_M,):
         (
             kb,
             sigma_bem,
@@ -2062,11 +2046,7 @@ def run_candidate_refinement(
             epsilon, M, sigma_left, sigma_right, config
         )
 
-        change = (
-            abs(sigma_bem - previous_sigma) / max(abs(sigma_bem), 1.0e-30)
-            if np.isfinite(previous_sigma)
-            else math.nan
-        )
+        change = math.nan  # Compatibility field; single-M change is not applicable.
 
         row = ModeRefinementRow(
             epsilon=epsilon,
@@ -2089,27 +2069,21 @@ def run_candidate_refinement(
             relative_sigma_change_from_previous=change,
         )
         rows.append(row)
-        previous_sigma = sigma_bem
 
-        change_text = f"{change:.3%}" if np.isfinite(change) else "--"
         print(
             f"    M={M:>2}: sigma_BEM={sigma_bem:.8e}, kb={kb:.12f}, "
             f"sv_min={sigma_min:.3e}, sv_min/sv_max={relative_sv:.3e}, "
-            f"drop={drop:.2e}, mesh_change={change_text}, "
+            f"drop={drop:.2e}, "
             f"sigma-interior={'yes' if interior else 'no'}"
         )
 
     final = rows[-1]
-    previous = rows[-2] if len(rows) >= 2 else rows[-1]
-    final_change = abs(final.sigma_bem - previous.sigma_bem) / max(
-        abs(final.sigma_bem), 1.0e-30
-    )
+    final_change = math.nan  # Not applicable: certification uses one fixed M.
 
     resolved = bool(
         final.minimum_is_interior
         and final.relative_singular_value <= config.relative_near_singular_tolerance
         and final.drop_factor >= config.minimum_drop_factor
-        and final_change <= config.mesh_sigma_relative_tolerance
     )
 
     result = ModeResult(
@@ -2627,7 +2601,7 @@ def validate_epsilon(
         if config.run_physical_diagnostics:
             print("  reconstructing field for independent physical diagnostics...")
             physical = physical_mode_diagnostics(
-                epsilon, kb_num, config.refinement_M[-1], config
+                epsilon, kb_num, config.bem_M, config
             )
             print(
                 f"    wall residual={physical.wall_relative_residual:.3e}, "
@@ -2734,7 +2708,7 @@ def validate_epsilon(
     )
 
 
-def write_dataclass_csv(path: Path, rows: list[object]) -> None:
+def write_dataclass_csv(path: Path, rows: Sequence[Any]) -> None:
     if not rows:
         return
     dictionaries = [asdict(row) for row in rows]
@@ -2866,7 +2840,7 @@ def load_or_run_paper_a_sweep(
     if not config.run_paper_a_sweep:
         return []
 
-    csv_path = output_directory / f"paper_a_sweep_M{config.paper_M}.csv"
+    csv_path = output_directory / f"paper_a_sweep_M{config.bem_M}.csv"
     if config.paper_reuse_existing_csv and csv_path.exists():
         try:
             cached = read_paper_sweep_csv(csv_path)
@@ -2922,10 +2896,7 @@ def run_internal_convergence_study(
     if not sigma_left < sigma_right:
         return []
 
-    reference_M = max(
-        (int(M) for M in base_config.boundary_orders_test),
-        default=int(base_config.internal_convergence_M),
-    )
+    reference_M = int(base_config.bem_M)
     (
         reference_kb,
         reference_sigma,
@@ -2983,8 +2954,7 @@ def run_internal_convergence_study(
             f"delta_sigma={sigma_shift:.3%}"
         )
 
-    for M in base_config.boundary_orders_test:
-        append_row("M", float(M), int(M), config)
+
     for h in base_config.finite_difference_steps_test:
         append_row(
             "finite_difference_step",
@@ -3019,7 +2989,7 @@ def classify_mode_count_for_geometry(
 
     The classification is deliberately numerical and theory-independent:
       1. fixed-margin Beyn searches are used for global discovery/counting;
-      2. every strict real candidate is verified by multi-M absolute-SVD refinement;
+      2. every strict real candidate is verified by fixed-M absolute-SVD refinement;
       3. if contour moments are contaminated by the first-cutoff branch point, an
          independent whole-band SVD scan decides whether any *interior* mode is
          actually resolved.
@@ -3051,10 +3021,7 @@ def classify_mode_count_for_geometry(
     all_ranks: list[int] = []
     resolved_from_beyn: list[ModeResult] = []
 
-    refine_config = replace(
-        trial,
-        refinement_M=tuple(int(M) for M in trial.nonexistence_refinement_M),
-    )
+    refine_config = trial
 
     for margin in trial.critical_classifier_cutoff_margins:
         cfg, _, diag, _, candidates = _paper_discover_at_margin(
@@ -3095,7 +3062,7 @@ def classify_mode_count_for_geometry(
                 if mode.resolved:
                     resolved_from_beyn.append(mode)
 
-            # A rank-one contour with exactly one multi-M resolved mode is a
+            # A rank-one contour with exactly one fixed-M resolved mode is a
             # strong one-mode classification; no theory is used here.
             if (
                 rank_stable
@@ -3113,7 +3080,7 @@ def classify_mode_count_for_geometry(
                     svd_scan_local_minima_count=0,
                     svd_scan_nonexistence_supported=False,
                     selected_cutoff_margin=float(margin),
-                    note="stable rank-one Beyn count + one multi-M SVD mode",
+                    note="stable rank-one Beyn count + one fixed-M SVD mode",
                 )
 
     # When Beyn is polluted by the cutoff (the common subcritical failure mode),
@@ -3390,7 +3357,7 @@ def _paper_empty_row(
     return PaperSweepRow(
         a=float(a),
         epsilon=float(epsilon),
-        M=int(config.paper_M),
+        M=int(config.bem_M),
         status=status,
         beyn_rank=-1,
         beyn_rank_stable=False,
@@ -3449,7 +3416,7 @@ def _paper_localize_one_mode(
         interior,
     ) = refine_candidate_for_M(
         epsilon,
-        int(config.paper_M),
+        int(config.bem_M),
         sigma_left,
         sigma_right,
         config,
@@ -3506,7 +3473,7 @@ def _paper_evaluate_subcritical(
 
         if resolved_beyn_candidates > 0:
             return PaperSweepRow(
-                a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+                a=float(a), epsilon=float(epsilon), M=int(trial.bem_M),
                 status="ambiguous", beyn_rank=int(diag.estimated_rank),
                 beyn_rank_stable=False, tighter_margin_rank_consistent=False,
                 local_mode_count=int(resolved_beyn_candidates),
@@ -3573,7 +3540,7 @@ def _paper_evaluate_subcritical(
         )
 
     return PaperSweepRow(
-        a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+        a=float(a), epsilon=float(epsilon), M=int(trial.bem_M),
         status=status, beyn_rank=int(last_diag.estimated_rank),
         beyn_rank_stable=rank_stable,
         tighter_margin_rank_consistent=bool(all_zero),
@@ -3703,7 +3670,7 @@ def _paper_evaluate_supercritical(
         interior = False
 
     return PaperSweepRow(
-        a=float(a), epsilon=float(epsilon), M=int(trial.paper_M),
+        a=float(a), epsilon=float(epsilon), M=int(trial.bem_M),
         status=status, beyn_rank=int(final_diag.estimated_rank),
         beyn_rank_stable=rank_stable,
         tighter_margin_rank_consistent=tighter_consistent,
@@ -3725,7 +3692,7 @@ def evaluate_paper_sweep_geometry(
     a: float,
     base_config: Config,
 ) -> PaperSweepRow:
-    """Evaluate one independent (a,epsilon) paper point at fixed M=paper_M."""
+    """Evaluate one independent paper point with the canonical fixed bem_M."""
     valid, reason, _, _ = geometry_admissibility(epsilon, a, base_config)
     if not valid:
         return _paper_empty_row(
@@ -3776,7 +3743,7 @@ def run_paper_a_sweep(base_config: Config) -> list[PaperSweepRow]:
 
     print("\n=== PAPER SWEEP: kb(epsilon) for multiple obstacle heights ===")
     print(f"  leading a0* = {a0:.12f}")
-    print(f"  fixed plotted BEM order M = {base_config.paper_M}")
+    print(f"  fixed plotted BEM order M = {base_config.bem_M}")
     print(f"  jobs = {total}")
     print(
         f"  CPU policy: detected={detected_cpu_count()}, "
@@ -3786,7 +3753,7 @@ def run_paper_a_sweep(base_config: Config) -> list[PaperSweepRow]:
         "  subcritical policy: numerical empty-contour ladder, no sigma->0 fallback"
     )
     print(
-        "  supercritical policy: numerical cutoff-margin ladder + one M=32 SVD localization"
+        f"  supercritical policy: numerical cutoff-margin ladder + fixed-M={base_config.bem_M} SVD localization"
     )
 
     rows: list[PaperSweepRow] = []
@@ -3900,7 +3867,7 @@ def plot_paper_kb_vs_epsilon_individual(
                 color=color,
                 markersize=4,
                 linewidth=1.6,
-                label=rf"$kb_{{\mathrm{{BEM}}}}$ ($M={config.paper_M}$)",
+                label=rf"$kb_{{\mathrm{{BEM}}}}$ ($M={config.bem_M}$)",
             )
 
         # In each individual figure the asymptotic branch is black, while the
@@ -3951,7 +3918,7 @@ def plot_paper_kb_vs_epsilon_individual(
         plt.ylabel(r"$kb$")
         plt.title(
             rf"Theorem 2.1: $kb$ versus $\varepsilon$, "
-            rf"$a={a:.2f}$, $M={config.paper_M}$"
+            rf"$a={a:.2f}$, $M={config.bem_M}$"
         )
         plt.grid(True, linestyle="--", alpha=0.35)
         plt.legend(fontsize=9)
@@ -3960,7 +3927,7 @@ def plot_paper_kb_vs_epsilon_individual(
         tag = f"{a:.2f}".replace(".", "p")
         save_paper_figure(
             output_directory,
-            f"paper_kb_vs_epsilon_a_{tag}_M{config.paper_M}",
+            f"paper_kb_vs_epsilon_a_{tag}_M{config.bem_M}",
             config.paper_plot_dpi,
         )
 
@@ -4056,14 +4023,14 @@ def plot_paper_kb_vs_epsilon_all_a(
     plt.xlabel(r"$\varepsilon$")
     plt.ylabel(r"$kb$")
     plt.title(
-        rf"Theorem 2.1: dependence on obstacle height ($M={config.paper_M}$)"
+        rf"Theorem 2.1: dependence on obstacle height ($M={config.bem_M}$)"
     )
     plt.grid(True, linestyle="--", alpha=0.35)
     plt.legend(fontsize=7.5, ncol=2)
     plt.tight_layout()
     save_paper_figure(
         output_directory,
-        f"paper_kb_vs_epsilon_all_a_M{config.paper_M}",
+        f"paper_kb_vs_epsilon_all_a_M{config.bem_M}",
         config.paper_plot_dpi,
     )
 
@@ -4177,8 +4144,8 @@ def plot_candidate_refinement(
         sigma = np.array([row.sigma_bem for row in subset])
 
         plt.figure(figsize=(7, 4.5))
-        plt.semilogy(M, sv, "o-")
-        plt.xlabel(r"$M$")
+        plt.semilogy(M, sv, "o")
+        plt.xlabel(rf"fixed boundary order $M={int(M[0])}$ (single discretization)")
         plt.ylabel(r"$\sigma_{\min}(A(k_*))$")
         plt.title(
             rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: absolute SVD"
@@ -4192,8 +4159,8 @@ def plot_candidate_refinement(
         plt.close()
 
         plt.figure(figsize=(7, 4.5))
-        plt.semilogy(M, relative_sv, "o-")
-        plt.xlabel(r"$M$")
+        plt.semilogy(M, relative_sv, "o")
+        plt.xlabel(rf"fixed boundary order $M={int(M[0])}$ (single discretization)")
         plt.ylabel(r"$\sigma_{\min}(A)/\sigma_{\max}(A)$")
         plt.title(
             rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: relative singularity"
@@ -4207,11 +4174,11 @@ def plot_candidate_refinement(
         plt.close()
 
         plt.figure(figsize=(7, 4.5))
-        plt.plot(M, kb, "o-")
-        plt.xlabel(r"$M$")
+        plt.plot(M, kb, "o")
+        plt.xlabel(rf"fixed boundary order $M={int(M[0])}$ (single discretization)")
         plt.ylabel(r"$kb$")
         plt.title(
-            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: $kb$ convergence"
+            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: fixed-M $kb$ localization"
         )
         plt.tight_layout()
         plt.savefig(
@@ -4222,8 +4189,8 @@ def plot_candidate_refinement(
         plt.close()
 
         plt.figure(figsize=(7, 4.5))
-        plt.plot(M, sigma, "o-")
-        plt.xlabel(r"$M$")
+        plt.plot(M, sigma, "o")
+        plt.xlabel(rf"fixed boundary order $M={int(M[0])}$ (single discretization)")
         plt.ylabel(r"$\sigma$")
         plt.title(
             rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: "
@@ -4237,25 +4204,6 @@ def plot_candidate_refinement(
         )
         plt.close()
 
-        sigma_ref = sigma[-1]
-        relative_sigma_error = np.abs(sigma - sigma_ref) / max(
-            abs(sigma_ref), 1.0e-30
-        )
-        plt.figure(figsize=(7, 4.5))
-        plt.semilogy(M, np.maximum(relative_sigma_error, 1.0e-16), "o-")
-        plt.xlabel(r"$M$")
-        plt.ylabel(r"$|\sigma_M-\sigma_{M_{\max}}|/|\sigma_{M_{\max}}|$")
-        plt.title(
-            rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: "
-            r"mesh convergence in $\sigma$"
-        )
-        plt.tight_layout()
-        plt.savefig(
-            output_directory
-            / f"candidate_{candidate_index}_sigma_mesh_error_epsilon_{epsilon:.2f}.png",
-            dpi=180,
-        )
-        plt.close()
 
 
 def plot_summary(
@@ -4472,9 +4420,7 @@ def print_result(result: ValidationResult, config: Config) -> None:
             f"  final sigma_min/sigma_max      = {result.relative_singular_value_final:.3e}"
         )
         print(f"  final minimum drop             = {result.final_drop_factor:.2e}")
-        print(
-            f"  final mesh change in sigma     = {result.final_relative_mesh_change:.3%}"
-        )
+        print("  cross-M change                 = N/A (single fixed M)")
         print(f"  relative sigma error           = {result.relative_error_sigma:.3%}")
         if np.isfinite(result.wall_relative_residual):
             print(f"  wall Dirichlet residual        = {result.wall_relative_residual:.3e}")
@@ -4484,7 +4430,7 @@ def print_result(result: ValidationResult, config: Config) -> None:
             )
             boundary_text = (
                 "PASS"
-                if result.physical_boundary_integral_verified is True
+                if bool(result.physical_boundary_integral_verified)
                 else "FAIL"
             )
             print(f"  off-grid BIE residual check    = {boundary_text}")
@@ -4493,7 +4439,7 @@ def print_result(result: ValidationResult, config: Config) -> None:
                 f"{result.decay_rate_left:.6e}/{result.decay_rate_right:.6e}"
             )
             decay_text = (
-                "PASS" if result.physical_decay_verified is True else "FAIL"
+                "PASS" if bool(result.physical_decay_verified) else "FAIL"
             )
             print(f"  physical decay check           = {decay_text}")
     else:
@@ -4541,8 +4487,8 @@ def build_publication_claims(
     if small:
         unique_supported = sum(row.unique_mode_verified for row in small)
         physical_supported = sum(
-            row.physical_boundary_integral_verified is True
-            and row.physical_decay_verified is True
+            bool(row.physical_boundary_integral_verified)
+            and bool(row.physical_decay_verified)
             for row in small
         )
         existence_status = (
@@ -4557,7 +4503,7 @@ def build_publication_claims(
                 status=existence_status,
                 evidence=(
                     f"{unique_supported}/{len(small)} sampled cases have stable Beyn rank one "
-                    f"and exactly one locally resolved multi-M mode; "
+                    f"and exactly one locally resolved fixed-M mode; "
                     f"{physical_supported}/{len(small)} also pass off-grid BIE + decay checks."
                 ),
                 limitation="Finite numerical sampling supports, but does not prove, theorem-wide uniqueness.",
@@ -4687,16 +4633,18 @@ def build_publication_claims(
         for parameter in sorted({row.parameter for row in internal_rows}):
             subset = [row for row in internal_rows if row.parameter == parameter]
             maximum = max(row.relative_sigma_shift_from_baseline for row in subset)
-            parts.append(f"{parameter}: max delta_sigma={maximum:.3e}")
+            parts.append(
+                f"{parameter} at fixed M={config.bem_M}: max delta_sigma={maximum:.3e}"
+            )
         convergence_evidence = "; ".join(parts)
     else:
         convergence_evidence = "Internal convergence study was not run."
     claims.append(
         PublicationClaimRow(
-            claim="Numerical discretization/implementation convergence",
+            claim="Numerical implementation sensitivity at fixed M",
             status="documented" if internal_rows else "not-run",
             evidence=convergence_evidence,
-            limitation="One-at-a-time convergence study is representative rather than exhaustive over every geometry.",
+            limitation="Fixed-M one-at-a-time sensitivity is representative, not exhaustive over every geometry; no mesh-convergence claim is made.",
         )
     )
 
@@ -4730,6 +4678,7 @@ def write_publication_report(
     lines.append("")
     lines.append(f"- b = {config.b:g}")
     lines.append(f"- baseline a = {config.a:g}")
+    lines.append(f"- fixed boundary order: M = {config.bem_M} for Beyn discovery, SVD certification, and physical diagnostics")
     lines.append(f"- leading a0* = {critical_height_leading_order(config):.12f}")
     lines.append(f"- first cutoff sqrt(Lambda_1)b = {kb_cutoff(config):.12f}")
     lines.append(
@@ -4845,14 +4794,14 @@ def main() -> None:
             raise RuntimeError(
                 "The baseline epsilon-scaling experiment requires a>a0*."
             )
-        print("\n=== BASELINE FULL MULTI-M VALIDATION ===")
+        print("\n=== BASELINE FIXED-M VALIDATION ===")
         print(f"epsilons = {config.epsilon_values}")
         print(
-            f"Beyn global discovery fixed M={config.beyn_M}; "
+            f"Beyn global discovery fixed M={config.bem_M}; "
             f"Nq base={config.beyn_quadrature_levels}, "
             f"adaptive={config.beyn_adaptive_quadrature_levels}"
         )
-        print(f"local BEM refinement M = {config.refinement_M}")
+        print(f"fixed BEM/SVD order M = {config.bem_M}")
 
         for epsilon in config.epsilon_values:
             work_config = config_for_epsilon(epsilon, config)
@@ -4946,7 +4895,7 @@ def main() -> None:
             row for row in summaries if row.asymptotic_agreement_verified is not None
         ]
         asymptotic_passed = sum(
-            row.asymptotic_agreement_verified is True for row in asymptotic_evaluated
+            bool(row.asymptotic_agreement_verified) for row in asymptotic_evaluated
         )
         print(
             f"Baseline: stable rank=1 + exactly one locally resolved mode: "
@@ -4966,7 +4915,7 @@ def main() -> None:
         paper_invalid = sum(row.status == "invalid-geometry" for row in paper_rows)
         paper_error = sum(row.status == "error" for row in paper_rows)
         print(
-            f"Paper a-sweep M={config.paper_M}: one={paper_one}, zero={paper_zero}, "
+            f"Paper a-sweep M={config.bem_M}: one={paper_one}, zero={paper_zero}, "
             f"zero-supported={paper_zero_supported}, ambiguous={paper_ambiguous}, "
             f"invalid={paper_invalid}, error={paper_error}, total={len(paper_rows)}"
         )
