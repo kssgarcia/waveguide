@@ -38,6 +38,83 @@ def diagnostic(**changes):
     return f.BeynDiagnostics(**(base | changes))
 
 
+class RunVersioningTests(unittest.TestCase):
+    def test_each_invocation_is_unique_and_preserves_previous_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=replace(f.CONFIG,output_directory=tmp)
+            first=f.new_run_config(base)
+            sentinel=Path(first.output_directory)/'summary.csv'
+            sentinel.write_text('original result')
+            second=f.new_run_config(base)
+            self.assertNotEqual(first.output_directory,second.output_directory)
+            self.assertEqual(sentinel.read_text(),'original result')
+            pointer=json.loads((Path(tmp)/'latest_run.json').read_text())
+            self.assertEqual(pointer['directory'],second.output_directory)
+            manifest=json.loads((Path(first.output_directory)/'run_manifest.json').read_text())
+            self.assertEqual(manifest['stage'],'created')
+
+    def test_gate_configuration_runs_in_same_directory_and_failure_is_marked(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            active=f.new_run_config(replace(f.CONFIG,output_directory=tmp),'gated')
+            with patch.object(f,'_run_full',side_effect=RuntimeError('failed solve')):
+                with self.assertRaises(RuntimeError):f.main(active)
+            self.assertEqual(len([p for p in Path(tmp).iterdir() if p.is_dir()]),1)
+            manifest=json.loads((Path(active.output_directory)/'run_manifest.json').read_text())
+            self.assertEqual(manifest['stage'],'failed')
+
+
+class PerformanceSafetyTests(unittest.TestCase):
+    def test_lattice_matches_frozen_reference(self):
+        import importlib.util
+        path = Path(__file__).parent / 'reference/lattice_sums_before_optimization.py'
+        spec = importlib.util.spec_from_file_location('reference_lattice', path)
+        reference = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(reference)
+        for k, beta, terms, order in ((.8, 0., 25, 5),(.8+.03j,0.,200,20),
+                                      (1.570796-1e-7+.00001j,0.,200,40),(.9,.1,40,8)):
+            expected = reference.lattice_sums(4.,k,beta,terms,order)
+            actual = f.lattice.lattice_sums(4.,k,beta,terms,order)
+            np.testing.assert_array_equal(actual, expected)
+
+    def test_geometry_cache_key_and_immutable_arrays(self):
+        from dataclasses import replace
+        f.assembly_geometry.cache_clear()
+        f.assemble_matrix(.8+.02j,.1,24,f.CONFIG)
+        info = f.assembly_geometry.cache_info()
+        f.assemble_matrix(.9+.03j,.1,24,f.CONFIG)
+        self.assertEqual(f.assembly_geometry.cache_info().hits, info.hits+1)
+        for changes in ({'a':.55},{'b':1.1},{'harmonic_order':40},{'finite_difference_step':2e-6}):
+            f.assemble_matrix(.8+.02j,.1,24,replace(f.CONFIG,**changes))
+        self.assertEqual(f.assembly_geometry.cache_info().misses,5)
+        arrays=f.assembly_geometry(.1,24,1.,.6,1e-6,20)
+        with self.assertRaises(ValueError): arrays[0][0,0,0]=1.
+
+    def test_checkpoint_reuse_tamper_configuration_and_failure(self):
+        from dataclasses import fields
+        values={}
+        for field in fields(f.ValidationResult):
+            kind=str(field.type)
+            values[field.name] = ('value' if kind=='str' else False if kind.startswith('bool') else 1 if kind=='int' else .1)
+        values.update(epsilon=.1,assembly_version=f.ASSEMBLY_VERSION)
+        result=(f.ValidationResult(**values),[diagnostic()],[],[],[],[],np.array([1.,1e-12]),[],float('nan'),None)
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg=replace(f.CONFIG,output_directory=tmp)
+            with patch.object(f,'validate_epsilon',return_value=result) as calculate:
+                first=f.baseline_case(.1,cfg);second=f.baseline_case(.1,cfg)
+                self.assertEqual(calculate.call_count,1)
+                self.assertEqual(second[0],first[0])
+                np.testing.assert_array_equal(second[6],first[6])
+                path=Path(tmp)/'baseline_cases/epsilon_0.10000000/completed.json'
+                envelope=json.loads(path.read_text());envelope['payload']+=' '
+                path.write_text(json.dumps(envelope))
+                f.baseline_case(.1,cfg);self.assertEqual(calculate.call_count,2)
+                f.baseline_case(.1,replace(cfg,harmonic_order=40));self.assertEqual(calculate.call_count,3)
+            path.unlink()
+            with patch.object(f,'validate_epsilon',side_effect=RuntimeError('refinement failure')):
+                with self.assertRaises(RuntimeError): f.baseline_case(.1,cfg)
+            self.assertFalse(path.exists())
+
+
 class ContourQuadratureTests(unittest.TestCase):
     def test_positive_weights_cover_circle_and_smooth_integral(self):
         t, w = f.contour_quadrature(1024, f.CONFIG)

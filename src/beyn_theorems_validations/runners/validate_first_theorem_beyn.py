@@ -1,4 +1,4 @@
-"""Gated v9 validation. No long sweep starts until all regressions/case gates pass.
+"""Gated v10 validation. No long sweep starts until all regressions/case gates pass.
 
 Usage: python validate_first_theorem_beyn.py [--full-after-gate]
 The flag explicitly authorizes the production sweep after the representative gate.
@@ -80,7 +80,10 @@ def main() -> int:
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--full-after-gate',action='store_true')
     args=parser.parse_args()
-    config=f.CONFIG
+    return run_gate(f.new_run_config(f.CONFIG, "gated"), args.full_after_gate)
+
+
+def run_gate(config: f.Config, full_after_gate: bool = False) -> int:
     if config.bem_M != 24:
         raise ValueError('This corrected validation is fixed at M=24')
     before=legacy_snapshot()
@@ -119,10 +122,10 @@ def main() -> int:
         print('Gate failed: production sweep was NOT started.',flush=True)
         return 1
     f.write_run_manifest(directory,config,'representative-gate-passed')
-    if args.full_after_gate:
+    if full_after_gate:
         print('Gate passed; starting full corrected validation.',flush=True)
         try:
-            f.main()
+            f.main(config)
         except Exception:
             f.write_run_manifest(directory,config,'full-validation-failed')
             raise

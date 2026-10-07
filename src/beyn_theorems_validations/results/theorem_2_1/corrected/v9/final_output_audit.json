@@ -1,9 +1,0 @@
-{
-  "passed": true,
-  "baseline_uniqueness": 10,
-  "subcritical_ambiguous": 4,
-  "regressions": 29,
-  "legacy_verified": 131,
-  "configuration_fingerprint": "7f9d7a8eb3c5db4539329c4ff4e4831e521d346686850c12d0fc8b1adb0d6be6",
-  "full_99_point_sweep_rerun": false
-}

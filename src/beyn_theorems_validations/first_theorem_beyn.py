@@ -12,7 +12,11 @@ from collections.abc import Callable, Sequence
 from typing import Any, ClassVar, cast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, replace, fields, is_dataclass
+from functools import lru_cache
+from datetime import datetime
+from zoneinfo import ZoneInfo
+from uuid import uuid4
 from pathlib import Path
 
 # The paper sweep uses process-level parallelism.  Keep each worker's BLAS
@@ -41,7 +45,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice
 
 PI = np.pi
-ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v9"
+ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v10"
 LEGACY_OUTPUT = Path(__file__).resolve().parent / "results" / "theorem_2_1" / "legacy" / "pre_fix"
 
 
@@ -87,6 +91,9 @@ class Config:
     # ------------------------------------------------------------------
     # Single physical boundary discretization used by every BEM/SVD/Beyn path.
     bem_M: int = 24
+    baseline_parallel: bool = True
+    baseline_resume: bool = True
+    baseline_max_workers: int = 4
 
     # Base quadrature-convergence study. These levels are always run so the
     # rank and raw Beyn eigenvalue sequence can be diagnosed consistently.
@@ -302,7 +309,7 @@ class Config:
         1.0e-3, 1.0e-4, 1.0e-5,
     )
 
-    output_directory: str = str(Path(__file__).resolve().parent / "results" / "theorem_2_1" / "corrected" / "v9")
+    output_directory: str = str(Path(__file__).resolve().parent / "results" / "theorem_2_1" / "runs")
 
 
 @dataclass
@@ -706,6 +713,26 @@ def configuration_fingerprint(config: Config, epsilon: float | None = None, a: f
     return hashlib.sha256(json.dumps(payload, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
+def new_run_config(config: Config, purpose: str = "full") -> Config:
+    """Allocate a unique directory per invocation; never overwrite earlier runs."""
+    root = Path(config.output_directory)
+    require_corrected_output(root)
+    root.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now(ZoneInfo("America/Bogota")).strftime("%Y-%m-%d_%H-%M-%S")
+    directory = root / f"{stamp}_{purpose}_{uuid4().hex[:12]}"
+    directory.mkdir(exist_ok=False)
+    active = replace(config, output_directory=str(directory.resolve()))
+    write_run_manifest(directory, active, "created")
+    pointer = root / "latest_run.json"
+    temporary = root / f".latest-{uuid4().hex}.tmp"
+    temporary.write_text(json.dumps({"run_id": directory.name,
+                                    "directory": active.output_directory,
+                                    "purpose": purpose}, indent=2) + "\n")
+    os.replace(temporary, pointer)
+    print(f"Results for this execution: {directory.resolve()}", flush=True)
+    return active
+
+
 def require_corrected_output(path: Path) -> None:
     if path.resolve() == LEGACY_OUTPUT or LEGACY_OUTPUT in path.resolve().parents:
         raise ValueError("Legacy/pre-fix outputs are read-only; choose a corrected output directory")
@@ -715,6 +742,7 @@ def write_run_manifest(directory: Path, config: Config, stage: str) -> None:
     require_corrected_output(directory)
     directory.mkdir(parents=True, exist_ok=True)
     manifest = {
+        "run_id": directory.name,
         "result_generation": "corrected", "assembly_version": ASSEMBLY_VERSION,
         "stage": stage, "config": asdict(config),
         "configuration_fingerprint": configuration_fingerprint(config),
@@ -1083,20 +1111,56 @@ def weighted_normal_kernel(
 def periodic_green_array(
     X: np.ndarray, Y: np.ndarray, coefficients: np.ndarray,
     k: complex, period: float, regularized: bool = False,
+    prepared: tuple[np.ndarray, np.ndarray] | None = None,
 ) -> np.ndarray:
     """Vectorized Linton (2.46), identical truncation to lattice.greens_periodic."""
-    Y = wrap_periodic_separation(Y, period)
-    radius = np.hypot(X, Y)
-    if np.any(radius > 0.99 * period):
-        raise ValueError("Green evaluation outside the lattice-series disk")
+    if prepared is None:
+        prepared = prepare_green_geometry(X, Y, period, len(coefficients))
+    radius, angular = prepared
     argument = k * radius
     result = lattice.J0(argument) if regularized else lattice.H0(argument)
-    theta = np.arctan2(Y, X)
     for order, coefficient in enumerate(coefficients):
         result = result + (1 if order == 0 else 2) * coefficient * lattice.jv(
             order, argument
-        ) * np.cos(order * (PI / 2.0 - theta))
+        ) * angular[order]
     return -0.25j * result
+
+
+def prepare_green_geometry(X: np.ndarray, Y: np.ndarray, period: float,
+                           orders: int) -> tuple[np.ndarray, np.ndarray]:
+    Y = wrap_periodic_separation(Y, period)
+    radius = np.hypot(X, Y)
+    if np.any(radius > .99 * period):
+        raise ValueError("Green evaluation outside the lattice-series disk")
+    angle = PI / 2 - np.arctan2(Y, X)
+    angular = np.stack([np.cos(order * angle) for order in range(orders)])
+    radius.setflags(write=False)
+    angular.setflags(write=False)
+    return radius, angular
+
+
+@lru_cache(maxsize=16)
+def assembly_geometry(epsilon: float, M: int, b: float, a: float,
+                      h: float, harmonic_order: int) -> tuple:
+    """Bounded process-local cache; all geometry parameters are in the key."""
+    theta = boundary_nodes(M)
+    x, y, xp, yp, xpp, ypp = circle_geometry(theta, epsilon)
+
+    xi = np.stack([x + h, x - h, x, x])
+    eta = np.stack([y, y, y + h, y - h])
+    X = x[None, :, None] - xi[:, None, :]
+    Y_direct = y[None, :, None] - eta[:, None, :]
+    Y_image = y[None, :, None] + eta[:, None, :] + 2.0 * (b + a)
+    diagonal_x = x[None, :] - xi
+    diagonal_direct = y[None, :] - eta
+    diagonal_image = y[None, :] + eta + 2.0 * (b + a)
+    curvature = (xpp * yp - ypp * xp) / (4.0 * PI * (xp*xp + yp*yp))
+    plans = tuple(prepare_green_geometry(xx, yy, 4*b, 2*harmonic_order+1)
+                  for xx, yy in ((X,Y_direct),(X,Y_image),
+                                 (diagonal_x,diagonal_direct),(diagonal_x,diagonal_image)))
+    for value in (X,Y_direct,Y_image,diagonal_x,diagonal_direct,diagonal_image,xp,yp,curvature):
+        value.setflags(write=False)
+    return X,Y_direct,Y_image,diagonal_x,diagonal_direct,diagonal_image,xp,yp,curvature,plans
 
 
 def assemble_matrix(
@@ -1108,32 +1172,22 @@ def assemble_matrix(
     coefficients = lattice.lattice_sums(
         period, k, beta=0.0, M=config.lattice_terms, Lh=config.harmonic_order
     )
-    theta = boundary_nodes(M)
-    x, y, xp, yp, xpp, ypp = circle_geometry(theta, epsilon)
     h = config.finite_difference_step
-
-    xi = np.stack([x + h, x - h, x, x])
-    eta = np.stack([y, y, y + h, y - h])
-    X = x[None, :, None] - xi[:, None, :]
-    Y_direct = y[None, :, None] - eta[:, None, :]
-    Y_image = y[None, :, None] + eta[:, None, :] + 2.0 * (config.b + config.a)
-    shifted = periodic_green_array(X, Y_direct, coefficients, k, period) - periodic_green_array(
-        X, Y_image, coefficients, k, period
+    X,Y_direct,Y_image,diagonal_x,diagonal_direct,diagonal_image,xp,yp,curvature,plans = assembly_geometry(
+        epsilon, M, config.b, config.a, h, config.harmonic_order)
+    shifted = periodic_green_array(X, Y_direct, coefficients, k, period, prepared=plans[0]) - periodic_green_array(
+        X, Y_image, coefficients, k, period, prepared=plans[1]
     )
     gx = (shifted[0] - shifted[1]) / (2.0 * h)
     gy = (shifted[2] - shifted[3]) / (2.0 * h)
     weighted = xp[None, :] * gy - yp[None, :] * gx
     # The coincident diagonal uses the same regularized Green and curvature
     # limit as weighted_normal_kernel; batching does not change the formula.
-    diagonal_x = x[None, :] - xi
-    diagonal_direct = y[None, :] - eta
-    diagonal_image = y[None, :] + eta + 2.0 * (config.b + config.a)
     regularized = periodic_green_array(
-        diagonal_x, diagonal_direct, coefficients, k, period, regularized=True
-    ) - periodic_green_array(diagonal_x, diagonal_image, coefficients, k, period)
+        diagonal_x, diagonal_direct, coefficients, k, period, regularized=True, prepared=plans[2]
+    ) - periodic_green_array(diagonal_x, diagonal_image, coefficients, k, period, prepared=plans[3])
     gx_reg = (regularized[0] - regularized[1]) / (2.0 * h)
     gy_reg = (regularized[2] - regularized[3]) / (2.0 * h)
-    curvature = (xpp * yp - ypp * xp) / (4.0 * PI * (xp*xp + yp*yp))
     weighted[np.diag_indices(M)] = curvature + xp*gy_reg - yp*gx_reg
     return np.eye(M, dtype=np.complex128) - (4.0 * PI / M) * weighted
 
@@ -4800,8 +4854,101 @@ def write_publication_report(
 # ---------------------------------------------------------------------------
 
 
-def main() -> None:
-    config = CONFIG
+_CASE_RECORDS = {cls.__name__: cls for cls in (
+    ValidationResult, BeynDiagnostics, BeynEigenvalueRow, BeynConvergenceRow,
+    ModeRefinementRow, ModeResult, PhysicalDiagnostics,
+)}
+
+
+def _case_encode(value: Any) -> Any:
+    if is_dataclass(value):
+        return {"record": type(value).__name__, "fields": {
+            item.name: _case_encode(getattr(value, item.name)) for item in fields(value)}}
+    if isinstance(value, np.ndarray):
+        return {"array": str(value.dtype), "data": _case_encode(value.tolist())}
+    if isinstance(value, complex):
+        return {"complex": [value.real, value.imag]}
+    if isinstance(value, tuple):
+        return {"tuple": [_case_encode(item) for item in value]}
+    if isinstance(value, list):
+        return [_case_encode(item) for item in value]
+    if isinstance(value, np.generic):
+        return _case_encode(value.item())
+    return value
+
+
+def _case_decode(value: Any) -> Any:
+    if isinstance(value, list):
+        return [_case_decode(item) for item in value]
+    if not isinstance(value, dict):
+        return value
+    if "record" in value:
+        cls = _CASE_RECORDS[value["record"]]
+        return cls(**{key: _case_decode(item) for key, item in value["fields"].items()})
+    if "array" in value:
+        if value["array"] not in ("float64", "complex128"):
+            raise ValueError("Unexpected checkpoint array dtype")
+        return np.asarray(_case_decode(value["data"]), dtype=value["array"])
+    if "complex" in value:
+        return complex(*value["complex"])
+    if "tuple" in value:
+        return tuple(_case_decode(item) for item in value["tuple"])
+    raise ValueError("Unknown checkpoint record")
+
+
+def baseline_case(epsilon: float, config: Config) -> tuple:
+    """Reuse only a completed, signed case; atomic writes survive interruption."""
+    directory = Path(config.output_directory) / "baseline_cases" / f"epsilon_{epsilon:.8f}"
+    require_corrected_output(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "completed.json"
+    fingerprint = configuration_fingerprint(config, epsilon, config.a)
+    if config.baseline_resume and path.exists():
+        try:
+            envelope = json.loads(path.read_text())
+            payload = envelope["payload"]
+            digest = hashlib.sha256(payload.encode()).hexdigest()
+            if (envelope.get("schema") == 1 and envelope.get("stage") == "completed"
+                    and envelope.get("fingerprint") == fingerprint
+                    and envelope.get("sha256") == digest):
+                result = _case_decode(json.loads(payload))
+                if (isinstance(result, tuple) and len(result) == 10
+                        and isinstance(result[0], ValidationResult)
+                        and result[0].epsilon == epsilon
+                        and result[0].assembly_version == ASSEMBLY_VERSION):
+                    return result
+        except (ValueError, KeyError, TypeError, OSError):
+            pass  # Invalid/partial checkpoints are recalculated, never trusted.
+    with (directory / "run.log").open("w", buffering=1) as log, redirect_stdout(log), redirect_stderr(log):
+        result = validate_epsilon(epsilon, config)
+    payload = json.dumps(_case_encode(result), separators=(",", ":"))
+    envelope = {"schema": 1, "stage": "completed", "fingerprint": fingerprint,
+                "sha256": hashlib.sha256(payload.encode()).hexdigest(), "payload": payload}
+    temporary = path.with_suffix(f".tmp-{os.getpid()}")
+    temporary.write_text(json.dumps(envelope) + "\n")
+    os.replace(temporary, path)
+    return result
+
+
+def run_baseline_cases(config: Config) -> dict[float, tuple]:
+    """Process independence; plotting and final CSV order stay in the parent."""
+    results = {}
+    if config.baseline_parallel and len(config.epsilon_values) > 1:
+        workers = min(len(config.epsilon_values), paper_worker_count(config),
+                      max(1, config.baseline_max_workers))
+        with ProcessPoolExecutor(max_workers=workers, mp_context=mp.get_context("spawn")) as pool:
+            jobs = {pool.submit(baseline_case, e, config): e for e in config.epsilon_values}
+            for job in as_completed(jobs):
+                epsilon = jobs[job]
+                results[epsilon] = job.result()
+                print(f"  baseline completed {len(results)}/{len(jobs)}: epsilon={epsilon:.4f}", flush=True)
+    else:
+        for epsilon in config.epsilon_values:
+            results[epsilon] = baseline_case(epsilon, config)
+    return results
+
+
+def _run_full(config: Config) -> None:
     output_directory = Path(config.output_directory)
     require_corrected_output(output_directory)
     write_run_manifest(output_directory, config, "full-validation-running")
@@ -4845,6 +4992,7 @@ def main() -> None:
         )
         print(f"fixed BEM/SVD order M = {config.bem_M}")
 
+        baseline_results = run_baseline_cases(config)
         for epsilon in config.epsilon_values:
             work_config = config_for_epsilon(epsilon, config)
             left, right, center, rx, ry = contour_geometry(work_config)
@@ -4870,7 +5018,7 @@ def main() -> None:
                 final_eigen_rows,
                 aitken_estimate,
                 physical,
-            ) = validate_epsilon(epsilon, config)
+            ) = baseline_results[epsilon]
 
             summaries.append(result)
             all_beyn_diagnostics.extend(beyn_diags)
@@ -4988,6 +5136,16 @@ def main() -> None:
     write_run_manifest(output_directory, config, "full-validation-completed")
     print(f"\nFiles written to: {output_directory.resolve()}")
     print(f"Publication audit: {(output_directory / 'publication_validation_report.md').resolve()}")
+
+
+def main(config: Config | None = None) -> None:
+    active = new_run_config(CONFIG) if config is None else config
+    try:
+        _run_full(active)
+    except BaseException as exc:
+        stage = "interrupted" if isinstance(exc, KeyboardInterrupt) else "failed"
+        write_run_manifest(Path(active.output_directory), active, stage)
+        raise
 
 
 if __name__ == "__main__":

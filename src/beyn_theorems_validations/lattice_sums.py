@@ -44,6 +44,7 @@ suited to analytic continuation in complex k.
 from __future__ import annotations
 
 from math import factorial
+from functools import lru_cache
 
 import numpy as np
 from scipy.special import hankel1, jv, zeta
@@ -68,6 +69,20 @@ def _as_complex_scalar(z) -> complex:
 
 def _is_effectively_real(z: complex, tol: float = _COMPLEX_TOL) -> bool:
     return abs(z.imag) <= tol * max(1.0, abs(z.real))
+
+
+@lru_cache(maxsize=1024)
+def _bernoulli_complex(order: int, argument: float) -> complex:
+    """The same SymPy value, converted once per order and geometry."""
+    return complex(bernoulli(order, argument))
+
+
+@lru_cache(maxsize=4096)
+def _factorial_ratio(l: int, m: int, odd: bool) -> float:
+    numerator = (-1) ** m * 2 ** (2 * m) * factorial(l + m - 1)
+    denominator = (factorial(2 * m + 1) * factorial(l - m - 1) if odd
+                   else factorial(2 * m) * factorial(l - m))
+    return numerator / denominator
 
 
 def lattice_sums(d, k, beta, M, Lh):
@@ -132,6 +147,7 @@ def lattice_sums(d, k, beta, M, Lh):
 
     p = 2.0 * pi / d
 
+    @lru_cache(maxsize=None)
     def gamma_m(beta_m: float) -> complex:
         """
         Longitudinal lattice factor on the physical branch.
@@ -246,15 +262,14 @@ def lattice_sums(d, k, beta, M, Lh):
 
         sum2 = 0.0j
         for m in range(l):
-            num = (-1) ** m * 2 ** (2 * m) * factorial(l + m - 1)
-            deno = factorial(2 * m + 1) * factorial(l - m - 1)
+            ratio = _factorial_ratio(l, m, True)
             fac = (p / k) ** (2 * m + 1)
 
             # Convert the SymPy number explicitly so complex NumPy arithmetic
             # never falls back to object dtype.
-            B2m1 = complex(bernoulli(2 * m + 1, beta / p))
+            B2m1 = _bernoulli_complex(2 * m + 1, beta / p)
 
-            sum2 += num / deno * fac * B2m1
+            sum2 += ratio * fac * B2m1
 
         S2lm1 += -2.0 / pi * sum2
         S[2 * l - 1] = complex(S2lm1)
@@ -297,12 +312,11 @@ def lattice_sums(d, k, beta, M, Lh):
 
         sum2 = 0.0j
         for m in range(1, l + 1):
-            num = (-1) ** m * 2 ** (2 * m) * factorial(l + m - 1)
-            deno = factorial(2 * m) * factorial(l - m)
+            ratio = _factorial_ratio(l, m, False)
             fac = (p / k) ** (2 * m)
-            B2m = complex(bernoulli(2 * m, beta / p))
+            B2m = _bernoulli_complex(2 * m, beta / p)
 
-            sum2 += num / deno * fac * B2m
+            sum2 += ratio * fac * B2m
 
         S2l += 1j / pi * sum2
         S[2 * l] = complex(S2l)

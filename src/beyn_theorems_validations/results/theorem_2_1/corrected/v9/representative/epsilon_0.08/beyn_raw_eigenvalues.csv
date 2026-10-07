@@ -1,4 +1,0 @@
-epsilon,quadrature_points,raw_index,real_part,imag_part,inside_contour,inside_real_band,near_real,real_span_overrun,near_contour_seed,accepted_for_real_refinement
-0.08,256,0,1.5706236472795931,3.6330383328296525e-08,True,True,True,0.0,False,True
-0.08,512,0,1.57062641053257,-2.9322618633492604e-10,True,True,True,0.0,False,True
-0.08,1024,0,1.5706264105512393,-1.2346307522057278e-10,True,True,True,0.0,False,True
