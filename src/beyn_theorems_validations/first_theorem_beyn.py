@@ -43,7 +43,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice
 
 PI = np.pi
-ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v10"
+ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v11"
 LEGACY_OUTPUT = Path(__file__).resolve().parent / "results" / "theorem_2_1" / "legacy" / "pre_fix"
 
 
@@ -245,6 +245,7 @@ class Config:
     # parameter, not a theorem assumption.
     run_independent_nonexistence_scan: bool = True
     nonexistence_scan_points: int = 160
+    nonexistence_refinement_factors: tuple[int, ...] = (2, 4)
     nonexistence_scan_min_cutoff_gap: float = 1.0e-12
     nonexistence_scan_max_candidates: int = 12
     nonexistence_scan_cluster_relative_tolerance: float = 0.03
@@ -547,6 +548,19 @@ class PaperSweepRow:
     equilibrated_residual: float = math.nan
     equilibrated_sigma_min: float = math.nan
     diagnostic_complete: bool = False
+    beyn_threshold_rank: int = 0
+    beyn_gap_rank: int = 0
+    beyn_s0_relative_change: float = math.nan
+    beyn_s1_relative_change: float = math.nan
+    beyn_moments_converged: bool = False
+    beyn_candidate_stable: bool = False
+    contour_solve_residual: float = math.nan
+    physical_checks_run: bool = False
+    physical_checks_passed: bool = False
+    wall_relative_residual: float = math.nan
+    boundary_integral_relative_residual: float = math.nan
+    decay_relative_error_left: float = math.nan
+    decay_relative_error_right: float = math.nan
     assembly_version: str = ASSEMBLY_VERSION
 
 
@@ -3132,6 +3146,19 @@ def read_paper_sweep_csv(path: Path) -> list[PaperSweepRow]:
                     equilibrated_residual=_csv_float(item.get("equilibrated_residual", "")),
                     equilibrated_sigma_min=_csv_float(item.get("equilibrated_sigma_min", "")),
                     diagnostic_complete=_csv_bool(item.get("diagnostic_complete", "")),
+                    beyn_threshold_rank=_csv_int(item.get("beyn_threshold_rank", "")),
+                    beyn_gap_rank=_csv_int(item.get("beyn_gap_rank", "")),
+                    beyn_s0_relative_change=_csv_float(item.get("beyn_s0_relative_change", "")),
+                    beyn_s1_relative_change=_csv_float(item.get("beyn_s1_relative_change", "")),
+                    beyn_moments_converged=_csv_bool(item.get("beyn_moments_converged", "")),
+                    beyn_candidate_stable=_csv_bool(item.get("beyn_candidate_stable", "")),
+                    contour_solve_residual=_csv_float(item.get("contour_solve_residual", "")),
+                    physical_checks_run=_csv_bool(item.get("physical_checks_run", "")),
+                    physical_checks_passed=_csv_bool(item.get("physical_checks_passed", "")),
+                    wall_relative_residual=_csv_float(item.get("wall_relative_residual", "")),
+                    boundary_integral_relative_residual=_csv_float(item.get("boundary_integral_relative_residual", "")),
+                    decay_relative_error_left=_csv_float(item.get("decay_relative_error_left", "")),
+                    decay_relative_error_right=_csv_float(item.get("decay_relative_error_right", "")),
                     assembly_version=str(item.get("assembly_version", "legacy/pre-fix")),
                 )
             )
@@ -3612,7 +3639,11 @@ def _paper_search_case(
     final_candidates: list[complex] = []
     final_margin = math.nan
     found: list[ModeResult] = []
+    evaluated_modes: list[ModeResult] = []
+    candidate_failures = []
     complete = True
+    discovery_history = []
+    scan_history = []
     for margin in margins:
         cfg, _, diag, _, candidates = _paper_discover_at_margin(
             epsilon, trial, margin, trial.paper_search_quadrature
@@ -3621,6 +3652,7 @@ def _paper_search_case(
             epsilon, trial, margin, trial.paper_verify_quadrature
         )
         compare_beyn_levels(diag, previous, candidates, previous_candidates, cfg)
+        discovery_history.extend([previous, diag])
         initial_candidates = list(candidates)
         higher_candidates: list[complex] = []
         levels = sorted(set((trial.paper_escalation_quadrature,) + trial.paper_adaptive_quadrature_levels))
@@ -3636,6 +3668,7 @@ def _paper_search_case(
                 epsilon, trial, margin, budget
             )
             compare_beyn_levels(higher, diag, new_candidates, candidates, cfg_hi)
+            discovery_history.append(higher)
             higher_candidates.extend(new_candidates)
             cfg, diag, candidates = cfg_hi, higher, new_candidates
         final_config, final_diag, final_candidates, final_margin = cfg, diag, candidates, margin
@@ -3647,14 +3680,17 @@ def _paper_search_case(
                 [DiscoverySeed(candidate.real, candidate.imag, "paper-beyn")], cfg
             )
             if not tasks:
+                candidate_failures.append({"candidate": str(candidate), "reason": "no refinement task"})
                 complete = False
                 continue
             try:
                 seed, bracket = tasks[0]
                 _, mode = run_candidate_refinement(epsilon, index, seed, bracket, cfg)
-            except Exception:
+            except Exception as exc:
+                candidate_failures.append({"candidate": str(candidate), "reason": f"{type(exc).__name__}: {exc}"})
                 complete = False
                 continue
+            evaluated_modes.append(mode)
             if mode.resolved:
                 # Do not count the same mode twice when moving the contour.
                 if not any(abs(mode.sigma_numerical - old.sigma_numerical)
@@ -3669,8 +3705,17 @@ def _paper_search_case(
     scan = None
     if not found and trial.run_independent_nonexistence_scan:
         scan, scan_modes = independent_whole_band_svd_scan(epsilon, a, trial, "paper")
+        scan_history.append(scan)
+        # Retry at higher sampling density without clearing earlier failures.
+        for factor in trial.nonexistence_refinement_factors:
+            if scan.resolved_mode_count or scan.diagnostic_complete:
+                break
+            refined = replace(trial, nonexistence_scan_points=trial.nonexistence_scan_points * factor)
+            scan, new_modes = independent_whole_band_svd_scan(epsilon, a, refined, "paper-refined")
+            scan_history.append(scan)
+            scan_modes.extend(new_modes)
         found = [mode for mode in scan_modes if mode.resolved]
-        complete = complete and scan.diagnostic_complete
+        complete = complete and all(value.diagnostic_complete for value in scan_history)
     tighter_ok = False
     if len(found) == 1:
         tighter_margin = max(trial.beyn_min_cutoff_margin, final_margin * trial.beyn_tighter_cutoff_margin_factor)
@@ -3685,6 +3730,7 @@ def _paper_search_case(
                 <= trial.beyn_candidate_convergence_tolerance
             )
     exists = bool(found)
+    physical = None
     if found and trial.run_physical_diagnostics:
         physical = physical_mode_diagnostics(epsilon, found[0].kb_numerical, trial.bem_M, trial)
         exists = bool(physical.walls_verified and physical.boundary_integral_verified and physical.decay_verified)
@@ -3709,7 +3755,7 @@ def _paper_search_case(
     else:
         status = "ambiguous"
     mode = found[0] if len(found) == 1 else None
-    return PaperSweepRow(
+    row = PaperSweepRow(
         a=float(a), epsilon=float(epsilon), M=int(trial.bem_M), status=status,
         beyn_rank=final_diag.estimated_rank, beyn_rank_stable=final_diag.rank_stable,
         tighter_margin_rank_consistent=tighter_ok, local_mode_count=len(found),
@@ -3728,7 +3774,31 @@ def _paper_search_case(
         normalized_residual=mode.normalized_residual if mode else math.nan,
         equilibrated_residual=mode.equilibrated_residual if mode else math.nan,
         equilibrated_sigma_min=mode.equilibrated_sigma_min if mode else math.nan,
+        beyn_threshold_rank=final_diag.threshold_rank, beyn_gap_rank=final_diag.gap_rank,
+        beyn_s0_relative_change=final_diag.s0_relative_change,
+        beyn_s1_relative_change=final_diag.s1_relative_change,
+        beyn_moments_converged=final_diag.moments_converged,
+        beyn_candidate_stable=final_diag.candidate_stable,
+        contour_solve_residual=final_diag.max_linear_solve_relative_residual,
+        physical_checks_run=physical is not None,
+        physical_checks_passed=bool(physical is not None and exists),
+        wall_relative_residual=physical.wall_relative_residual if physical else math.nan,
+        boundary_integral_relative_residual=physical.boundary_integral_relative_residual if physical else math.nan,
+        decay_relative_error_left=physical.decay_relative_error_left if physical else math.nan,
+        decay_relative_error_right=physical.decay_relative_error_right if physical else math.nan,
     )
+
+
+    directory = Path(trial.output_directory) / "geometry_diagnostics" / f"a_{a:.12g}_epsilon_{epsilon:.12g}"
+    require_corrected_output(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    write_dataclass_csv(directory / "beyn_levels.csv", discovery_history)
+    write_dataclass_csv(directory / "svd_scans.csv", scan_history)
+    write_dataclass_csv(directory / "candidate_modes.csv", evaluated_modes)
+    harness.atomic_json(directory / "candidate_failures.json", candidate_failures)
+    write_dataclass_csv(directory / "physical.csv", [physical] if physical is not None else [])
+    harness.atomic_json(directory / "certificate.json", asdict(row))
+    return row
 
 
 def _paper_evaluate_subcritical(
@@ -3766,7 +3836,7 @@ def evaluate_paper_sweep_geometry(
     trial = replace(
         base_config,
         a=float(a),
-        run_physical_diagnostics=False,
+        run_physical_diagnostics=base_config.run_physical_diagnostics,
     )
     asym_valid, kb_asym, sigma_asym, coefficient = safe_asymptotic_prediction(
         epsilon, trial

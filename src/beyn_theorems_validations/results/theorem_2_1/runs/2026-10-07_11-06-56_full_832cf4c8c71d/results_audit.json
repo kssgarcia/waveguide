@@ -1,0 +1,15 @@
+{
+  "run_id": "2026-10-07_11-06-56_full_832cf4c8c71d",
+  "checks_passed": 412,
+  "baseline_existence": 10,
+  "baseline_uniqueness": 10,
+  "paper_status": {
+    "ambiguous": 20,
+    "one": 79
+  },
+  "absence_supported": 0,
+  "critical_bracketed": 0,
+  "baseline_max_residual": 6.707486033458758e-10,
+  "paper_max_residual": 7.784298200597856e-10,
+  "scope": "Audit of saved evidence; no numerical rerun; source changed after this run for shared harness"
+}

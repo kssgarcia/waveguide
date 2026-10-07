@@ -330,6 +330,30 @@ class CacheTests(unittest.TestCase):
 
 
 class CrossRouteTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        patcher = patch.object(f, 'CONFIG', replace(f.CONFIG, output_directory=temporary.name))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_new_audit_fields_survive_csv_roundtrip(self):
+        cfg=f.CONFIG
+        row=f._paper_empty_row(.1,.6,cfg,'ambiguous','test')
+        row.beyn_threshold_rank=2;row.beyn_gap_rank=1
+        row.beyn_s0_relative_change=.002;row.beyn_s1_relative_change=.003
+        row.physical_checks_run=True;row.physical_checks_passed=False
+        row.wall_relative_residual=.01
+        path=Path(cfg.output_directory)/'rows.csv'
+        f.write_dataclass_csv(path,[row])
+        saved=f.read_paper_sweep_csv(path)[0]
+        self.assertEqual(saved.beyn_threshold_rank,2)
+        self.assertEqual(saved.beyn_gap_rank,1)
+        self.assertEqual(saved.beyn_s1_relative_change,.003)
+        self.assertTrue(saved.physical_checks_run)
+        self.assertFalse(saved.physical_checks_passed)
+        self.assertEqual(saved.wall_relative_residual,.01)
+
     def test_local_existence_retained_when_global_moments_do_not_converge(self):
         config=replace(f.CONFIG,run_physical_diagnostics=False)
         def discover(e,c,margin,nq):
