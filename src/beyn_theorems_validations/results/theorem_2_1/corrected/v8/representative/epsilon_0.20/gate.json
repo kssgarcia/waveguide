@@ -1,0 +1,13 @@
+{
+  "epsilon": 0.2,
+  "passed": true,
+  "mode_exists_supported": true,
+  "uniqueness_supported": false,
+  "uniqueness_status": "ambiguous",
+  "sigma": 0.11423102188575555,
+  "harmonic_20_vs_40_relative_sigma_shift": 9.635605113702921e-09,
+  "normalized_residual": 6.155056277375612e-10,
+  "equilibrated_residual": 6.345711391045746e-10,
+  "beyn_s0_change": 6.154480815717531e-05,
+  "beyn_s1_change": 6.17115269294343e-05
+}

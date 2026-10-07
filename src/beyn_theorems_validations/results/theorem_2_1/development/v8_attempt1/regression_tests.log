@@ -1,0 +1,27 @@
+test_both_moments_must_converge (test_first_theorem_beyn.BeynTests.test_both_moments_must_converge) ... ok
+test_diagonal_nonlinear_eigenproblem (test_first_theorem_beyn.BeynTests.test_diagonal_nonlinear_eigenproblem) ... ok
+test_rank_alone_never_certifies_uniqueness (test_first_theorem_beyn.BeynTests.test_rank_alone_never_certifies_uniqueness) ... ok
+test_configuration_and_geometry_invalidate_fingerprint (test_first_theorem_beyn.CacheTests.test_configuration_and_geometry_invalidate_fingerprint) ... ok
+test_legacy_directory_cannot_be_written (test_first_theorem_beyn.CacheTests.test_legacy_directory_cannot_be_written) ... ok
+test_unsigned_legacy_cache_is_not_reused (test_first_theorem_beyn.CacheTests.test_unsigned_legacy_cache_is_not_reused) ... ok
+test_genuine_near_null_vector_passes (test_first_theorem_beyn.CertificateTests.test_genuine_near_null_vector_passes) ... ok
+test_large_unrelated_scale_does_not_hide_nonsingular_valley (test_first_theorem_beyn.CertificateTests.test_large_unrelated_scale_does_not_hide_nonsingular_valley) ... ok
+test_nonfinite_matrix_rejected (test_first_theorem_beyn.CertificateTests.test_nonfinite_matrix_rejected) ... ok
+test_small_ratio_but_wrong_vector_large_residual_rejected (test_first_theorem_beyn.CertificateTests.test_small_ratio_but_wrong_vector_large_residual_rejected) ... ok
+test_difficult_boundary_points_against_modal_and_harmonics (test_first_theorem_beyn.GreenTests.test_difficult_boundary_points_against_modal_and_harmonics) ... ok
+test_field_and_assembly_use_same_green (test_first_theorem_beyn.GreenTests.test_field_and_assembly_use_same_green) ... ok
+test_linton_table_2 (test_first_theorem_beyn.GreenTests.test_linton_table_2) ... ok
+test_periodic_and_regularized_are_consistent (test_first_theorem_beyn.GreenTests.test_periodic_and_regularized_are_consistent) ... ok
+test_vectorized_assembly_matches_scalar_midpoint_rule (test_first_theorem_beyn.GreenTests.test_vectorized_assembly_matches_scalar_midpoint_rule) ... ok
+test_all_nan_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_all_nan_is_ambiguous) ... ok
+test_completed_monotone_scan_supports_non_detection (test_first_theorem_beyn.NonexistenceTests.test_completed_monotone_scan_supports_non_detection) ... ok
+test_discarded_candidates_are_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_discarded_candidates_are_ambiguous) ... ok
+test_evaluation_exception_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_evaluation_exception_is_ambiguous) ... ok
+test_failed_refinement_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_failed_refinement_is_ambiguous) ... ok
+test_one_nan_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_one_nan_is_ambiguous) ... ok
+test_unresolved_valley_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_unresolved_valley_is_ambiguous) ... ok
+
+----------------------------------------------------------------------
+Ran 22 tests in 0.739s
+
+OK

@@ -182,7 +182,7 @@ class Config:
     harmonic_orders_test: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
 
     plot_dpi: int = 220
-    output_directory: str = "theorem_2_3_iii_embedded_validation"
+    output_directory: str = str(Path(__file__).resolve().parent / "results" / "theorem_2_3_iii" / "embedded_validation")
 
 
 CONFIG = Config()

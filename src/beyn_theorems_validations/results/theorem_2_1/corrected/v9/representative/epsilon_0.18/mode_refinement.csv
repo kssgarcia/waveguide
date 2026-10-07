@@ -1,0 +1,2 @@
+epsilon,candidate_index,seed_source,beyn_kb_real,beyn_kb_imag,M,kb,sigma_bem,sigma_min,sigma_max,relative_singular_value,left_value,right_value,drop_factor,minimum_is_interior,relative_sigma_change_from_previous
+0.18,1,strict-beyn,1.5677565305655046,1.3473336807175902e-11,24,1.5677565306374934,0.09767579493318523,4.365922209347734e-09,6.488206071732149,6.729012859762897e-10,0.29372363467364826,0.6669926730193232,67276424.22138584,True,nan

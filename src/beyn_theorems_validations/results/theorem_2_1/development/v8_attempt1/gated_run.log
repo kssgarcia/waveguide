@@ -1,0 +1,37 @@
+Regressions passed: 22
+{"epsilon": 0.2, "passed": true, "mode_exists_supported": true, "uniqueness_supported": true, "uniqueness_status": "supported", "sigma": 0.1142310225896493, "harmonic_20_vs_40_relative_sigma_shift": 3.2192996383443867e-09, "normalized_residual": 2.028438322946437e-10, "equilibrated_residual": 2.0912699195493117e-10, "beyn_s0_change": 0.0005031718131091264, "beyn_s1_change": 0.0005013296511976583}
+Process SpawnProcess-1:
+Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/process.py", line 320, in _bootstrap
+    self.run()
+    ~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/process.py", line 242, in _process_worker
+    call_item = call_queue.get(block=True)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/queues.py", line 101, in get
+    res = self._recv_bytes()
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/connection.py", line 222, in recv_bytes
+    buf = self._recv_bytes(maxlength)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/connection.py", line 447, in _recv_bytes
+    buf = self._recv(4)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/connection.py", line 412, in _recv
+    chunk = read(handle, to_read)
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/validate_first_theorem_beyn.py", line 134, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/validate_first_theorem_beyn.py", line 98, in main
+    for future in as_completed(futures):
+                  ~~~~~~~~~~~~^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 237, in as_completed
+    waiter.event.wait(wait_timeout)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/threading.py", line 670, in wait
+    signaled = self._cond.wait(timeout)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/threading.py", line 369, in wait
+    waiter.acquire()
+    ~~~~~~~~~~~~~~^^
+KeyboardInterrupt

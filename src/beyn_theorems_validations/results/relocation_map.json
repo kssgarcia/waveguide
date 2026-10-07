@@ -1,0 +1,10 @@
+{
+  "theorem_2_1_publication_ready": "results/theorem_2_1/legacy/pre_fix",
+  "theorem_2_1_corrected_v8": "results/theorem_2_1/corrected/v8",
+  "theorem_2_1_corrected_v9": "results/theorem_2_1/corrected/v9",
+  "theorem_2_1_corrected_v8_development_attempt1": "results/theorem_2_1/development/v8_attempt1",
+  "theorem_2_1_corrected_v9_quadrature_pilot": "results/theorem_2_1/development/v9_quadrature_pilot",
+  "theorem_2_3_iii_embedded_validation": "results/theorem_2_3_iii/embedded_validation",
+  "theorem_2_3_iv_embedded_validation": "results/theorem_2_3_iv/embedded_validation",
+  "theorem_2_3_iv_embedded_validation_v2": "results/theorem_2_3_iv/embedded_validation_v2"
+}

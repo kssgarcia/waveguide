@@ -1,0 +1,6 @@
+epsilon,quadrature_points,raw_index,real_part,imag_part,inside_contour,inside_real_band,near_real,real_span_overrun,near_contour_seed,accepted_for_real_refinement
+0.1,96,0,1.570455823357662,-1.7800605519945148e-09,True,True,True,0.0,False,True
+0.1,192,0,1.5704139353508655,-3.8649711978496525e-10,True,True,True,0.0,False,True
+0.1,384,0,1.5704042598858075,-5.874644556479085e-12,True,True,True,0.0,False,True
+0.1,768,0,1.5704015205682595,-2.0508703492537884e-11,True,True,True,0.0,False,True
+0.1,1536,0,1.5704006758716815,-5.3216141251065265e-11,True,True,True,0.0,False,True
