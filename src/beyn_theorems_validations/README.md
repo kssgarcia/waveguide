@@ -54,4 +54,14 @@ python -m unittest discover -s src/beyn_theorems_validations/tests -p test_first
 
 A petición del usuario se eliminaron todos los resultados anteriores del Teorema 2.1, incluidos legacy, versiones corregidas y pilotos. No hay resultados científicos nuevos hasta ejecutar el script. Las referencias a ejecuciones antiguas en documentos históricos no representan archivos disponibles.
 
-Los resultados de los Teoremas 2.3 iii y iv se conservan bajo `results/theorem_2_3_iii/` y `results/theorem_2_3_iv/`. Sus reglas de salida no se modificaron por este versionado.
+Los resultados de los Teoremas 2.3 iii y iv se conservan bajo `results/theorem_2_3_iii/` y `results/theorem_2_3_iv/`. Cada nueva ejecución de X/Y se guarda automáticamente en su propia carpeta `runs/<fecha>_full_<id>/`; las salidas históricas se conservan. Ver [harness del Teorema 2.3](docs/THEOREM_2_3_HARNESS.md).
+
+## Pruebas del harness de 2.3
+
+```sh
+python -m unittest discover -s src/beyn_theorems_validations/tests -p test_second_theorem_harness.py -v
+```
+
+X paraleliza los epsilons independientes; Y conserva la continuación secuencial. Ambos tienen manifiestos, checkpoints JSON con fingerprint/checksum, logs por caso y caché acotada de geometría. Sus cálculos y criterios científicos siguen siendo los propios de cada script.
+
+Los tres scripts usan `execution_harness.py` para versionado y checkpoints. No se ejecuta directamente. El primero conserva sus manifiestos y criterios científicos específicos; los fingerprints incluyen el harness compartido.

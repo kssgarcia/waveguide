@@ -2,7 +2,7 @@
   "run_id": "2026-10-07_11-06-56_full_832cf4c8c71d",
   "result_generation": "corrected",
   "assembly_version": "theorem-2.1-periodic-green-v10",
-  "stage": "full-validation-running",
+  "stage": "full-validation-completed",
   "config": {
     "b": 1.0,
     "a": 0.6,

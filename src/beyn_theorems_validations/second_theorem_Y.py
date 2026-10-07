@@ -83,6 +83,8 @@ uniqueness, analyticity, or Big-O bounds.
 """
 
 import csv
+from functools import lru_cache
+import execution_harness as harness
 import math
 import os
 import sys
@@ -274,7 +276,9 @@ class Config:
     harmonic_orders_test: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
 
     plot_dpi: int = 220
-    output_directory: str = str(Path(__file__).resolve().parent / "results" / "theorem_2_3_iv" / "embedded_validation_v2")
+    output_directory: str = str(Path(__file__).resolve().parent / "results" / "theorem_2_3_iv" / "runs")
+    execution_workers: int = 1
+    execution_resume: bool = True
 
 
 CONFIG = Config()
@@ -964,6 +968,11 @@ def source_derivatives(
     return dG_dxi, dG_deta
 
 
+@lru_cache(maxsize=4096)
+def _kernel_geometry(t: float, epsilon: float, a: float, config: Config) -> tuple[float, ...]:
+    return tuple(float(v) for v in obstacle_geometry(t, epsilon, a, config))
+
+
 def weighted_normal_kernel(
     psi: float,
     theta: float,
@@ -973,8 +982,8 @@ def weighted_normal_kernel(
     G: Callable[..., complex],
     G_regularized: Callable[..., complex],
 ) -> complex:
-    x, y, *_ = obstacle_geometry(psi, epsilon, a, config)
-    xi, eta, xi_p, eta_p, xi_pp, eta_pp = obstacle_geometry(
+    x, y, *_ = _kernel_geometry(psi, epsilon, a, config)
+    xi, eta, xi_p, eta_p, xi_pp, eta_pp = _kernel_geometry(
         theta, epsilon, a, config
     )
 
@@ -3030,8 +3039,7 @@ def print_result(
         print("whole-band uniqueness screen = not run for this epsilon")
 
 
-def main() -> None:
-    config = CONFIG
+def _run_validation(config: Config) -> None:
     output = Path(config.output_directory)
     output.mkdir(parents=True, exist_ok=True)
 
@@ -3184,14 +3192,9 @@ def main() -> None:
             scan,
             scan_values,
             additional,
-        ) = validate_epsilon(
-            epsilon,
-            shape,
-            mu,
-            nu,
-            a1,
-            config,
-            previous_mode=previous_mode,
+        ) = harness.case(
+            sys.modules[__name__], config, f"epsilon_{epsilon:.8f}",
+            (epsilon, shape, mu, nu, a1), {"previous_mode": previous_mode},
         )
 
         summaries.append(result)
@@ -3286,6 +3289,10 @@ def main() -> None:
     for claim in claims:
         print(f"  - {claim.status:>16}: {claim.claim}")
     print(f"\nFiles written to: {output.resolve()}")
+
+
+def main() -> None:
+    harness.run_entrypoint(sys.modules[__name__], CONFIG, _run_validation)
 
 
 if __name__ == "__main__":

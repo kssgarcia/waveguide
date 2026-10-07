@@ -12,11 +12,9 @@ from collections.abc import Callable, Sequence
 from typing import Any, ClassVar, cast
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from contextlib import redirect_stderr, redirect_stdout
-from dataclasses import asdict, dataclass, replace, fields, is_dataclass
+from dataclasses import asdict, dataclass, replace
 from functools import lru_cache
-from datetime import datetime
-from zoneinfo import ZoneInfo
-from uuid import uuid4
+import execution_harness as harness
 from pathlib import Path
 
 # The paper sweep uses process-level parallelism.  Keep each worker's BLAS
@@ -709,28 +707,14 @@ def configuration_fingerprint(config: Config, epsilon: float | None = None, a: f
         "config": asdict(config), "epsilon": epsilon, "a": a,
         "implementation_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         "lattice_sha256": hashlib.sha256(Path(lattice.__file__).read_bytes()).hexdigest(),
+        "harness_sha256": hashlib.sha256(Path(harness.__file__).read_bytes()).hexdigest(),
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, allow_nan=False).encode()).hexdigest()
 
 
 def new_run_config(config: Config, purpose: str = "full") -> Config:
     """Allocate a unique directory per invocation; never overwrite earlier runs."""
-    root = Path(config.output_directory)
-    require_corrected_output(root)
-    root.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(ZoneInfo("America/Bogota")).strftime("%Y-%m-%d_%H-%M-%S")
-    directory = root / f"{stamp}_{purpose}_{uuid4().hex[:12]}"
-    directory.mkdir(exist_ok=False)
-    active = replace(config, output_directory=str(directory.resolve()))
-    write_run_manifest(directory, active, "created")
-    pointer = root / "latest_run.json"
-    temporary = root / f".latest-{uuid4().hex}.tmp"
-    temporary.write_text(json.dumps({"run_id": directory.name,
-                                    "directory": active.output_directory,
-                                    "purpose": purpose}, indent=2) + "\n")
-    os.replace(temporary, pointer)
-    print(f"Results for this execution: {directory.resolve()}", flush=True)
-    return active
+    return harness.allocate_run(config, purpose, write_run_manifest, require_corrected_output)
 
 
 def require_corrected_output(path: Path) -> None:
@@ -749,7 +733,7 @@ def write_run_manifest(directory: Path, config: Config, stage: str) -> None:
         "legacy_pre_fix_directory": str(LEGACY_OUTPUT),
         "legacy_results_reused": False,
     }
-    (directory / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    harness.atomic_json(directory / "run_manifest.json", manifest)
 
 
 
@@ -4854,80 +4838,27 @@ def write_publication_report(
 # ---------------------------------------------------------------------------
 
 
-_CASE_RECORDS = {cls.__name__: cls for cls in (
-    ValidationResult, BeynDiagnostics, BeynEigenvalueRow, BeynConvergenceRow,
-    ModeRefinementRow, ModeResult, PhysicalDiagnostics,
-)}
-
-
 def _case_encode(value: Any) -> Any:
-    if is_dataclass(value):
-        return {"record": type(value).__name__, "fields": {
-            item.name: _case_encode(getattr(value, item.name)) for item in fields(value)}}
-    if isinstance(value, np.ndarray):
-        return {"array": str(value.dtype), "data": _case_encode(value.tolist())}
-    if isinstance(value, complex):
-        return {"complex": [value.real, value.imag]}
-    if isinstance(value, tuple):
-        return {"tuple": [_case_encode(item) for item in value]}
-    if isinstance(value, list):
-        return [_case_encode(item) for item in value]
-    if isinstance(value, np.generic):
-        return _case_encode(value.item())
-    return value
+    return harness.encode(value)
 
 
 def _case_decode(value: Any) -> Any:
-    if isinstance(value, list):
-        return [_case_decode(item) for item in value]
-    if not isinstance(value, dict):
-        return value
-    if "record" in value:
-        cls = _CASE_RECORDS[value["record"]]
-        return cls(**{key: _case_decode(item) for key, item in value["fields"].items()})
-    if "array" in value:
-        if value["array"] not in ("float64", "complex128"):
-            raise ValueError("Unexpected checkpoint array dtype")
-        return np.asarray(_case_decode(value["data"]), dtype=value["array"])
-    if "complex" in value:
-        return complex(*value["complex"])
-    if "tuple" in value:
-        return tuple(_case_decode(item) for item in value["tuple"])
-    raise ValueError("Unknown checkpoint record")
+    return harness.decode(value, sys.modules[__name__])
 
 
 def baseline_case(epsilon: float, config: Config) -> tuple:
     """Reuse only a completed, signed case; atomic writes survive interruption."""
     directory = Path(config.output_directory) / "baseline_cases" / f"epsilon_{epsilon:.8f}"
     require_corrected_output(directory)
-    directory.mkdir(parents=True, exist_ok=True)
-    path = directory / "completed.json"
-    fingerprint = configuration_fingerprint(config, epsilon, config.a)
-    if config.baseline_resume and path.exists():
-        try:
-            envelope = json.loads(path.read_text())
-            payload = envelope["payload"]
-            digest = hashlib.sha256(payload.encode()).hexdigest()
-            if (envelope.get("schema") == 1 and envelope.get("stage") == "completed"
-                    and envelope.get("fingerprint") == fingerprint
-                    and envelope.get("sha256") == digest):
-                result = _case_decode(json.loads(payload))
-                if (isinstance(result, tuple) and len(result) == 10
-                        and isinstance(result[0], ValidationResult)
-                        and result[0].epsilon == epsilon
-                        and result[0].assembly_version == ASSEMBLY_VERSION):
-                    return result
-        except (ValueError, KeyError, TypeError, OSError):
-            pass  # Invalid/partial checkpoints are recalculated, never trusted.
-    with (directory / "run.log").open("w", buffering=1) as log, redirect_stdout(log), redirect_stderr(log):
-        result = validate_epsilon(epsilon, config)
-    payload = json.dumps(_case_encode(result), separators=(",", ":"))
-    envelope = {"schema": 1, "stage": "completed", "fingerprint": fingerprint,
-                "sha256": hashlib.sha256(payload.encode()).hexdigest(), "payload": payload}
-    temporary = path.with_suffix(f".tmp-{os.getpid()}")
-    temporary.write_text(json.dumps(envelope) + "\n")
-    os.replace(temporary, path)
-    return result
+    return harness.checkpoint(
+        directory, configuration_fingerprint(config, epsilon, config.a),
+        config.baseline_resume, lambda:validate_epsilon(epsilon, config),
+        _case_encode, _case_decode,
+        lambda result:(isinstance(result,tuple) and len(result)==10
+                       and isinstance(result[0],ValidationResult)
+                       and result[0].epsilon==epsilon
+                       and result[0].assembly_version==ASSEMBLY_VERSION),
+    )
 
 
 def run_baseline_cases(config: Config) -> dict[float, tuple]:
