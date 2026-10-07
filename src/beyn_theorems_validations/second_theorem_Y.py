@@ -115,6 +115,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice  # noqa: E402
 
 PI = np.pi
+ASSEMBLY_VERSION = "2026-10-07-periodic-green-direct-a1-v2"
 
 
 # ---------------------------------------------------------------------------
@@ -151,7 +152,9 @@ class Config:
     harmonic_order: int = 20
     finite_difference_step: float = 1.0e-6
 
-    # Independent MFS calculation of Psi, mu, nu and a1.
+    # Independent numerical evaluation of the theorem quantity a1.
+    # Psi is obtained from the exterior-Laplace MFS and formula (2.7) is
+    # integrated directly.  The -beta/12 expression is NEVER used to tune a.
     mfs_orders: tuple[int, ...] = (60, 80, 120, 160)
     mfs_source_scale: float = 0.65
     mfs_rcond: float = 1.0e-12
@@ -159,9 +162,25 @@ class Config:
     mfs_circle_mu_tolerance: float = 1.0e-6
     mfs_circle_a1_tolerance: float = 1.0e-8
     mfs_convergence_relative_tolerance: float = 5.0e-6
+
+    # Robustness checks for a1 itself.  These are diagnostics only: the primary
+    # a1 is still the converged direct evaluation of (2.7).
+    run_a1_robustness_study: bool = True
+    a1_robustness_source_scales: tuple[float, ...] = (0.55, 0.65, 0.75)
+    a1_robustness_quadrature_points: tuple[int, ...] = (1024, 2048, 4096)
+    a1_robustness_order: int = 160
+    a1_robustness_relative_tolerance: float = 2.0e-4
+
     run_small_beta_a1_diagnostic: bool = True
     small_beta_a1_values: tuple[float, ...] = (0.02, 0.05, 0.10)
     small_beta_a1_order: int = 120
+
+    # Independent a1 estimate from the numerically located BIC placement branch:
+    # a_BIC/epsilon = a1 + O(epsilon).  This fit is reported separately and is
+    # never fed back into the solver.
+    placement_fit_epsilon_max: float = 0.10
+    placement_fit_min_points: int = 3
+    placement_fit_relative_tolerance: float = 0.10
 
     # Search in the natural spectral variable
     #   sigma = sqrt(Lambda_2-k^2).
@@ -205,8 +224,12 @@ class Config:
     polish_sigma_factor: float = 1.35
     minimizer_xatol: float = 1.0e-12
 
-    # Spectral certification at fixed M.
+    # Spectral certification at fixed M.  We require both the usual condition-
+    # like relative singular value and a smallest singular value normalized by
+    # a typical row norm.  The second criterion prevents a huge smax from making
+    # an otherwise non-small smin look acceptable.
     relative_near_singular_tolerance: float = 1.0e-4
+    scaled_smin_tolerance: float = 1.0e-4
     minimum_drop_factor: float = 100.0
     drop_probe_relative_sigma: float = 0.08
 
@@ -251,7 +274,7 @@ class Config:
     harmonic_orders_test: tuple[int, ...] = (5, 10, 15, 20, 30, 40)
 
     plot_dpi: int = 220
-    output_directory: str = "theorem_2_3_iv_embedded_validation"
+    output_directory: str = "theorem_2_3_iv_embedded_validation_v2"
 
 
 CONFIG = Config()
@@ -290,6 +313,18 @@ class MFSRow:
 
 
 @dataclass
+class A1RobustnessRow:
+    order: int
+    source_scale: float
+    quadrature_points: int
+    mu: float
+    nu: float
+    a1_formula_2_7: float
+    relative_difference_from_primary: float
+    boundary_relative_residual: float
+
+
+@dataclass
 class TunedMode:
     epsilon: float
     a1: float
@@ -302,6 +337,7 @@ class TunedMode:
     sigma_min: float
     sigma_max: float
     relative_singular_value: float
+    scaled_singular_value: float
     drop_factor: float
     search_correction_bound: float
     search_minimum_is_interior: bool
@@ -356,6 +392,7 @@ class AdditionalCandidate:
     kb: float
     sigma: float
     relative_singular_value: float
+    scaled_singular_value: float
     drop_factor: float
     boundary_even_residual: float
     open_channel_relative_amplitude: float
@@ -389,6 +426,7 @@ class ValidationResult:
     leading_point_relative_singular_value: float
     sigma_min_final: float
     relative_singular_value_final: float
+    scaled_singular_value_final: float
     final_drop_factor: float
     root_success: bool
     root_residual_norm: float
@@ -410,8 +448,32 @@ class InternalConvergenceRow:
     kb: float
     sigma_bem: float
     relative_singular_value: float
+    scaled_singular_value: float
     relative_kb_shift_from_reference: float
     relative_sigma_shift_from_reference: float
+
+
+@dataclass
+class PlacementFitDiagnostics:
+    selection: str
+    point_count: int
+    epsilon_max: float
+    a1_formula_2_7: float
+    a1_fit_linear: float
+    a2_fit_linear: float
+    linear_rmse: float
+    linear_relative_difference: float
+    a1_fit_quadratic: float
+    quadratic_relative_difference: float
+
+
+@dataclass
+class SmallBetaFitDiagnostics:
+    point_count: int
+    max_beta: float
+    fitted_slope_through_origin: float
+    paper_slope_minus_one_twelfth: float
+    relative_difference_from_paper: float
 
 
 @dataclass
@@ -568,6 +630,8 @@ def _solve_reference_mfs(
     order: int,
     *,
     beta_override: float | None = None,
+    source_scale_override: float | None = None,
+    quadrature_points_override: int | None = None,
 ) -> tuple[MFSRow, np.ndarray, np.ndarray, np.ndarray]:
     """
     Solve the exterior Neumann problem of paper equation (2.1):
@@ -602,7 +666,7 @@ def _solve_reference_mfs(
 
     ts = 2.0 * PI * np.arange(N, dtype=float) / N
     Xs, Ys, *_ = reference_obstacle_geometry(ts, cfg)
-    rho = float(cfg.mfs_source_scale)
+    rho = float(cfg.mfs_source_scale if source_scale_override is None else source_scale_override)
     sx = rho * Xs
     sy = rho * Ys
 
@@ -628,7 +692,7 @@ def _solve_reference_mfs(
     mu = -float(np.dot(c, sy)) / (2.0 * PI)
 
     # Evaluate formula (2.7) directly on a fine periodic grid.
-    Q = int(cfg.a1_quadrature_points)
+    Q = int(cfg.a1_quadrature_points if quadrature_points_override is None else quadrature_points_override)
     tq = 2.0 * PI * (np.arange(Q, dtype=float) + 0.5) / Q
     Xq, Yq, Xpq, Ypq, *_ = reference_obstacle_geometry(tq, cfg)
     dxq = Xq[:, None] - sx[None, :]
@@ -650,11 +714,11 @@ def _solve_reference_mfs(
         raise RuntimeError("Degenerate denominator in Theorem 2.3(iv) a1 formula.")
     a1_27 = float(numerator_27 / denominator_27)
 
-    # Independent algebraic form (5.47), using the paper identity
+    # Algebraically equivalent cross-check (5.47), using the paper identity
     #   L0 Y = 1/2 (Y - Psi|_Gamma).
-    # This MUST agree with (2.7) if the MFS normalization/sign conventions are
-    # internally consistent.  It does not use the Example 5.4 -beta/12
-    # approximation.
+    # It uses the same computed Psi, so it is NOT an independent PDE solve.
+    # Agreement checks normalization/sign conventions only.  The independent
+    # numerical a1 check is the epsilon->0 BIC placement-branch intercept.
     L0Y = 0.5 * (Yq - Psi)
     numerator_547 = dt * np.sum(
         Yq * Xpq * L0Y - 3.0 * Xq * Ypq * L0Y
@@ -735,6 +799,70 @@ def run_mfs_convergence(
     )
 
 
+def run_a1_robustness_study(
+    primary_a1: float,
+    config: Config,
+) -> list[A1RobustnessRow]:
+    """Check formula (2.7) against MFS source placement and quadrature resolution.
+
+    This is deliberately independent of the waveguide/BEM eigenvalue calculation.
+    It only probes the exterior Laplace problem that defines Psi, mu and therefore a1.
+    """
+    if not config.run_a1_robustness_study:
+        return []
+
+    rows: list[A1RobustnessRow] = []
+    for rho in config.a1_robustness_source_scales:
+        for q in config.a1_robustness_quadrature_points:
+            row, *_ = _solve_reference_mfs(
+                config,
+                config.a1_robustness_order,
+                source_scale_override=float(rho),
+                quadrature_points_override=int(q),
+            )
+            rel = abs(row.a1_formula_2_7 - primary_a1) / max(abs(primary_a1), 1.0e-30)
+            rows.append(
+                A1RobustnessRow(
+                    order=int(config.a1_robustness_order),
+                    source_scale=float(rho),
+                    quadrature_points=int(q),
+                    mu=float(row.mu),
+                    nu=float(row.nu),
+                    a1_formula_2_7=float(row.a1_formula_2_7),
+                    relative_difference_from_primary=float(rel),
+                    boundary_relative_residual=float(row.boundary_relative_residual),
+                )
+            )
+
+    worst = max((r.relative_difference_from_primary for r in rows), default=0.0)
+    if worst > config.a1_robustness_relative_tolerance:
+        print(
+            "WARNING: a1 robustness spread exceeds tolerance: "
+            f"max relative difference={worst:.3e}."
+        )
+    return rows
+
+
+def fit_small_beta_a1(rows: list[MFSRow]) -> SmallBetaFitDiagnostics | None:
+    if not rows:
+        return None
+    beta = np.asarray([r.beta for r in rows], dtype=float)
+    values = np.asarray([r.a1_formula_2_7 for r in rows], dtype=float)
+    denom = float(np.dot(beta, beta))
+    if denom <= 0.0:
+        return None
+    slope = float(np.dot(beta, values) / denom)
+    paper_slope = -1.0 / 12.0
+    rel = abs(slope - paper_slope) / abs(paper_slope)
+    return SmallBetaFitDiagnostics(
+        point_count=len(rows),
+        max_beta=float(np.max(beta)),
+        fitted_slope_through_origin=slope,
+        paper_slope_minus_one_twelfth=paper_slope,
+        relative_difference_from_paper=float(rel),
+    )
+
+
 def geometry_admissibility(
     epsilon: float,
     a: float,
@@ -748,15 +876,17 @@ def geometry_admissibility(
     if float(np.max(np.abs(Y))) >= config.b:
         return False, "Obstacle touches/intersects a waveguide wall."
 
-    # Conservative radius bound for the local cylindrical Green representation.
+    # The periodic Green representation is evaluated after wrapping each vertical
+    # image separation into the nearest representative of the exact 4b period.
+    # Therefore |Delta y_wrapped| <= 2b.  Keep a conservative radius check only
+    # for the remaining horizontal extent.
     max_dx = 2.0 * float(np.max(np.abs(X)))
-    shifted = np.asarray(Y, dtype=float) + config.b
-    max_image_dy = 2.0 * float(np.max(np.abs(shifted)))
-    max_r = math.hypot(max_dx, max_image_dy)
+    max_wrapped_dy = 2.0 * float(config.b)
+    max_r = math.hypot(max_dx, max_wrapped_dy)
     green_limit = 0.99 * (4.0 * config.b)
     if max_r > green_limit:
         return False, (
-            f"Conservative Green-series radius bound exceeded: "
+            f"Wrapped Green-series radius bound exceeded: "
             f"{max_r:.6g} > {green_limit:.6g}."
         )
     return True, "ok"
@@ -775,38 +905,48 @@ def make_green_functions(
     kb: complex,
     config: Config,
 ) -> tuple[Callable[..., complex], Callable[..., complex]]:
+    """Dirichlet strip Green function with exact periodic reduction in y.
+
+    The lattice cylindrical expansion is local in radius even though the periodic
+    Green function itself is exactly periodic.  Evaluating an unwrapped image
+    separation near one full period can therefore magnify harmonic truncation
+    error.  We always reduce both vertical separations modulo the exact 4b period
+    before calling greens_periodic/greens_periodic_reg.
+    """
     b = float(config.b)
     d = 2.0 * b
+    period = 2.0 * d
     k = complex(kb / b)
     coefficients = lattice.lattice_sums(
-        2.0 * d,
+        period,
         k,
         beta=0.0,
         M=config.lattice_terms,
         Lh=config.harmonic_order,
     )
 
+    def wrap_periodic_y(value: float) -> float:
+        return float((value + 0.5 * period) % period - 0.5 * period)
+
     def green(x: float, y: float, xi: float, eta: float) -> complex:
-        return lattice.greens_dirichlet(
-            x,
-            y + b,
-            xi,
-            eta + b,
-            coefficients,
-            k,
-            d,
-        )
+        yf = float(y) + b
+        ys = float(eta) + b
+        X = float(x) - float(xi)
+        Y1 = wrap_periodic_y(yf - ys)
+        Y2 = wrap_periodic_y(yf + ys)
+        term1 = lattice.greens_periodic(X, Y1, coefficients, k, period)
+        term2 = lattice.greens_periodic(X, Y2, coefficients, k, period)
+        return term1 - term2
 
     def green_regularized(x: float, y: float, xi: float, eta: float) -> complex:
-        return lattice.greens_dirichlet_reg(
-            x,
-            y + b,
-            xi,
-            eta + b,
-            coefficients,
-            k,
-            d,
-        )
+        yf = float(y) + b
+        ys = float(eta) + b
+        X = float(x) - float(xi)
+        Y1 = wrap_periodic_y(yf - ys)
+        Y2 = wrap_periodic_y(yf + ys)
+        term1 = lattice.greens_periodic_reg(X, Y1, coefficients, k, period)
+        term2 = lattice.greens_periodic(X, Y2, coefficients, k, period)
+        return term1 - term2
 
     return green, green_regularized
 
@@ -891,18 +1031,29 @@ def assemble_full_matrix(
     return np.eye(M, dtype=np.complex128) - (4.0 * PI / M) * K
 
 
+def _matrix_reference_scale(A: np.ndarray) -> float:
+    """Typical row scale used to prevent one huge singular value from hiding smin."""
+    row_norms = np.linalg.norm(A, axis=1)
+    finite = row_norms[np.isfinite(row_norms) & (row_norms > 0.0)]
+    if finite.size == 0:
+        return 1.0
+    return max(float(np.median(finite)), np.finfo(float).tiny)
+
+
 def full_singular_metrics(
     kb: float,
     epsilon: float,
     a: float,
     M: int,
     config: Config,
-) -> tuple[float, float, float]:
+) -> tuple[float, float, float, float]:
     A = assemble_full_matrix(complex(kb, 0.0), epsilon, a, M, config)
     s = np.linalg.svd(A, compute_uv=False)
     smax = float(s[0])
     smin = float(s[-1])
-    return smin, smax, smin / max(smax, np.finfo(float).tiny)
+    rel = smin / max(smax, np.finfo(float).tiny)
+    scaled = smin / _matrix_reference_scale(A)
+    return smin, smax, float(rel), float(scaled)
 
 
 def full_singular_pair(
@@ -911,7 +1062,7 @@ def full_singular_pair(
     a: float,
     M: int,
     config: Config,
-) -> tuple[float, float, float, np.ndarray]:
+) -> tuple[float, float, float, float, np.ndarray]:
     A = assemble_full_matrix(complex(kb, 0.0), epsilon, a, M, config)
     _, s, Vh = np.linalg.svd(A, full_matrices=False)
     vector = Vh.conj().T[:, -1]
@@ -923,7 +1074,9 @@ def full_singular_pair(
 
     smax = float(s[0])
     smin = float(s[-1])
-    return smin, smax, smin / max(smax, np.finfo(float).tiny), vector
+    rel = smin / max(smax, np.finfo(float).tiny)
+    scaled = smin / _matrix_reference_scale(A)
+    return smin, smax, float(rel), float(scaled), vector
 
 
 def relative_sv_from_sigma(
@@ -936,12 +1089,31 @@ def relative_sv_from_sigma(
     if not (kb_1(config) < kb < kb_2(config)):
         return 1.0
     try:
-        _, _, rel = full_singular_metrics(
+        _, _, rel, scaled = full_singular_metrics(
             kb, epsilon, a, config.bem_M, config
         )
     except Exception:
         return 1.0
     return float(rel)
+
+
+def singularity_measure_from_sigma(
+    sigma: float,
+    epsilon: float,
+    a: float,
+    config: Config,
+) -> float:
+    """Combined scale-robust singularity measure used for local discovery."""
+    kb = kb_from_sigma(float(sigma), config)
+    if not (kb_1(config) < kb < kb_2(config)):
+        return 1.0
+    try:
+        _, _, rel, scaled = full_singular_metrics(
+            kb, epsilon, a, config.bem_M, config
+        )
+    except Exception:
+        return 1.0
+    return float(max(rel, scaled))
 
 
 def boundary_x_even_residual(vector: np.ndarray) -> float:
@@ -980,8 +1152,8 @@ def near_zero_eigenpair(
     pivot = int(np.argmax(np.abs(vec)))
     if abs(vec[pivot]) > 0.0:
         vec *= np.exp(-1j * np.angle(vec[pivot]))
-    smax = float(np.linalg.svd(A, compute_uv=False)[0])
-    return lam, vec, smax
+    scale = _matrix_reference_scale(A)
+    return lam, vec, scale
 
 
 def _root_residual(
@@ -998,12 +1170,12 @@ def _root_residual(
     if not ok or not (kb_1(config) < kb < kb_2(config)):
         return np.array([1.0, 1.0], dtype=float)
     try:
-        lam, _, smax = near_zero_eigenpair(
+        lam, _, matrix_scale = near_zero_eigenpair(
             kb, epsilon, a, config.bem_M, config
         )
     except Exception:
         return np.array([1.0, 1.0], dtype=float)
-    scale = max(smax, 1.0)
+    scale = max(matrix_scale, 1.0e-30)
     return np.array([lam.real / scale, lam.imag / scale], dtype=float)
 
 
@@ -1043,10 +1215,17 @@ def _solve_complex_eigenvalue_root(
     seeds: list[tuple[str, np.ndarray]],
     config: Config,
 ) -> tuple[Any, str, complex, float]:
-    log_bound = math.log(config.sigma_search_factor)
-    best: tuple[Any, str, complex, float] | None = None
+    """Solve the complex zero from several seeds without accepting the first root blindly.
 
-    for source, raw_seed in seeds:
+    Priority seeds (continuation/theorem-leading/coarse-SVD) are all evaluated and
+    compared.  The deterministic multistart cloud is used only if none of those
+    produces an acceptable root.  This avoids branch selection being determined
+    solely by seed ordering, which is particularly important for the smallest
+    epsilon where several near-singular branches can coexist numerically.
+    """
+    log_bound = math.log(config.sigma_search_factor)
+
+    def solve_one(source: str, raw_seed: np.ndarray) -> tuple[Any, str, complex, float] | None:
         seed = _clip_seed(np.asarray(raw_seed, dtype=float), c_bound, log_bound)
         try:
             result: Any = least_squares(
@@ -1069,32 +1248,34 @@ def _solve_complex_eigenvalue_root(
                 x_scale='jac',
             )
         except Exception:
-            continue
+            return None
 
         a, sigma, kb = _joint_candidate_from_variables(
             epsilon, a1, sigma_asym, float(result.x[0]), float(result.x[1]), config
         )
         try:
-            lam, _, smax = near_zero_eigenpair(
+            lam, _, matrix_scale = near_zero_eigenpair(
                 kb, epsilon, a, config.bem_M, config
             )
-            root_norm = abs(lam) / max(smax, 1.0)
+            root_norm = abs(lam) / max(matrix_scale, 1.0e-30)
         except Exception:
-            continue
+            return None
+        return result, source, lam, float(root_norm)
 
-        candidate = (result, source, lam, float(root_norm))
-        if best is None or candidate[3] < best[3]:
-            best = candidate
+    priority = [(name, seed) for name, seed in seeds if not name.startswith('multistart')]
+    fallback = [(name, seed) for name, seed in seeds if name.startswith('multistart')]
 
-        # Most cases should terminate on the continuation or coarse-SVD seed.
-        # Extra multistarts are only a fallback, avoiding an unnecessary
-        # multiplication of expensive BEM assemblies.
-        if root_norm <= config.root_residual_tolerance:
-            return candidate
+    priority_results = [r for name, seed in priority if (r := solve_one(name, seed)) is not None]
+    acceptable = [r for r in priority_results if r[3] <= config.root_residual_tolerance]
+    if acceptable:
+        return min(acceptable, key=lambda item: item[3])
 
-    if best is None:
+    all_results = list(priority_results)
+    fallback_results = [r for name, seed in fallback if (r := solve_one(name, seed)) is not None]
+    all_results.extend(fallback_results)
+    if not all_results:
         raise RuntimeError('Complex-eigenvalue root solve failed for all seeds.')
-    return best
+    return min(all_results, key=lambda item: item[3])
 
 
 # ---------------------------------------------------------------------------
@@ -1135,8 +1316,11 @@ def _joint_objective(
     ok, _ = geometry_admissibility(epsilon, a, config)
     if not ok or not (kb_1(config) < kb < kb_2(config)):
         return 4.0
-    _, _, rel = full_singular_metrics(kb, epsilon, a, config.bem_M, config)
-    return float(math.log10(max(rel, np.finfo(float).tiny)))
+    _, _, rel, scaled = full_singular_metrics(
+        kb, epsilon, a, config.bem_M, config
+    )
+    measure = max(rel, scaled)
+    return float(math.log10(max(measure, np.finfo(float).tiny)))
 
 
 def _polish_sigma(
@@ -1144,7 +1328,7 @@ def _polish_sigma(
     a: float,
     sigma_seed: float,
     config: Config,
-) -> tuple[float, float, float, float]:
+) -> tuple[float, float, float, float, float]:
     band_lo, band_hi = sigma_band(config)
     lo = max(band_lo, sigma_seed / config.polish_sigma_factor)
     hi = min(band_hi, sigma_seed * config.polish_sigma_factor)
@@ -1154,7 +1338,7 @@ def _polish_sigma(
     result: Any = minimize_scalar(
         lambda s: math.log10(
             max(
-                relative_sv_from_sigma(float(s), epsilon, a, config),
+                singularity_measure_from_sigma(float(s), epsilon, a, config),
                 np.finfo(float).tiny,
             )
         ),
@@ -1164,10 +1348,10 @@ def _polish_sigma(
     )
     sigma = float(result.x) if result.success else float(sigma_seed)
     kb = kb_from_sigma(sigma, config)
-    smin, smax, rel = full_singular_metrics(
+    smin, smax, rel, scaled = full_singular_metrics(
         kb, epsilon, a, config.bem_M, config
     )
-    return sigma, kb, smin, rel
+    return sigma, kb, smin, rel, scaled
 
 
 
@@ -1175,18 +1359,18 @@ def _spectral_drop_factor(
     epsilon: float,
     a: float,
     sigma: float,
-    rel_center: float,
+    measure_center: float,
     config: Config,
 ) -> float:
     band_lo, band_hi = sigma_band(config)
     delta = config.drop_probe_relative_sigma
     left_sigma = max(band_lo, sigma * (1.0 - delta))
     right_sigma = min(band_hi, sigma * (1.0 + delta))
-    rel_left = relative_sv_from_sigma(left_sigma, epsilon, a, config)
-    rel_right = relative_sv_from_sigma(right_sigma, epsilon, a, config)
+    measure_left = singularity_measure_from_sigma(left_sigma, epsilon, a, config)
+    measure_right = singularity_measure_from_sigma(right_sigma, epsilon, a, config)
     return float(
-        min(rel_left, rel_right)
-        / max(rel_center, np.finfo(float).tiny)
+        min(measure_left, measure_right)
+        / max(measure_center, np.finfo(float).tiny)
     )
 
 
@@ -1200,7 +1384,7 @@ def tune_embedded_mode(
     kb_asym, sigma_asym = asymptotic_prediction(epsilon, mu, config)
     a_leading = epsilon * a1
 
-    _, _, leading_rel = full_singular_metrics(
+    _, _, leading_rel, leading_scaled = full_singular_metrics(
         kb_asym, epsilon, a_leading, config.bem_M, config
     )
 
@@ -1239,8 +1423,8 @@ def tune_embedded_mode(
             ))
             continuation_used = True
 
-        seeds.append(('coarse-svd', np.asarray(coarse.x, dtype=float)))
         seeds.append(('theorem-leading', np.array([0.0, 0.0], dtype=float)))
+        seeds.append(('coarse-svd', np.asarray(coarse.x, dtype=float)))
 
         # Small deterministic multi-start cloud.
         for dc in config.root_multistart_c_offsets:
@@ -1280,7 +1464,7 @@ def tune_embedded_mode(
         epsilon, a1, sigma_asym, correction, log_ratio, config
     )
 
-    smin, smax, rel = full_singular_metrics(
+    smin, smax, rel, scaled = full_singular_metrics(
         kb, epsilon, a, config.bem_M, config
     )
     scaled_correction = (a - a_leading) / max(epsilon**2, 1.0e-30)
@@ -1289,12 +1473,14 @@ def tune_embedded_mode(
         and abs(log_ratio) <= config.placement_boundary_fraction * log_bound
     )
 
-    drop = _spectral_drop_factor(epsilon, a, sigma, rel, config)
+    measure = max(rel, scaled)
+    drop = _spectral_drop_factor(epsilon, a, sigma, measure, config)
     root_ok = bool(root_norm <= config.root_residual_tolerance)
     resolved = bool(
         placement_interior
         and root_ok
         and rel <= config.relative_near_singular_tolerance
+        and scaled <= config.scaled_smin_tolerance
         and drop >= config.minimum_drop_factor
         and kb_1(config) < kb < kb_2(config)
     )
@@ -1311,6 +1497,7 @@ def tune_embedded_mode(
         sigma_min=float(smin),
         sigma_max=float(smax),
         relative_singular_value=float(rel),
+        scaled_singular_value=float(scaled),
         drop_factor=float(drop),
         search_correction_bound=float(c_bound),
         search_minimum_is_interior=bool(placement_interior),
@@ -1596,7 +1783,7 @@ def physical_mode_diagnostics(
 ) -> PhysicalDiagnostics:
     a = mode.a_numerical
     kb = mode.kb_numerical
-    _, _, _, vector = full_singular_pair(
+    _, _, _, _, vector = full_singular_pair(
         kb, epsilon, a, config.bem_M, config
     )
     theta = boundary_nodes(config.bem_M)
@@ -1806,29 +1993,30 @@ def refine_k_bracket(
     epsilon: float,
     a: float,
     config: Config,
-) -> tuple[float, float, float, float, np.ndarray]:
+) -> tuple[float, float, float, float, float, float, np.ndarray]:
     tiny = np.finfo(float).tiny
 
-    def relsv(kb: float) -> float:
-        _, _, rel = full_singular_metrics(
+    def measure(kb: float) -> float:
+        _, _, rel, scaled = full_singular_metrics(
             float(kb), epsilon, a, config.bem_M, config
         )
-        return rel
+        return max(rel, scaled)
 
-    left_rel = relsv(left)
-    right_rel = relsv(right)
+    left_measure = measure(left)
+    right_measure = measure(right)
     result: Any = minimize_scalar(
-        lambda k: math.log10(max(relsv(float(k)), tiny)),
+        lambda k: math.log10(max(measure(float(k)), tiny)),
         bounds=(left, right),
         method="bounded",
         options={"xatol": config.minimizer_xatol},
     )
     kb = float(result.x)
-    smin, _, rel, vector = full_singular_pair(
+    smin, _, rel, scaled, vector = full_singular_pair(
         kb, epsilon, a, config.bem_M, config
     )
-    drop = min(left_rel, right_rel) / max(rel, tiny)
-    return kb, sigma_from_kb(kb, config), smin, drop, vector
+    center_measure = max(rel, scaled)
+    drop = min(left_measure, right_measure) / max(center_measure, tiny)
+    return kb, sigma_from_kb(kb, config), smin, rel, scaled, drop, vector
 
 
 def whole_band_uniqueness_screen(
@@ -1846,13 +2034,14 @@ def whole_band_uniqueness_screen(
     )
 
     for i, kb in enumerate(scan):
-        _, _, values[i] = full_singular_metrics(
+        _, _, rel_i, scaled_i = full_singular_metrics(
             float(kb),
             epsilon,
             mode.a_numerical,
             config.bem_M,
             config,
         )
+        values[i] = max(rel_i, scaled_i)
         if (i + 1) % 20 == 0 or i + 1 == len(scan):
             print(f"    {i+1:>3}/{len(scan)}")
 
@@ -1869,15 +2058,8 @@ def whole_band_uniqueness_screen(
     additional: list[AdditionalCandidate] = []
 
     for left, right in brackets:
-        kb, sigma, _, drop, vector = refine_k_bracket(
+        kb, sigma, _, rel, scaled, drop, vector = refine_k_bracket(
             left, right, epsilon, mode.a_numerical, config
-        )
-        _, _, rel = full_singular_metrics(
-            kb,
-            epsilon,
-            mode.a_numerical,
-            config.bem_M,
-            config,
         )
 
         even_res = boundary_x_even_residual(vector)
@@ -1896,8 +2078,10 @@ def whole_band_uniqueness_screen(
         # embedded eigenvalue, regardless of its x-parity.
         resolved = bool(
             rel <= config.relative_near_singular_tolerance
+            and scaled <= config.scaled_smin_tolerance
             and drop >= config.minimum_drop_factor
             and open_rel <= config.physical_open_channel_relative_tolerance
+            and channel["phase_consistency"] <= config.physical_channel_phase_consistency_tolerance
         )
 
         additional.append(
@@ -1907,6 +2091,7 @@ def whole_band_uniqueness_screen(
                 kb=float(kb),
                 sigma=float(sigma),
                 relative_singular_value=float(rel),
+                scaled_singular_value=float(scaled),
                 drop_factor=float(drop),
                 boundary_even_residual=float(even_res),
                 first_open_channel_relative_amplitude=float(open_rel),
@@ -1957,6 +2142,7 @@ def validate_epsilon(
             physical.boundary_x_even_verified
             and physical.field_x_even_verified
             and physical.open_channel_suppressed
+            and physical.open_channel_phase_consistent
             and physical.walls_verified
             and physical.boundary_integral_verified
             and physical.decay_verified
@@ -2023,6 +2209,7 @@ def validate_epsilon(
         ),
         sigma_min_final=float(mode.sigma_min),
         relative_singular_value_final=float(mode.relative_singular_value),
+        scaled_singular_value_final=float(mode.scaled_singular_value),
         final_drop_factor=float(mode.drop_factor),
         root_success=bool(mode.root_success),
         root_residual_norm=float(mode.root_residual_norm),
@@ -2037,6 +2224,70 @@ def validate_epsilon(
     )
 
     return result, mode, physical, scan, scan_values, additional
+
+
+def build_placement_a1_fits(
+    summaries: list[ValidationResult],
+    a1_formula: float,
+    config: Config,
+) -> list[PlacementFitDiagnostics]:
+    """Estimate a1 independently from the numerically located placement branch.
+
+    The theorem implies a_BIC/epsilon = a1 + O(epsilon).  Therefore the
+    epsilon->0 intercept of a_num/epsilon supplies a numerical estimate of a1
+    that is independent of the MFS evaluation of formula (2.7).  We report a
+    provisional fit using all resolved full-matrix roots and, when enough points
+    exist, a stricter fit using only physically verified BICs.
+    """
+    fits: list[PlacementFitDiagnostics] = []
+
+    for selection, physical_only in (("resolved-roots", False), ("physical-bics", True)):
+        rows = [
+            r for r in summaries
+            if r.epsilon <= config.placement_fit_epsilon_max + 1.0e-15
+            and r.expected_bic_resolved
+            and np.isfinite(r.a_numerical)
+            and r.epsilon > 0.0
+            and (not physical_only or r.physical_bic_verified is True)
+        ]
+        if len(rows) < config.placement_fit_min_points:
+            continue
+
+        rows = sorted(rows, key=lambda r: r.epsilon)
+        x = np.asarray([r.epsilon for r in rows], dtype=float)
+        y = np.asarray([r.a_numerical / r.epsilon for r in rows], dtype=float)
+
+        linear = np.polyfit(x, y, 1)
+        slope = float(linear[0])
+        intercept = float(linear[1])
+        pred = slope * x + intercept
+        rmse = float(np.sqrt(np.mean((y - pred) ** 2)))
+        rel = abs(intercept - a1_formula) / max(abs(a1_formula), 1.0e-30)
+
+        if len(rows) >= max(4, config.placement_fit_min_points + 1):
+            quadratic = np.polyfit(x, y, 2)
+            q_intercept = float(quadratic[2])
+            q_rel = abs(q_intercept - a1_formula) / max(abs(a1_formula), 1.0e-30)
+        else:
+            q_intercept = math.nan
+            q_rel = math.nan
+
+        fits.append(
+            PlacementFitDiagnostics(
+                selection=selection,
+                point_count=len(rows),
+                epsilon_max=float(max(x)),
+                a1_formula_2_7=float(a1_formula),
+                a1_fit_linear=intercept,
+                a2_fit_linear=slope,
+                linear_rmse=rmse,
+                linear_relative_difference=float(rel),
+                a1_fit_quadratic=q_intercept,
+                quadratic_relative_difference=float(q_rel),
+            )
+        )
+
+    return fits
 
 
 # ---------------------------------------------------------------------------
@@ -2060,17 +2311,17 @@ def run_internal_convergence_study(
     a = target.a_numerical
     sigma_seed = target.sigma_numerical
 
-    def solve(cfg: Config) -> tuple[float, float, float]:
-        sigma, kb, _, rel = _polish_sigma(eps, a, sigma_seed, cfg)
-        return kb, sigma, rel
+    def solve(cfg: Config) -> tuple[float, float, float, float]:
+        sigma, kb, _, rel, scaled = _polish_sigma(eps, a, sigma_seed, cfg)
+        return kb, sigma, rel, scaled
 
     reference_cfg = config
-    kb_ref, sigma_ref, _ = solve(reference_cfg)
+    kb_ref, sigma_ref, _, _ = solve(reference_cfg)
 
     rows: list[InternalConvergenceRow] = []
 
     def append(parameter: str, value: float, cfg: Config) -> None:
-        kb, sigma, rel = solve(cfg)
+        kb, sigma, rel, scaled = solve(cfg)
         rows.append(
             InternalConvergenceRow(
                 epsilon=float(eps),
@@ -2079,6 +2330,7 @@ def run_internal_convergence_study(
                 kb=float(kb),
                 sigma_bem=float(sigma),
                 relative_singular_value=float(rel),
+                scaled_singular_value=float(scaled),
                 relative_kb_shift_from_reference=float(
                     abs(kb - kb_ref) / max(abs(kb_ref), 1e-30)
                 ),
@@ -2226,16 +2478,19 @@ def plot_summary(
     plt.figure(figsize=(7, 4.5))
     plt.semilogy(
         eps,
-        [max(r.relative_singular_value_final, 1e-30) for r in results],
+        [
+            max(r.relative_singular_value_final, r.scaled_singular_value_final, 1e-30)
+            for r in results
+        ],
         "o-",
     )
     plt.axhline(
-        config.relative_near_singular_tolerance,
+        max(config.relative_near_singular_tolerance, config.scaled_smin_tolerance),
         linestyle="--",
-        label="spectral tolerance",
+        label="combined spectral tolerance",
     )
     plt.xlabel(r"$\varepsilon$")
-    plt.ylabel(r"$s_{\min}/s_{\max}$")
+    plt.ylabel("combined singularity measure")
     plt.legend()
     plt.tight_layout()
     plt.savefig(output / "relative_singular_value.png", dpi=config.plot_dpi)
@@ -2256,7 +2511,7 @@ def plot_uniqueness_scan(
     plt.semilogy(scan, values, "o-", markersize=3)
     plt.axvline(result.kb_numerical, linestyle="--", label="main BIC")
     plt.xlabel(r"$kb$")
-    plt.ylabel(r"$s_{\min}/s_{\max}$")
+    plt.ylabel("combined singularity measure")
     plt.title(rf"Whole-band BIC screen, $\varepsilon={epsilon:.2f}$")
     plt.legend()
     plt.tight_layout()
@@ -2299,11 +2554,54 @@ def plot_internal_convergence(
         plt.close()
 
 
+def plot_placement_a1_fit(
+    summaries: list[ValidationResult],
+    a1: float,
+    output: Path,
+    config: Config,
+) -> None:
+    rows = [
+        r for r in summaries
+        if r.epsilon <= config.placement_fit_epsilon_max + 1.0e-15
+        and r.expected_bic_resolved
+        and np.isfinite(r.a_numerical)
+        and r.epsilon > 0.0
+    ]
+    if not rows:
+        return
+    rows = sorted(rows, key=lambda r: r.epsilon)
+    x = np.asarray([r.epsilon for r in rows], dtype=float)
+    y = np.asarray([r.a_numerical / r.epsilon for r in rows], dtype=float)
+
+    plt.figure(figsize=(7.5, 4.8))
+    plt.plot(x, y, "o", label="resolved full-matrix roots")
+    physical = [r for r in rows if r.physical_bic_verified is True]
+    if physical:
+        xp = np.asarray([r.epsilon for r in physical], dtype=float)
+        yp = np.asarray([r.a_numerical / r.epsilon for r in physical], dtype=float)
+        plt.plot(xp, yp, "s", label="physical BIC PASS")
+    if len(rows) >= config.placement_fit_min_points:
+        slope, intercept = np.polyfit(x, y, 1)
+        xx = np.linspace(0.0, max(x), 200)
+        plt.plot(xx, slope * xx + intercept, "--", label="linear epsilon->0 fit")
+    plt.axhline(a1, linestyle=":", label="a1 from formula (2.7)")
+    plt.xlabel(r"$\varepsilon$")
+    plt.ylabel(r"$a_{\rm num}/\varepsilon$")
+    plt.title("Independent placement-branch estimate of a1")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output / "placement_a1_fit.png", dpi=config.plot_dpi)
+    plt.close()
+
+
 def build_publication_claims(
     shape: ShapeDiagnostics,
     mu: float,
     nu: float,
     a1: float,
+    a1_robustness: list[A1RobustnessRow],
+    placement_fits: list[PlacementFitDiagnostics],
+    small_beta_fit: SmallBetaFitDiagnostics | None,
     summaries: list[ValidationResult],
     config: Config,
 ) -> list[PublicationClaimRow]:
@@ -2326,74 +2624,121 @@ def build_publication_claims(
         )
     )
 
+    a1_worst = max(
+        (r.relative_difference_from_primary for r in a1_robustness),
+        default=0.0,
+    )
+    a1_robust_ok = bool(
+        not a1_robustness
+        or a1_worst <= config.a1_robustness_relative_tolerance
+    )
+    claims.append(
+        PublicationClaimRow(
+            claim="Direct numerical evaluation of a1 from theorem formula (2.7)",
+            status="supported" if a1_robust_ok else "partial",
+            evidence=(
+                f"a1={a1:.12g} from the exterior-Laplace MFS; "
+                f"max source-scale/quadrature relative variation={a1_worst:.3e}."
+            ),
+            limitation=(
+                "The (5.47) value is an algebraic cross-check using the same Psi, not a fully "
+                "independent PDE discretization. The BIC-branch intercept below is the independent check."
+            ),
+        )
+    )
+
     small = [
         r for r in summaries
         if r.epsilon <= config.publication_asymptotic_epsilon_max + 1e-15
     ]
+    physical_small = [
+        r for r in small
+        if r.expected_bic_resolved and r.physical_bic_verified is True
+    ]
+
+    physical_fit = next(
+        (f for f in placement_fits if f.selection == "physical-bics"),
+        None,
+    )
+    resolved_fit = next(
+        (f for f in placement_fits if f.selection == "resolved-roots"),
+        None,
+    )
+    fit_for_evidence = physical_fit if physical_fit is not None else resolved_fit
+    fit_ok = bool(
+        physical_fit is not None
+        and physical_fit.linear_relative_difference <= config.placement_fit_relative_tolerance
+    )
+
+    correction_text = (
+        f"scaled correction range "
+        f"[{min(r.scaled_a_correction for r in physical_small):.3g}, "
+        f"{max(r.scaled_a_correction for r in physical_small):.3g}]"
+        if physical_small else "no physically verified small-epsilon placement data"
+    )
+    if fit_for_evidence is not None:
+        fit_text = (
+            f"{fit_for_evidence.selection} extrapolation gives "
+            f"a1={fit_for_evidence.a1_fit_linear:.12g} "
+            f"({fit_for_evidence.linear_relative_difference:.3%} from formula (2.7))"
+        )
+    else:
+        fit_text = "insufficient verified points for an independent epsilon->0 intercept"
 
     placement_ok = bool(
         len(small) >= config.publication_min_asymptotic_points
-        and all(r.expected_bic_resolved for r in small)
-        and all(r.physical_bic_verified is True for r in small)
-        and all(r.placement_minimum_is_interior for r in small)
-        and np.all(np.isfinite([r.scaled_a_correction for r in small]))
-    )
-    correction_text = (
-        f"scaled correction range "
-        f"[{min(r.scaled_a_correction for r in small):.3g}, "
-        f"{max(r.scaled_a_correction for r in small):.3g}]"
-        if small else "no small-epsilon data"
+        and len(physical_small) == len(small)
+        and all(r.placement_minimum_is_interior for r in physical_small)
+        and np.all(np.isfinite([r.scaled_a_correction for r in physical_small]))
+        and a1_robust_ok
+        and fit_ok
     )
     claims.append(
         PublicationClaimRow(
             claim=r"Placement law a = epsilon a1 + O(epsilon^2)",
             status="supported" if placement_ok else "partial",
             evidence=(
-                f"a1 from formula (2.7)={a1:.12g}; {correction_text}."
+                f"a1 from formula (2.7)={a1:.12g}; {correction_text}; {fit_text}."
             ),
             limitation=(
-                "Bounded scaled corrections on a finite epsilon sample are numerical "
-                "consistency with O(epsilon^2), not a proof of the Big-O statement."
+                "The full-BEM placement intercept is independent of the MFS a1 calculation, but "
+                "finite epsilon sampling still cannot prove the O(epsilon^2) remainder."
             ),
         )
     )
 
-    physical_ok = [
-        r for r in small
-        if r.expected_bic_resolved and r.physical_bic_verified is True
-    ]
     claims.append(
         PublicationClaimRow(
             claim="One non-radiating embedded trapped mode for sampled tuned geometries",
             status=(
                 "supported"
                 if len(small) >= config.publication_min_asymptotic_points
-                and len(physical_ok) == len(small)
+                and len(physical_small) == len(small)
                 else "partial"
             ),
             evidence=(
-                f"{len(physical_ok)}/{len(small)} small-epsilon cases pass "
-                "full-matrix singularity, x-even field, open-channel suppression, "
-                "off-grid BIE and decay checks."
+                f"{len(physical_small)}/{len(small)} small-epsilon cases pass full-matrix "
+                "singularity (relative and row-scaled smin), x-even field, signed open-channel "
+                "suppression/phase consistency, off-grid BIE and decay checks."
             ),
             limitation=(
-                "Finite sampling supports the theorem numerically; it does not prove "
-                "existence for every sufficiently small epsilon."
+                "Finite sampling supports the theorem numerically; it does not prove existence "
+                "for every sufficiently small epsilon."
             ),
         )
     )
 
-    if small:
+    if physical_small:
         C = asymptotic_coefficient(mu, config)
         ratio_errors = np.array(
             [
                 abs(r.sigma_over_epsilon_squared - C) / max(abs(C), 1e-30)
-                for r in small
+                for r in physical_small
             ]
         )
-        q = np.array([r.scaled_sigma_remainder for r in small])
+        q = np.array([r.scaled_sigma_remainder for r in physical_small])
         scaling_ok = bool(
-            len(small) >= config.publication_min_asymptotic_points
+            len(physical_small) >= config.publication_min_asymptotic_points
             and np.all(np.isfinite(q))
             and ratio_errors[0] <= ratio_errors[-1]
         )
@@ -2402,39 +2747,64 @@ def build_publication_claims(
                 claim=r"sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
                 status="supported" if scaling_ok else "partial",
                 evidence=(
-                    f"relative error of sigma/epsilon^2 from C changes from "
-                    f"{ratio_errors[0]:.3%} at epsilon={small[0].epsilon:g} to "
-                    f"{ratio_errors[-1]:.3%} at epsilon={small[-1].epsilon:g}; "
+                    f"Using physically verified BICs only, relative error of sigma/epsilon^2 "
+                    f"from C changes from {ratio_errors[0]:.3%} at epsilon={physical_small[0].epsilon:g} "
+                    f"to {ratio_errors[-1]:.3%} at epsilon={physical_small[-1].epsilon:g}; "
                     f"scaled-remainder range [{np.min(q):.3g},{np.max(q):.3g}]."
                 ),
                 limitation=(
-                    "Finite asymptotic data support the stated scaling but do not prove "
-                    "the remainder bound."
+                    "Finite asymptotic data support the stated scaling but do not prove the remainder bound."
                 ),
+            )
+        )
+    else:
+        claims.append(
+            PublicationClaimRow(
+                claim=r"sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
+                status="not-established",
+                evidence="No physically verified small-epsilon BICs available for the asymptotic comparison.",
+                limitation="Spectral near-roots alone are not used to certify a trapped-mode asymptotic law.",
             )
         )
 
     scanned = [r for r in small if r.uniqueness_screen_run]
-    uniqueness_ok = bool(
+    scan_ok = bool(
         scanned
         and all(r.physical_bic_verified is True for r in scanned)
         and all(r.uniqueness_screen_passed is True for r in scanned)
     )
     claims.append(
         PublicationClaimRow(
-            claim="Uniqueness on the sampled real embedded band",
-            status="supported" if uniqueness_ok else "partial",
+            claim="No additional resolved non-radiating candidate on the sampled real band",
+            status="supported" if scan_ok else "partial",
             evidence=(
                 f"{sum(r.uniqueness_screen_passed is True for r in scanned)}/"
-                f"{len(scanned)} scanned small-epsilon cases found no additional "
-                "resolved non-radiating real-axis candidate."
+                f"{len(scanned)} scanned small-epsilon cases found no additional candidate "
+                "passing the strengthened singularity and open-channel filters."
             ),
             limitation=(
-                "A finite real-axis SVD screen is numerical evidence, not a theorem-wide "
-                "proof and not a validated interval-arithmetic exclusion."
+                "This is a finite real-axis screen and must not be interpreted as a proof of theorem-wide uniqueness."
             ),
         )
     )
+
+    if small_beta_fit is not None:
+        example_ok = bool(small_beta_fit.relative_difference_from_paper <= 0.10)
+        claims.append(
+            PublicationClaimRow(
+                claim="Example 2.4 / 5.4 small-beta coefficient a1 ~ -beta/12",
+                status="supported" if example_ok else "unresolved-inconsistency",
+                evidence=(
+                    f"Direct (2.7) computations give fitted a1/beta slope "
+                    f"{small_beta_fit.fitted_slope_through_origin:.8g} versus paper -1/12="
+                    f"{small_beta_fit.paper_slope_minus_one_twelfth:.8g}."
+                ),
+                limitation=(
+                    "A disagreement is reported, not attributed: it may reflect a convention/normalization issue "
+                    "or an inconsistency in the printed example and requires separate analytic review."
+                ),
+            )
+        )
 
     claims.append(
         PublicationClaimRow(
@@ -2453,40 +2823,87 @@ def write_publication_report(
     shape: ShapeDiagnostics,
     mfs_rows: list[MFSRow],
     circle: MFSRow,
+    a1_robustness: list[A1RobustnessRow],
+    placement_fits: list[PlacementFitDiagnostics],
+    small_beta_fit: SmallBetaFitDiagnostics | None,
     summaries: list[ValidationResult],
     claims: list[PublicationClaimRow],
     config: Config,
 ) -> None:
     final_mfs = mfs_rows[-1]
+    robustness_worst = max(
+        (r.relative_difference_from_primary for r in a1_robustness),
+        default=math.nan,
+    )
     lines = [
         "# Numerical validation of Theorem 2.3(iv)",
         "",
         "## Configuration",
+        f"- assembly version = `{ASSEMBLY_VERSION}`",
         f"- b = {config.b}",
         f"- beta = {config.shape_beta}",
         f"- fixed BEM order M = {config.bem_M}",
         f"- epsilon values = {config.epsilon_values}",
+        "- Green assembly uses exact vertical periodic reduction before evaluating the local lattice expansion.",
         "",
         "## Independent reference-obstacle quantities",
         f"- area S = {shape.area:.12g}",
         f"- mu = {final_mfs.mu:.12g}",
         f"- nu = {final_mfs.nu:.3e}",
         f"- a1 from theorem formula (2.7) = {final_mfs.a1_formula_2_7:.12g}",
-        f"- a1 from equivalent formula (5.47) = {final_mfs.a1_formula_5_47:.12g}",
+        f"- a1 from algebraically equivalent formula (5.47) = {final_mfs.a1_formula_5_47:.12g}",
         f"- relative (2.7)/(5.47) mismatch = {final_mfs.a1_internal_relative_difference:.3e}",
+        f"- a1 MFS source-scale/quadrature worst relative variation = {robustness_worst:.3e}",
         f"- Example 5.4 leading value -beta/12 = {final_mfs.a1_paper_example_leading:.12g}",
         f"- circle calibration: mu={circle.mu:.12g}, a1={circle.a1_formula_2_7:.3e}",
         "",
+        "The value from (5.47) is an algebraic cross-check using the same computed Psi. "
+        "The independent numerical check of a1 is the epsilon->0 placement-branch intercept below.",
+        "",
+        "## Independent a1 estimate from the BIC placement branch",
+    ]
+
+    if placement_fits:
+        lines.extend([
+            "| selection | points | eps max | a1 intercept | rel. diff. vs (2.7) | linear RMSE | quadratic intercept |",
+            "|---|---:|---:|---:|---:|---:|---:|",
+        ])
+        for fit in placement_fits:
+            q = f"{fit.a1_fit_quadratic:.12g}" if np.isfinite(fit.a1_fit_quadratic) else "--"
+            lines.append(
+                f"| {fit.selection} | {fit.point_count} | {fit.epsilon_max:.3g} | "
+                f"{fit.a1_fit_linear:.12g} | {fit.linear_relative_difference:.3%} | "
+                f"{fit.linear_rmse:.3e} | {q} |"
+            )
+    else:
+        lines.append("Insufficient resolved small-epsilon placements for an independent a1 intercept fit.")
+
+    lines.extend(["", "## Small-beta Example 5.4 diagnostic"])
+    if small_beta_fit is not None:
+        lines.append(
+            f"- fitted slope a1/beta = {small_beta_fit.fitted_slope_through_origin:.12g}; "
+            f"paper slope -1/12 = {small_beta_fit.paper_slope_minus_one_twelfth:.12g}; "
+            f"relative difference = {small_beta_fit.relative_difference_from_paper:.3%}."
+        )
+        lines.append(
+            "- This discrepancy is reported as unresolved; the script does not replace formula (2.7) by -beta/12."
+        )
+    else:
+        lines.append("Small-beta diagnostic disabled or unavailable.")
+
+    lines.extend([
+        "",
         "## Methodological note",
         (
-            "Unlike Theorem 2.3(iii), no parity reduction removes the continuous "
-            "spectrum here. The reported BIC is therefore obtained from the full "
-            "BEM matrix, with the O(epsilon^2) placement correction and sigma tuned "
-            "numerically at fixed M."
+            "Unlike Theorem 2.3(iii), no parity reduction removes the continuous spectrum here. "
+            "The full BEM matrix is used. Formula (2.7) supplies only the leading placement "
+            "coefficient: a=epsilon*a1+c*epsilon^2, with c determined numerically. The final "
+            "acceptance requires both relative and row-scaled singularity criteria plus physical "
+            "non-radiation diagnostics."
         ),
         "",
         "## Claim audit",
-    ]
+    ])
     for claim in claims:
         lines.extend(
             [
@@ -2502,8 +2919,8 @@ def write_publication_report(
         [
             "## Per-epsilon summary",
             "",
-            "| eps | a_num | (a-eps a1)/eps^2 | kb | sigma | rel sv | open/BIC physical |",
-            "|---:|---:|---:|---:|---:|---:|:---:|",
+            "| eps | a_num | (a-eps a1)/eps^2 | kb | sigma | rel sv | row-scaled smin | physical |",
+            "|---:|---:|---:|---:|---:|---:|---:|:---:|",
         ]
     )
     for r in summaries:
@@ -2511,6 +2928,7 @@ def write_publication_report(
             f"| {r.epsilon:.3f} | {r.a_numerical:.8g} | "
             f"{r.scaled_a_correction:.6g} | {r.kb_numerical:.10f} | "
             f"{r.sigma_numerical:.6g} | {r.relative_singular_value_final:.3e} | "
+            f"{r.scaled_singular_value_final:.3e} | "
             f"{'PASS' if r.physical_bic_verified is True else 'FAIL/NA'} |"
         )
 
@@ -2553,6 +2971,10 @@ def print_result(
         "relative singular value after tuning = "
         f"{result.relative_singular_value_final:.3e}"
     )
+    print(
+        "row-scaled smallest singular value = "
+        f"{result.scaled_singular_value_final:.3e}"
+    )
     print(f"spectral drop = {result.final_drop_factor:.3e}")
     print(
         f"complex root: success={result.root_success}, "
@@ -2588,6 +3010,7 @@ def print_result(
             physical.boundary_x_even_verified
             and physical.field_x_even_verified
             and physical.open_channel_suppressed
+            and physical.open_channel_phase_consistent
             and physical.walls_verified
             and physical.boundary_integral_verified
             and physical.decay_verified
@@ -2624,6 +3047,7 @@ def main() -> None:
         "=== Theorem 2.3(iv) numerical validation: "
         "full BEM + complex-root tuning + fixed-M SVD ==="
     )
+    print(f"assembly version = {ASSEMBLY_VERSION}")
     print(f"b = {config.b}")
     print(f"shape beta = {config.shape_beta}")
     print(f"fixed BEM order M = {config.bem_M}")
@@ -2681,8 +3105,24 @@ def main() -> None:
     )
     print(f"C = pi^3 mu/b^3 = {asymptotic_coefficient(mu, config):.12g}")
 
+    print("\n=== a1 ROBUSTNESS: SOURCE SCALE / QUADRATURE ===")
+    a1_robustness = run_a1_robustness_study(a1, config)
+    write_dataclass_csv(output / "a1_robustness.csv", a1_robustness)
+    if a1_robustness:
+        worst_a1 = max(r.relative_difference_from_primary for r in a1_robustness)
+        print(f"max relative a1 variation = {worst_a1:.3e}")
+        for row in a1_robustness:
+            print(
+                f"  rho={row.source_scale:.2f}, Q={row.quadrature_points:>5d}: "
+                f"a1={row.a1_formula_2_7:.12g}, rel={row.relative_difference_from_primary:.3e}, "
+                f"MFS_res={row.boundary_relative_residual:.3e}"
+            )
+    else:
+        print("a1 robustness study disabled")
+
+    beta_rows: list[MFSRow] = []
+    small_beta_fit: SmallBetaFitDiagnostics | None = None
     if config.run_small_beta_a1_diagnostic:
-        beta_rows: list[MFSRow] = []
         print("\n=== SMALL-BETA EXAMPLE 5.4 DIAGNOSTIC ===")
         for beta_value in config.small_beta_a1_values:
             row, *_ = _solve_reference_mfs(
@@ -2696,6 +3136,15 @@ def main() -> None:
                 f"a1/beta={ratio:.8g}, -1/12={-1/12:.8g}"
             )
         write_dataclass_csv(output / "a1_small_beta_diagnostic.csv", beta_rows)
+        small_beta_fit = fit_small_beta_a1(beta_rows)
+        if small_beta_fit is not None:
+            write_dataclass_csv(output / "a1_small_beta_fit.csv", [small_beta_fit])
+            print(
+                "  fitted small-beta slope a1/beta = "
+                f"{small_beta_fit.fitted_slope_through_origin:.10g}; "
+                f"paper -1/12={small_beta_fit.paper_slope_minus_one_twelfth:.10g}; "
+                f"relative difference={small_beta_fit.relative_difference_from_paper:.3%}"
+            )
 
     if abs(nu) > config.nu_tolerance:
         raise RuntimeError(
@@ -2763,6 +3212,22 @@ def main() -> None:
     write_dataclass_csv(output / "physical_diagnostics.csv", physical_rows)
     write_dataclass_csv(output / "additional_candidates.csv", additional_rows)
 
+    placement_fits = build_placement_a1_fits(summaries, a1, config)
+    write_dataclass_csv(output / "placement_a1_fit.csv", placement_fits)
+    plot_placement_a1_fit(summaries, a1, output, config)
+    print("\n=== INDEPENDENT a1 FROM NUMERICAL BIC PLACEMENT BRANCH ===")
+    if placement_fits:
+        for fit in placement_fits:
+            print(
+                f"{fit.selection}: n={fit.point_count}, "
+                f"a1_fit={fit.a1_fit_linear:.12g}, "
+                f"formula(2.7)={fit.a1_formula_2_7:.12g}, "
+                f"relative difference={fit.linear_relative_difference:.3%}, "
+                f"RMSE={fit.linear_rmse:.3e}"
+            )
+    else:
+        print("insufficient resolved points for a placement-branch a1 fit")
+
     plot_summary(summaries, output, config)
 
     convergence = run_internal_convergence_study(
@@ -2785,6 +3250,9 @@ def main() -> None:
         mu,
         nu,
         a1,
+        a1_robustness,
+        placement_fits,
+        small_beta_fit,
         summaries,
         config,
     )
@@ -2794,6 +3262,9 @@ def main() -> None:
         shape,
         mfs_rows,
         circle,
+        a1_robustness,
+        placement_fits,
+        small_beta_fit,
         summaries,
         claims,
         config,
