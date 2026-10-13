@@ -1,0 +1,7 @@
+Results for this execution: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-28-57_resolve-pending_8814eea2f8ee
+Output: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-28-57_resolve-pending_8814eea2f8ee
+a=0.35 epsilon=0.045263: zero-supported; physical=False; unique=False
+a=0.35 epsilon=0.02: zero-supported; physical=False; unique=False
+a=0.35 epsilon=0.070526: ambiguous; physical=False; unique=False
+/opt/homebrew/Cellar/python@3.14/3.14.2/Frameworks/Python.framework/Versions/3.14/lib/python3.14/multiprocessing/resource_tracker.py:396: UserWarning: resource_tracker: There appear to be 5 leaked semaphore objects to clean up at shutdown: {'/mp-xe5o3w83', '/mp-gkcvi8yb', '/mp-6ovxahv2', '/mp-0q3roxy2', '/mp-s641zs7w'}
+  warnings.warn(

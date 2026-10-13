@@ -1,0 +1,89 @@
+{
+  "source_run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_12-16-27_pending_8a0a461161b2",
+  "source_csv_sha256": "964f56dfa88960899e6219cc0c3c4a2f33c77b51c7f7f0b1c564c8052b526036",
+  "scope": "only prior ambiguous rows; fresh numerical evaluations",
+  "critical_height": true,
+  "cases": [
+    {
+      "a": 0.35,
+      "epsilon": 0.02
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.045263
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.070526
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.095789
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.121053
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.146316
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.171579
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.196842
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.222105
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.247368
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.272632
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.297895
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.323158
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.348421
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.373684
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.398947
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.424211
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.449474
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.474737
+    },
+    {
+      "a": 0.35,
+      "epsilon": 0.5
+    }
+  ],
+  "prior_results_imported": false
+}

@@ -1,0 +1,2 @@
+epsilon,kb,M,wall_relative_residual,boundary_integral_relative_residual,decay_rate_left,decay_rate_right,expected_decay_rate,decay_relative_error_left,decay_relative_error_right,monotone_decay_left,monotone_decay_right,walls_verified,boundary_integral_verified,decay_verified
+0.323158,1.567137023465844,24,2.3261602429030865e-10,1.849430890850324e-05,0.10696934620183694,0.10696934624285563,0.10715712741089309,0.0017523912183283893,0.0017523908355382806,True,True,True,True,True

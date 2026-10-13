@@ -1,0 +1,6 @@
+claim,status,evidence,limitation
+Existence/uniqueness and leading asymptotic,not-run,No finite baseline results are available.,Run the baseline validation.
+Non-existence on sampled subcritical small-epsilon geometries,partial,0/4 sampled subcritical cases have no resolved interior mode; zero-supported cases use an independent whole-band absolute-SVD scan when Beyn rank is contaminated by the cutoff.,Numerical non-detection has a finite resolution floor and is not a mathematical proof of absence arbitrarily close to the threshold.
+Critical height a*(epsilon) = a0* + O(epsilon),not-established,No numerical zero/one transition was successfully bracketed.,Critical-height study must produce finite brackets.
+Numerical implementation sensitivity at fixed M,not-run,Internal convergence study was not run.,"Fixed-M one-at-a-time sensitivity is representative, not exhaustive over every geometry; no mesh-convergence claim is made."
+Analyticity in epsilon and epsilon log epsilon,theoretical-only,The code reports numerical consistency with the leading expansion but does not test analyticity.,Analyticity is a theorem-level functional property and cannot be established from finitely many numerical samples.

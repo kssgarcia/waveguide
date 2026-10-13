@@ -1,0 +1,5 @@
+Results for this execution: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_15-08-14_retry-errors_e345758eb961
+Output: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_15-08-14_retry-errors_e345758eb961
+a=0.55 epsilon=0.449474: one; physical=True; unique=True
+a=0.5 epsilon=0.449474: one; physical=True; unique=True
+a=0.5 epsilon=0.474737: one; physical=True; unique=True

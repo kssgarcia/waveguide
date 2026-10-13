@@ -1,0 +1,2 @@
+epsilon,a,context,sigma_lower,sigma_upper,scan_points_total,scan_M,local_minima_count,refined_candidate_count,resolved_mode_count,suspicious_unresolved_count,best_relative_singular_value,best_drop_factor,near_cutoff_edge_attraction,nonexistence_supported,status,diagnostic_complete,nonfinite_evaluations,failed_refinements,unevaluated_candidates
+0.1,0.2718265520306073,paper,1.7725326352440385e-06,1.5707963236117977,239,24,2,2,0,2,1.262114190660245e-06,1.0000217734616268,True,False,ambiguous,False,0,0,0

@@ -52,7 +52,7 @@ python -m unittest discover -s src/beyn_theorems_validations/tests -p test_first
 
 ## Limpieza realizada
 
-A petición del usuario se eliminaron todos los resultados anteriores del Teorema 2.1, incluidos legacy, versiones corregidas y pilotos. No hay resultados científicos nuevos hasta ejecutar el script. Las referencias a ejecuciones antiguas en documentos históricos no representan archivos disponibles.
+A petición del usuario se eliminaron todos los resultados anteriores del Teorema 2.1, incluidos legacy, versiones corregidas y pilotos. Las ejecuciones posteriores a esa limpieza se conservan en `runs/`, con sus manifiestos e informes de auditoría. Las referencias a ejecuciones antiguas en documentos históricos no representan archivos disponibles.
 
 Los resultados de los Teoremas 2.3 iii y iv se conservan bajo `results/theorem_2_3_iii/` y `results/theorem_2_3_iv/`. Cada nueva ejecución de X/Y se guarda automáticamente en su propia carpeta `runs/<fecha>_full_<id>/`; las salidas históricas se conservan. Ver [harness del Teorema 2.3](docs/THEOREM_2_3_HARNESS.md).
 
@@ -65,3 +65,35 @@ python -m unittest discover -s src/beyn_theorems_validations/tests -p test_secon
 X paraleliza los epsilons independientes; Y conserva la continuación secuencial. Ambos tienen manifiestos, checkpoints JSON con fingerprint/checksum, logs por caso y caché acotada de geometría. Sus cálculos y criterios científicos siguen siendo los propios de cada script.
 
 Los tres scripts usan `execution_harness.py` para versionado y checkpoints. No se ejecuta directamente. El primero conserva sus manifiestos y criterios científicos específicos; los fingerprints incluyen el harness compartido.
+
+## Ejecutar sólo lo pendiente del Teorema 2.1
+
+```sh
+python src/beyn_theorems_validations/first_theorem_beyn.py --only-pending
+```
+
+Ejecuta la rejilla de geometrías (incluidos los nuevos checks físicos y diagnósticos) y la altura crítica. Omite los diez baseline y el estudio interno de convergencia. Crea una carpeta nueva `<fecha>_pending_<id>/`, registra su alcance en `execution_scope.json` y termina con estado `pending-validation-completed`. No importa ni modifica los resultados anteriores: el informe de esta ejecución contiene sólo la evidencia recalculada, y la evidencia baseline anterior debe consultarse en su carpeta original. No requiere editar el código. El comando sin opciones sigue ejecutando la validación completa.
+
+## Repetir sólo geometrías que terminaron con error
+
+```sh
+python src/beyn_theorems_validations/runners/retry_first_theorem_errors.py RUTA_A_LA_EJECUCION
+```
+
+Lee el CSV de esa ejecución, selecciona únicamente filas `error` y las calcula de nuevo con la implementación actual y la configuración científica guardada. Crea otra carpeta `retry-errors`, registra procedencia y checksum, conserva diagnósticos completos y no modifica la ejecución fuente. No repite baseline, altura crítica ni las otras geometrías. Un resultado ambiguo permanece ambiguo.
+
+Desde Green/assembly v12 la reconstrucción a separación horizontal `|X| >= b` usa la expansión modal del mismo Green de Dirichlet (Linton 4.9), con control de convergencia. Así cubre los puntos lejanos que quedan fuera del disco de convergencia de la representación lattice; el ensamblaje BEM y sus parámetros permanecen iguales.
+
+Para recalcular sólo los casos ambiguos y repetir la altura crítica:
+
+```sh
+python src/beyn_theorems_validations/runners/retry_first_theorem_errors.py RUTA_A_LA_EJECUCION --status ambiguous --critical-height
+```
+
+El runner admite ambos estados, pese a conservar su nombre original. Usa la configuración guardada, conserva los resultados fuente y genera una nueva carpeta `resolve-pending`. Que termine la ejecución no garantiza que todos los resultados se puedan certificar: revisar los estados y diagnósticos de la carpeta nueva.
+
+## Auditoría terminada del Teorema 2.1
+
+La ejecución `2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b` terminó y se verificó contra el fingerprint de la implementación actual v15: 20 casos antes ambiguos con apoyo numérico de no existencia, cuatro alturas críticas acotadas (ancho 0.0009375), tres representantes recertificados local/físicamente y 54 tests aprobados. M=24 y criterios de modos conservados.
+
+Consultar el [informe final](results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b/results_audit.md). Es evidencia numérica a resolución finita; no se repitió el barrido completo ni se trasladaron certificados antiguos como si fueran v15. Las carpetas parciales marcadas `stopped-for-additional-audit` no son la ejecución final.

@@ -39,6 +39,25 @@ def diagnostic(**changes):
 
 
 class RunVersioningTests(unittest.TestCase):
+    def test_only_pending_selects_stages_without_running_baseline(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg=replace(f.CONFIG,output_directory=tmp)
+            with patch.object(f,'CONFIG',cfg),patch.object(f,'main') as execute:
+                f.command_line(['--only-pending'])
+            active=execute.call_args.args[0]
+            self.assertFalse(active.run_main_epsilon_validation)
+            self.assertFalse(active.run_internal_convergence_study)
+            self.assertTrue(active.run_paper_a_sweep)
+            self.assertTrue(active.run_critical_height_study)
+            self.assertIn('_pending_',Path(active.output_directory).name)
+            scope=json.loads((Path(active.output_directory)/'execution_scope.json').read_text())
+            self.assertFalse(scope['prior_results_imported'])
+
+    def test_default_command_keeps_full_execution(self):
+        with patch.object(f,'main') as execute:
+            f.command_line([])
+        execute.assert_called_once_with()
+
     def test_each_invocation_is_unique_and_preserves_previous_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             base=replace(f.CONFIG,output_directory=tmp)
@@ -231,6 +250,64 @@ class CertificateTests(unittest.TestCase):
             self.assertFalse(f.certify_local_mode(1.,.1,2,True,1e3,f.CONFIG).supported)
 
 
+class DeterminantExclusionTests(unittest.TestCase):
+    def test_constant_invertible_matrix_has_zero_count(self):
+        with patch.object(f,'assemble_matrix',return_value=np.eye(24,dtype=complex)):
+            result=f.determinant_contour_exclusion(.02,f.CONFIG)
+        self.assertTrue(result['supported'])
+        self.assertEqual(len(result['history']),2)
+
+    def test_one_zero_never_supports_absence(self):
+        _,_,center,_,_=f.contour_geometry(f.CONFIG)
+        def matrix(z,*args):
+            A=np.eye(24,dtype=complex);A[0,0]=z-center;return A
+        with patch.object(f,'assemble_matrix',side_effect=matrix):
+            result=f.determinant_contour_exclusion(.02,f.CONFIG)
+        self.assertTrue(result['complete'])
+        self.assertFalse(result['supported'])
+        self.assertEqual(result['history'][-1]['count'],1)
+
+    def test_nan_or_failure_never_supports_exclusion(self):
+        for value in (np.full((24,24),np.nan),np.zeros((24,24))):
+            with patch.object(f,'assemble_matrix',return_value=value):
+                result=f.determinant_contour_exclusion(.02,f.CONFIG)
+            self.assertFalse(result['supported'])
+            self.assertFalse(result['complete'])
+        with patch.object(f,'assemble_matrix',side_effect=ValueError('injected')):
+            self.assertFalse(f.determinant_contour_exclusion(.02,f.CONFIG)['supported'])
+
+    def test_ill_conditioned_matrix_never_supports_exclusion(self):
+        A=np.eye(24,dtype=complex);A[0]=A[1];A[0,0]=1e-12
+        with patch.object(f,'assemble_matrix',return_value=A):
+            result=f.determinant_contour_exclusion(.02,f.CONFIG)
+        self.assertFalse(result['supported'])
+
+    def test_phase_underresolution_never_supports_absence(self):
+        cfg=replace(f.CONFIG,nonexistence_max_phase_step=-1.)
+        with patch.object(f,'assemble_matrix',return_value=np.eye(24,dtype=complex)):
+            self.assertFalse(f.determinant_contour_exclusion(.02,cfg)['supported'])
+
+class ScanEndpointTests(unittest.TestCase):
+    def test_low_k_endpoint_is_evaluated_at_exact_configured_k(self):
+        cfg=f.CONFIG
+        endpoint=f.sigma_from_kb(cfg.beyn_low_k_margin,cfg)
+        with patch.object(f,'singular_metrics',return_value=(.5,1.,.5)) as metrics:
+            self.assertEqual(f.absolute_singular_value_from_sigma(endpoint,.02,24,cfg),.5)
+            self.assertEqual(metrics.call_args.args[0],cfg.beyn_low_k_margin)
+            self.assertEqual(f.relative_singular_value_from_sigma(endpoint,.02,24,cfg),.5)
+
+    def test_cutoff_and_outside_low_k_remain_excluded(self):
+        cfg=f.CONFIG
+        self.assertTrue(math.isinf(f.absolute_singular_value_from_sigma(0.,.02,24,cfg)))
+        outside=f.sigma_from_kb(.5*cfg.beyn_low_k_margin,cfg)
+        self.assertTrue(math.isinf(f.absolute_singular_value_from_sigma(outside,.02,24,cfg)))
+
+    def test_endpoint_failure_is_not_hidden(self):
+        endpoint=f.sigma_from_kb(f.CONFIG.beyn_low_k_margin,f.CONFIG)
+        with patch.object(f,'singular_metrics',side_effect=ValueError('failure')):
+            with self.assertRaises(ValueError):
+                f.absolute_singular_value_from_sigma(endpoint,.02,24,f.CONFIG)
+
 class NonexistenceTests(unittest.TestCase):
     def scan(self, objective, **kwargs):
         with patch.object(f,'absolute_singular_value_from_sigma',objective), contextlib.redirect_stdout(io.StringIO()):
@@ -354,6 +431,24 @@ class CrossRouteTests(unittest.TestCase):
         self.assertFalse(saved.physical_checks_passed)
         self.assertEqual(saved.wall_relative_residual,.01)
 
+    def test_evaluated_rejected_valley_requires_independent_exclusion(self):
+        def discover(e,c,margin,nq):
+            diag=diagnostic(estimated_rank=0,threshold_rank=0,gap_rank=0,quadrature_points=nq)
+            diag._s0=np.zeros((2,2),complex);diag._s1=diag._s0
+            return c,np.array([]),diag,[],[]
+        mode=f.ModeResult(.1,1,'scan',1.,0.,1.,.02,.1,2.,.05,1.,math.nan,False,.05,.05,.1)
+        scan=f.IndependentScanSummary(.1,.35,'test',1e-6,1.,160,24,1,1,0,1,.05,1.,False,False,'ambiguous',False)
+        for independent_zero in (True,False):
+            with patch.object(f,'_paper_discover_at_margin',discover),patch.object(
+                f,'independent_whole_band_svd_scan',return_value=(scan,[mode])
+            ),patch.object(f,'determinant_contour_exclusion',return_value={'supported':independent_zero}):
+                row=f._paper_search_case(.1,.35,replace(f.CONFIG,nonexistence_refinement_factors=()),(1e-5,),False,math.nan,math.nan,-1.)
+            self.assertEqual(row.nonexistence_supported,independent_zero)
+
+    def test_nan_candidate_cannot_be_closed_by_exclusion(self):
+        mode=f.ModeResult(.1,1,'scan',1.,0.,1.,.02,.1,2.,.05,1.,math.nan,False)
+        self.assertFalse(f.mode_evaluation_complete(mode))
+
     def test_local_existence_retained_when_global_moments_do_not_converge(self):
         config=replace(f.CONFIG,run_physical_diagnostics=False)
         def discover(e,c,margin,nq):
@@ -421,6 +516,28 @@ class CrossRouteTests(unittest.TestCase):
                 f.load_or_run_paper_a_sweep(replace(config,harmonic_order=40),directory)
             compute.assert_called_once()
 
+
+class ExtendedFieldTests(unittest.TestCase):
+    def test_modal_field_outside_lattice_disk_and_near_cutoff(self):
+        for a, eps in ((.5, .449474), (.5, .474737), (.55, .449474)):
+            cfg=replace(f.CONFIG,a=a)
+            for kb in (1., np.pi/2-1e-7):
+                green=f.make_extended_field_green(kb,cfg)
+                for x in (-3.,3.):
+                    for y in (-cfg.b-a, -.2-a, cfg.b-a):
+                        actual=green(x,y,-eps,eps)
+                        expected=modal_green(x+eps,y+cfg.b+a,eps+cfg.b+a,kb)
+                        self.assertTrue(np.isfinite(actual))
+                        self.assertLess(abs(actual-expected),1e-12*max(1.,abs(expected)))
+
+    def test_modal_and_lattice_agree_in_overlap(self):
+        cfg=replace(f.CONFIG,harmonic_order=40)
+        lattice_green,_=f.make_green_functions(1.,cfg)
+        extended=f.make_extended_field_green(1.,cfg)
+        for x in (-1.,1.,1.2):
+            actual=extended(x,-.3,0.,.1)
+            expected=lattice_green(x,-.3,0.,.1)
+            self.assertLess(abs(actual-expected),1e-11)
 
 if __name__=='__main__':
     unittest.main()

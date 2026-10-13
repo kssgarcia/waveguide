@@ -1,0 +1,27 @@
+{
+  "supported": true,
+  "complete": true,
+  "cutoff_gap": 1e-12,
+  "low_k": 0.0001,
+  "history": [
+    {
+      "points": 260,
+      "winding": 1.5667018587789072e-17,
+      "count": 0,
+      "max_phase_step": 0.12225341710722228,
+      "minimum_equilibrated_relative_sv": 6.364835737191906e-08,
+      "max_solve_residual": 9.308966955832483e-17,
+      "resolved": true
+    },
+    {
+      "points": 516,
+      "winding": -3.169424810752015e-17,
+      "count": 0,
+      "max_phase_step": 0.0747476993968831,
+      "minimum_equilibrated_relative_sv": 6.365914332876552e-08,
+      "max_solve_residual": 9.789315205060496e-17,
+      "resolved": true
+    }
+  ],
+  "scope": "numerical exclusion inside the recorded ellipse; finite cutoff resolution"
+}

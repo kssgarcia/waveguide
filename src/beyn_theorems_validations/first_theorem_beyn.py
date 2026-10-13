@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import hashlib
 import json
@@ -43,7 +44,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice
 
 PI = np.pi
-ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v11"
+ASSEMBLY_VERSION = "theorem-2.1-periodic-green-v15"
 LEGACY_OUTPUT = Path(__file__).resolve().parent / "results" / "theorem_2_1" / "legacy" / "pre_fix"
 
 
@@ -244,10 +245,14 @@ class Config:
     # to an extremely small but finite cutoff gap and is a numerical resolution
     # parameter, not a theorem assumption.
     run_independent_nonexistence_scan: bool = True
+    nonexistence_contour_levels: tuple[int, ...] = (256, 512, 1024, 2048)
+    nonexistence_max_phase_step: float = PI / 4
+    nonexistence_winding_tolerance: float = 1.0e-6
+    nonexistence_contour_min_relative_sv: float = 1.0e-10
     nonexistence_scan_points: int = 160
     nonexistence_refinement_factors: tuple[int, ...] = (2, 4)
     nonexistence_scan_min_cutoff_gap: float = 1.0e-12
-    nonexistence_scan_max_candidates: int = 12
+    nonexistence_scan_max_candidates: int = 512
     nonexistence_scan_cluster_relative_tolerance: float = 0.03
     nonexistence_scan_suspicious_relative_factor: float = 10.0
     nonexistence_scan_suspicious_drop_fraction: float = 0.10
@@ -971,6 +976,8 @@ def kb_from_sigma(sigma: float, config: Config) -> float:
     if radicand <= 0.0:
         return 0.0
     root = math.sqrt(radicand)
+    if root <= 0.5 * cutoff_kb:
+        return root
 
     # Rationalized form for the tiny cutoff gap:
     # cutoff_kb - kb = sigma_b^2/(cutoff_kb + kb).
@@ -1894,8 +1901,13 @@ def relative_singular_value_from_sigma(
     config: Config,
 ) -> float:
     """Scale-invariant local objective expressed in sigma."""
-    kb = kb_from_sigma(float(sigma), config)
-    if not (config.beyn_low_k_margin < kb < kb_cutoff(config)):
+    # The independent scan includes its low-k endpoint. Avoid lossy
+    # sigma -> k roundtripping there; the cutoff endpoint stays excluded.
+    sigma = float(sigma)
+    endpoint = sigma_from_kb(config.beyn_low_k_margin, config)
+    kb = (config.beyn_low_k_margin if sigma == endpoint
+          else kb_from_sigma(sigma, config))
+    if not (config.beyn_low_k_margin <= kb < kb_cutoff(config)):
         return math.inf
     return singular_metrics(kb, epsilon, M, config)[2]
 
@@ -1907,8 +1919,13 @@ def absolute_singular_value_from_sigma(
     config: Config,
 ) -> float:
     """Absolute local singularity objective sigma_min(A), expressed in sigma."""
-    kb = kb_from_sigma(float(sigma), config)
-    if not (config.beyn_low_k_margin < kb < kb_cutoff(config)):
+    # The independent scan includes its low-k endpoint. Avoid lossy
+    # sigma -> k roundtripping there; the cutoff endpoint stays excluded.
+    sigma = float(sigma)
+    endpoint = sigma_from_kb(config.beyn_low_k_margin, config)
+    kb = (config.beyn_low_k_margin if sigma == endpoint
+          else kb_from_sigma(sigma, config))
+    if not (config.beyn_low_k_margin <= kb < kb_cutoff(config)):
         return math.inf
     return singular_metrics(kb, epsilon, M, config)[0]
 
@@ -2066,6 +2083,82 @@ def _hybrid_sigma_scan_grid(
     linear_start = max(float(sigma_lower), 1.0e-3 * float(sigma_upper))
     linear_grid = np.linspace(linear_start, float(sigma_upper), max(points // 2, 32))
     return np.unique(np.concatenate((log_grid, linear_grid)))
+
+
+def mode_evaluation_complete(mode: ModeResult) -> bool:
+    """Compatibility mesh-change NaN is not a required numerical diagnostic."""
+    return bool(np.all(np.isfinite([
+        mode.kb_numerical, mode.sigma_numerical, mode.sigma_min_final,
+        mode.sigma_max_final, mode.relative_singular_value_final, mode.final_drop_factor,
+        mode.normalized_residual, mode.equilibrated_residual, mode.equilibrated_sigma_min,
+    ])))
+
+
+def determinant_contour_exclusion(epsilon: float, config: Config) -> dict:
+    """Independent full-matrix argument-principle count, at finite resolution.
+
+    No random probe or moment rank enters this count. Positive row scaling
+    preserves det phase and zeros. Two resolved contour discretizations must
+    agree; nonfinite/near-singular samples or solve failures never certify.
+    The real interval stops at the explicitly recorded cutoff gap.
+    """
+    gap = max(config.nonexistence_scan_min_cutoff_gap,
+              100 * np.finfo(float).eps * max(kb_cutoff(config), 1.))
+    trial = replace(config, beyn_cutoff_margin=gap)
+    history = []
+    previous = None
+    for budget in config.nonexistence_contour_levels:
+        angles, _ = contour_quadrature(budget, trial)
+        angles = np.unique(np.r_[angles, 0., PI/2, PI, 3*PI/2])
+        signs = []
+        minimum = math.inf
+        solve_residual = 0.
+        try:
+            for theta in angles:
+                z, _ = ellipse_point(float(theta), trial)
+                A = assemble_matrix(z, epsilon, trial.bem_M, trial)
+                if not np.all(np.isfinite(A)):
+                    raise ValueError("Nonfinite exclusion matrix")
+                scales = np.linalg.norm(A, axis=1)
+                if np.any(scales == 0) or not np.all(np.isfinite(scales)):
+                    raise ValueError("Invalid exclusion row scale")
+                B = A / scales[:, None]
+                sign, logabs = np.linalg.slogdet(B)
+                if sign == 0 or not np.isfinite(logabs):
+                    raise ValueError("Singular/nonfinite exclusion determinant")
+                sv = np.linalg.svd(B, compute_uv=False)
+                minimum = min(minimum, float(sv[-1] / sv[0]))
+                inverse = np.linalg.solve(B, np.eye(trial.bem_M))
+                residual = np.linalg.norm(B @ inverse - np.eye(trial.bem_M)) / (
+                    np.linalg.norm(B) * np.linalg.norm(inverse))
+                if not np.isfinite(residual):
+                    raise ValueError("Nonfinite exclusion solve residual")
+                solve_residual = max(solve_residual, float(residual))
+                signs.append(sign)
+            signs = np.asarray(signs)
+            increments = np.angle(np.roll(signs, -1) * signs.conj())
+            winding = float(np.sum(increments) / (2 * PI))
+            count = int(round(winding))
+            phase_step = float(np.max(np.abs(increments)))
+            resolved = bool(abs(winding-count) <= trial.nonexistence_winding_tolerance
+                            and count >= 0
+                            and phase_step <= trial.nonexistence_max_phase_step
+                            and minimum > trial.nonexistence_contour_min_relative_sv
+                            and solve_residual <= trial.beyn_linear_solve_tolerance)
+            level = dict(points=len(angles), winding=winding, count=count,
+                         max_phase_step=phase_step, minimum_equilibrated_relative_sv=minimum,
+                         max_solve_residual=solve_residual, resolved=resolved)
+            history.append(level)
+            if previous is not None and previous['resolved'] and resolved and previous['count'] == count:
+                return dict(supported=count == 0, complete=True, cutoff_gap=gap,
+                            low_k=trial.beyn_low_k_margin, history=history,
+                            scope="numerical exclusion inside the recorded ellipse; finite cutoff resolution")
+            previous = level
+        except Exception as exc:
+            history.append(dict(points=len(angles), resolved=False, error=f"{type(exc).__name__}: {exc}"))
+            break  # A failure must never be erased by a later level.
+    return dict(supported=False, complete=False, cutoff_gap=gap,
+                low_k=trial.beyn_low_k_margin, history=history)
 
 
 def independent_whole_band_svd_scan(
@@ -2449,7 +2542,10 @@ def make_extended_field_green(
     The lattice-sum representation used by greens_periodic requires the polar
     radius to stay below one period.  For beta=0 the periodic Green function is
     exactly periodic in Y, so we wrap each image separation into the nearest
-    periodic representative before evaluating it.
+    periodic representative before evaluating it. For |X| >= b use the same
+    Dirichlet Green in its exponentially convergent transverse-mode expansion
+    (Linton 4.9); this also covers points outside the lattice convergence disk.
+    BEM assembly and its regularization are unchanged.
     """
     b = config.b
     d = 2.0 * b
@@ -2470,6 +2566,20 @@ def make_extended_field_green(
         y_field = y + b + config.a
         y_source = eta + b + config.a
         X = x - xi
+        if abs(X) >= b:
+            # Delta-normalized Dirichlet modes on 0 < y < 2b. The sign and
+            # 1/d factor match the periodic direct-minus-image representation.
+            n = np.arange(1, 129, dtype=float)
+            transverse = n * np.pi / d
+            decay = np.sqrt(transverse**2 - k**2 + 0j)
+            terms = (np.exp(-decay * abs(X)) * np.sin(transverse * y_field)
+                     * np.sin(transverse * y_source) / decay)
+            value = -np.sum(terms) / d
+            tail = np.sum(np.abs(terms[64:])) / d
+            scale = max(float(np.sum(np.abs(terms)) / d), np.finfo(float).tiny)
+            if not np.isfinite(value) or not np.isfinite(tail) or tail > 1e-12 * scale:
+                raise ValueError("Field modal Green did not converge")
+            return complex(value)
         Y1 = wrap_periodic_y(y_field - y_source)
         Y2 = wrap_periodic_y(y_field + y_source)
         term1 = lattice.greens_periodic(X, Y1, coefficients, k, period)
@@ -3640,6 +3750,8 @@ def _paper_search_case(
     final_margin = math.nan
     found: list[ModeResult] = []
     evaluated_modes: list[ModeResult] = []
+    rejected_candidates = False
+    exclusion = None
     candidate_failures = []
     complete = True
     discovery_history = []
@@ -3691,6 +3803,9 @@ def _paper_search_case(
                 complete = False
                 continue
             evaluated_modes.append(mode)
+            if not mode_evaluation_complete(mode):
+                complete = False
+                candidate_failures.append({"candidate": str(candidate), "reason": "nonfinite mode diagnostics"})
             if mode.resolved:
                 # Do not count the same mode twice when moving the contour.
                 if not any(abs(mode.sigma_numerical - old.sigma_numerical)
@@ -3698,7 +3813,9 @@ def _paper_search_case(
                            for old in found):
                     found.append(mode)
             else:
-                complete = False
+                # Successful evaluation but not a mode certificate. Only an
+                # independent whole-contour exclusion may close this case.
+                rejected_candidates = True
         if found:
             break
     assert final_diag is not None
@@ -3706,16 +3823,35 @@ def _paper_search_case(
     if not found and trial.run_independent_nonexistence_scan:
         scan, scan_modes = independent_whole_band_svd_scan(epsilon, a, trial, "paper")
         scan_history.append(scan)
+        if (complete and not scan.resolved_mode_count
+                and scan.nonfinite_evaluations == scan.failed_refinements == scan.unevaluated_candidates == 0
+                and len(scan_modes) == scan.refined_candidate_count
+                and all(mode_evaluation_complete(mode) for mode in scan_modes)
+                and final_diag.estimated_rank == final_diag.threshold_rank == final_diag.gap_rank == 0
+                and final_diag.rank_stable and final_diag.moments_converged
+                and np.isfinite(final_diag.max_linear_solve_relative_residual)
+                and final_diag.max_linear_solve_relative_residual <= trial.beyn_linear_solve_tolerance):
+            exclusion = determinant_contour_exclusion(epsilon, trial)
         # Retry at higher sampling density without clearing earlier failures.
         for factor in trial.nonexistence_refinement_factors:
-            if scan.resolved_mode_count or scan.diagnostic_complete:
+            if scan.resolved_mode_count or scan.diagnostic_complete or bool(exclusion and exclusion["supported"]):
                 break
             refined = replace(trial, nonexistence_scan_points=trial.nonexistence_scan_points * factor)
             scan, new_modes = independent_whole_band_svd_scan(epsilon, a, refined, "paper-refined")
             scan_history.append(scan)
             scan_modes.extend(new_modes)
         found = [mode for mode in scan_modes if mode.resolved]
-        complete = complete and all(value.diagnostic_complete for value in scan_history)
+        # Preserve every actual failure/cap across refinements. Successfully
+        # evaluated but uncertified valleys need the independent determinant
+        # exclusion below; they are not silently treated as absent.
+        scan_evaluations_complete = all(
+            value.nonfinite_evaluations == value.failed_refinements == value.unevaluated_candidates == 0
+            for value in scan_history)
+        complete = (complete and scan_evaluations_complete
+                    and len(scan_modes) == sum(value.refined_candidate_count for value in scan_history)
+                    and all(mode_evaluation_complete(mode) for mode in scan_modes))
+        rejected_candidates = rejected_candidates or any(not mode.resolved for mode in scan_modes)
+        evaluated_modes.extend(scan_modes)
     tighter_ok = False
     if len(found) == 1:
         tighter_margin = max(trial.beyn_min_cutoff_margin, final_margin * trial.beyn_tighter_cutoff_margin_factor)
@@ -3741,10 +3877,19 @@ def _paper_search_case(
         and np.isfinite(final_diag.max_linear_solve_relative_residual)
         and final_diag.max_linear_solve_relative_residual <= trial.beyn_linear_solve_tolerance
     )
+    if (exclusion is None and not found and complete and discovery_complete and rejected_candidates
+            and final_diag.estimated_rank == final_diag.threshold_rank == final_diag.gap_rank == 0
+            and scan is not None and scan.resolved_mode_count == 0):
+        exclusion = determinant_contour_exclusion(epsilon, trial)
+    complete = complete and (not rejected_candidates or bool(exclusion and exclusion['supported']))
+    # Retain strict uniqueness when any tentative candidate remains unresolved.
+    unique = unique and complete
     absent = bool(
         not found and complete and discovery_complete
         and final_diag.estimated_rank == 0
-        and scan is not None and scan.diagnostic_complete and scan.nonexistence_supported
+        and final_diag.threshold_rank == final_diag.gap_rank == 0
+        and scan is not None and (scan.diagnostic_complete and scan.nonexistence_supported
+                                  or bool(exclusion and exclusion['supported']))
     )
     if unique:
         status = "one"
@@ -3796,6 +3941,7 @@ def _paper_search_case(
     write_dataclass_csv(directory / "svd_scans.csv", scan_history)
     write_dataclass_csv(directory / "candidate_modes.csv", evaluated_modes)
     harness.atomic_json(directory / "candidate_failures.json", candidate_failures)
+    harness.atomic_json(directory / "contour_exclusion.json", exclusion)
     write_dataclass_csv(directory / "physical.csv", [physical] if physical is not None else [])
     harness.atomic_json(directory / "certificate.json", asdict(row))
     return row
@@ -5134,7 +5280,7 @@ def _run_full(config: Config) -> None:
             "Enable run_critical_height_study only for the dedicated transition run."
         )
 
-    write_run_manifest(output_directory, config, "full-validation-completed")
+    write_run_manifest(output_directory, config, "full-validation-completed" if config.run_main_epsilon_validation else "pending-validation-completed")
     print(f"\nFiles written to: {output_directory.resolve()}")
     print(f"Publication audit: {(output_directory / 'publication_validation_report.md').resolve()}")
 
@@ -5149,5 +5295,31 @@ def main(config: Config | None = None) -> None:
         raise
 
 
+def command_line(argv: Sequence[str] | None = None) -> None:
+    parser = argparse.ArgumentParser(description="Theorem 2.1 numerical validation")
+    parser.add_argument(
+        "--only-pending", action="store_true",
+        help="Run geometry sweep and critical height only; skip baseline and internal study",
+    )
+    args = parser.parse_args(argv)
+    if args.only_pending:
+        selected = replace(
+            CONFIG, run_main_epsilon_validation=False,
+            run_internal_convergence_study=False,
+            run_paper_a_sweep=True, run_critical_height_study=True,
+        )
+        active = new_run_config(selected, "pending")
+        harness.atomic_json(Path(active.output_directory) / "execution_scope.json", {
+            "scope": "only-pending", "baseline_repeated": False,
+            "internal_convergence_repeated": False,
+            "geometry_sweep": True, "critical_height": True,
+            "prior_results_imported": False,
+            "note": "Independent new run; previous baseline evidence is not part of this report.",
+        })
+        main(active)
+    else:
+        main()
+
+
 if __name__ == "__main__":
-    main()
+    command_line()

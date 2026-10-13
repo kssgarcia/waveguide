@@ -1,0 +1,4 @@
+epsilon,a,context,sigma_lower,sigma_upper,scan_points_total,scan_M,local_minima_count,refined_candidate_count,resolved_mode_count,suspicious_unresolved_count,best_relative_singular_value,best_drop_factor,near_cutoff_edge_attraction,nonexistence_supported,status,diagnostic_complete,nonfinite_evaluations,failed_refinements,unevaluated_candidates
+0.146316,0.35,paper,1.7725326352440385e-06,1.5707963236117977,239,24,3,3,0,3,2.589859792574229e-07,1.0000401698188084,True,False,ambiguous,False,1,0,0
+0.146316,0.35,paper-refined,1.7725326352440385e-06,1.5707963236117977,479,24,10,10,0,10,2.406870870485053e-07,1.0000835170715408,True,False,ambiguous,False,1,0,0
+0.146316,0.35,paper-refined,1.7725326352440385e-06,1.5707963236117977,959,24,26,12,0,12,2.1523620218663326e-07,1.0000537870791046,False,False,ambiguous,False,1,0,14

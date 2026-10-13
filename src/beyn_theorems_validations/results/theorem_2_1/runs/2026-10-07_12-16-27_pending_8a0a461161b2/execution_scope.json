@@ -1,0 +1,9 @@
+{
+  "scope": "only-pending",
+  "baseline_repeated": false,
+  "internal_convergence_repeated": false,
+  "geometry_sweep": true,
+  "critical_height": true,
+  "prior_results_imported": false,
+  "note": "Independent new run; previous baseline evidence is not part of this report."
+}

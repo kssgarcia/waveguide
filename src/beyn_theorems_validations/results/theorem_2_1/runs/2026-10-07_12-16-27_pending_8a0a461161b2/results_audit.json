@@ -1,0 +1,29 @@
+{
+  "cases": 99,
+  "status_counts": {
+    "ambiguous": 20,
+    "one": 76,
+    "error": 3
+  },
+  "errors": [
+    {
+      "a": "0.5",
+      "epsilon": "0.449474",
+      "reason": "ValueError: greens_periodic requires r <= 0.99*d; got r=3.9632625115069926, d=4.0."
+    },
+    {
+      "a": "0.5",
+      "epsilon": "0.474737",
+      "reason": "ValueError: greens_periodic requires r <= 0.99*d; got r=3.960111678263245, d=4.0."
+    },
+    {
+      "a": "0.55",
+      "epsilon": "0.449474",
+      "reason": "ValueError: greens_periodic requires r <= 0.99*d; got r=3.9728120360011565, d=4.0."
+    }
+  ],
+  "baseline_repeated": false,
+  "supported_rows_checks_passed": true,
+  "critical_height_established": false,
+  "absence_established": false
+}

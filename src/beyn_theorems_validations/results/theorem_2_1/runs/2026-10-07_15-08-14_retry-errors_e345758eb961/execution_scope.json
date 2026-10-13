@@ -1,0 +1,20 @@
+{
+  "source_run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_12-16-27_pending_8a0a461161b2",
+  "source_csv_sha256": "964f56dfa88960899e6219cc0c3c4a2f33c77b51c7f7f0b1c564c8052b526036",
+  "scope": "only prior error rows; fresh numerical evaluations",
+  "cases": [
+    {
+      "a": 0.5,
+      "epsilon": 0.449474
+    },
+    {
+      "a": 0.5,
+      "epsilon": 0.474737
+    },
+    {
+      "a": 0.55,
+      "epsilon": 0.449474
+    }
+  ],
+  "prior_results_imported": false
+}

@@ -1,0 +1,42 @@
+{
+  "stage": "verified-complete",
+  "assembly_version": "theorem-2.1-periodic-green-v15",
+  "fingerprint_matches_current_source": true,
+  "regression_tests": 54,
+  "nonexistence_supported_cases": 20,
+  "critical_bounds": [
+    {
+      "epsilon": 0.04,
+      "lower": 0.38995155203060733,
+      "upper": 0.3908890520306073,
+      "width": 0.00093749999999998,
+      "estimate": 0.3904203020306073
+    },
+    {
+      "epsilon": 0.06,
+      "lower": 0.38901405203060735,
+      "upper": 0.38995155203060733,
+      "width": 0.00093749999999998,
+      "estimate": 0.38948280203060737
+    },
+    {
+      "epsilon": 0.08,
+      "lower": 0.3880765520306073,
+      "upper": 0.38901405203060735,
+      "width": 0.0009375000000000355,
+      "estimate": 0.38854530203060733
+    },
+    {
+      "epsilon": 0.1,
+      "lower": 0.38713905203060733,
+      "upper": 0.3880765520306073,
+      "width": 0.00093749999999998,
+      "estimate": 0.3876078020306073
+    }
+  ],
+  "critical_probes": 40,
+  "representative_checks_passed": 3,
+  "known_mode_count_controls_passed": 3,
+  "full_sweep_repeated": false,
+  "scope": "Numerical evidence for the M=24 BEM operator at finite cutoff resolution; not an analytic continuum proof."
+}
