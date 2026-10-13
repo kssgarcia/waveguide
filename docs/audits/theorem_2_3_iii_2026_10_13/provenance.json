@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-13",
+  "scope": "Theorem 2.3(iii), Beyn X, read-only scientific audit; small controlled probes only",
+  "sha256": {
+    "src/beyn_theorems_validations/second_theorem_X.py": "cce0843d3238d2c805c9b250a05d1fa2f06ea89bfe07bd00aea1381caa59f75c",
+    "src/beyn_theorems_validations/lattice_sums.py": "3c4f8d60d9ea278aff159227ef858686db9f17230e76bf14be2583d7e16807af",
+    "src/beyn_theorems_validations/execution_harness.py": "1d2410f4b82091618aa9dc5de5cfbca3de867d17817d402e8c3bf227f0ba10a7",
+    "docs/references/WG_03.03.25.pdf": "d9fb0a188609b5da7f9edf459c304be0d5956b51642c06c9d64c3b771fc662d6",
+    "docs/references/linton1998greens.pdf": "29197de25b631102e4fdbc2206fc9921e10e726fa3ffd8a33aef224796bd4b84",
+    "src/beyn_theorems_validations/results/theorem_2_3_iii/embedded_validation/summary.csv": "3e76148354a5124595e57bcaf3ba535aa15e43c1a3728aa3a943c4ce312b968b",
+    "src/beyn_theorems_validations/results/theorem_2_3_iii/embedded_validation/beyn_diagnostics.csv": "e53f600af75aa7775678d9c7b68ad8c853301c8d31c70c10421a697ba6b5ddfa"
+  }
+}
