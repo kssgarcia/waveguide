@@ -1,0 +1,2 @@
+epsilon,candidate_index,seed_source,kb_numerical,sigma_numerical,sigma_min_final,sigma_max_final,relative_singular_value_final,final_drop_factor,final_relative_mesh_change,resolved,normalized_residual,equilibrated_residual,equilibrated_sigma_min,full_vector_residual,parity_leakage_residual
+0.04,1,strict-beyn,3.1411505302173914,0.052704341418503275,4.6326871947385924e-11,1.0616931325172425,4.363489837929563e-11,16811259869.280262,nan,True,4.363493179102028e-11,4.490022086568952e-11,5.071683895053226e-11,4.7860989541978895e-11,4.232467966674184e-11

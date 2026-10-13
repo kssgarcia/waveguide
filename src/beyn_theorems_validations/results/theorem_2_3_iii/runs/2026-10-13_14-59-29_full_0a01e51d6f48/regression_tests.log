@@ -1,0 +1,12 @@
+...........................................Reusing corrected sweep with verified fingerprint: /var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpn33jf75y/paper_a_sweep_M24.csv
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmp_7a4ol8q/2026-10-13_15-00-38_full_758f5159621b
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmp_7a4ol8q/2026-10-13_15-00-38_full_abbd65504eff
+.Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmphetbwvmy/2026-10-13_15-00-38_gated_87784f27fb16
+.Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpyv8olt62/2026-10-13_15-00-38_pending_12d206cb1c0a
+........................
+----------------------------------------------------------------------
+Ran 69 tests in 1.737s
+
+OK

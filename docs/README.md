@@ -7,3 +7,5 @@
 - [Harness de los casos X e Y](../src/beyn_theorems_validations/docs/THEOREM_2_3_HARNESS.md).
 
 La evidencia histórica se conserva sin reescribir resultados. Las notas específicas de cada método permanecen en su carpeta. `cleanup_2026_10_13.json` registra la limpieza y la comprobación de conservación de archivos.
+
+- [Validación corregida del caso X](../src/beyn_theorems_validations/docs/theorem_2_3_iii/CORRECTED_VALIDATION.md): certificados físicos y conteo del sector impar; alcance del problema completo separado.

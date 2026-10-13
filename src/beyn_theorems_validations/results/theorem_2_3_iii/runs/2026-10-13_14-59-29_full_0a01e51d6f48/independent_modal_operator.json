@@ -1,0 +1,38 @@
+[
+  {
+    "epsilon": 0.02,
+    "kb": 3.1415642574654883,
+    "M": 24,
+    "modal_terms": [
+      12000,
+      24000
+    ],
+    "matrix_relative_difference": 4.4909726584728415e-10,
+    "modal_truncation_relative_change": 4.149560765961563e-10,
+    "modal_vector_residual": 3.9560752100667907e-10
+  },
+  {
+    "epsilon": 0.1,
+    "kb": 3.128197565970862,
+    "M": 24,
+    "modal_terms": [
+      12000,
+      24000
+    ],
+    "matrix_relative_difference": 1.4491664224693636e-10,
+    "modal_truncation_relative_change": 3.658568975454575e-10,
+    "modal_vector_residual": 2.5583366448239196e-10
+  },
+  {
+    "epsilon": 0.2,
+    "kb": 3.0541633797493932,
+    "M": 24,
+    "modal_terms": [
+      12000,
+      24000
+    ],
+    "matrix_relative_difference": 1.843150957646423e-10,
+    "modal_truncation_relative_change": 4.4144130201128886e-10,
+    "modal_vector_residual": 4.88167315042894e-10
+  }
+]

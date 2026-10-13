@@ -97,3 +97,13 @@ El runner admite ambos estados, pese a conservar su nombre original. Usa la conf
 La ejecución `2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b` terminó y se verificó contra el fingerprint de la implementación actual v15: 20 casos antes ambiguos con apoyo numérico de no existencia, cuatro alturas críticas acotadas (ancho 0.0009375), tres representantes recertificados local/físicamente y 54 tests aprobados. M=24 y criterios de modos conservados.
 
 Consultar el [informe final](results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b/results_audit.md). Es evidencia numérica a resolución finita; no se repitió el barrido completo ni se trasladaron certificados antiguos como si fueran v15. Las carpetas parciales marcadas `stopped-for-additional-audit` no son la ejecución final.
+
+## Puerta científica del caso X (Teorema 2.3 iii)
+
+```sh
+python src/beyn_theorems_validations/runners/validate_second_theorem_X.py
+```
+
+Valida .02,.10,.20 y continúa el barrido sólo si pasan los certificados físicos y de unicidad del sector impar. Comparte los checkpoints firmados dentro de la nueva ejecución. Ver [criterios corregidos](docs/theorem_2_3_iii/CORRECTED_VALIDATION.md). El flag de unicidad del problema completo se mantiene separado: no se ha excluido el sector par ni los márgenes omitidos.
+
+La ejecución X corregida v3 terminó con 10/10 modos físicos y conteos convergentes del sector impar. [Informe verificado](results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/results_audit.md). Las salidas anteriores permanecen intactas; la unicidad del problema completo continúa fuera del certificado impar.

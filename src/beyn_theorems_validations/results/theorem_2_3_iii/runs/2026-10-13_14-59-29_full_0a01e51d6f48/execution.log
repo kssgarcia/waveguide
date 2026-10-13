@@ -1,0 +1,398 @@
+Results for this execution: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48
+gate epsilon=0.02: True
+gate epsilon=0.1: True
+gate epsilon=0.2: True
+=== Theorem 2.3(iii) numerical validation: odd-sector Beyn + BEM + sigma-SVD ===
+b = 1.0
+a = 0.0 (required exactly by statement iii)
+shape beta = 0.5
+Lambda_1 = 2.467401100272
+Lambda_2 = 9.869604401089
+sqrt(Lambda_1)b = 1.570796326795
+sqrt(Lambda_2)b = 3.141592653590
+
+=== SHAPE / SYMMETRY CHECK ===
+reference area = 3.53414792455
+min |r'(t)| = 5.000000e-01
+X-even defect = 0.000e+00
+Y-odd defect = 0.000e+00
+
+=== INDEPENDENT DIPOLE-STRENGTH mu (MFS) ===
+circle calibration: mu=1, nu=1.560e-14
+  N=  60: mu=1.07977772035, nu=-2.535e-16, boundary_res=7.806e-16
+  N=  80: mu=1.07977772066, nu=5.647e-15, boundary_res=1.229e-14
+  N= 120: mu=1.07977772066, nu=-2.189e-16, boundary_res=5.565e-15
+  N= 160: mu=1.07977772066, nu=1.281e-15, boundary_res=4.304e-15
+selected mu = 1.07977772066
+selected nu = 1.281e-15 (must vanish by x-axis symmetry)
+C = pi^3 mu/b^3 = 33.4798867602
+
+complex-kb odd-sector assembly: PASS
+target real band ~ [1.570896326795, 3.141585517668]
+
+=== EMBEDDED-MODE EPSILON SWEEP ===
+epsilons = (0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2)
+Beyn full M=24 -> odd reduced dimension=12; Nq base=(256, 512, 1024), adaptive=(2048, 4096)
+fixed full BEM/SVD order M = 24
+epsilon cases completed 1/10: 0.0200
+epsilon cases completed 2/10: 0.1000
+epsilon cases completed 3/10: 0.1200
+epsilon cases completed 4/10: 0.0800
+epsilon cases completed 5/10: 0.0400
+epsilon cases completed 6/10: 0.0600
+epsilon cases completed 7/10: 0.2000
+epsilon cases completed 8/10: 0.1400
+epsilon cases completed 9/10: 0.1800
+epsilon cases completed 10/10: 0.1600
+
+=== epsilon=0.02000000 ===
+predicted kb = 3.141564109904
+predicted sigma = 1.33919547e-02
+predicted Lambda_2 cutoff gap in kb = 2.854e-05
+effective Beyn upper margin = 7.136e-06
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.020000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.141564109904
+  kb BEM                          = 3.141564257465
+  sigma asym                      = 1.33919547e-02
+  sigma BEM                       = 1.33572941e-02
+  sigma/epsilon^2                 = 3.33932352e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 1.10750376e+00
+  relative sigma error            = 0.259%
+  relative singular value         = 2.052e-10
+  minimum drop                    = 3.640e+09
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 3.767e-10
+  one embedded mode supported     = PASS
+  wall residual                   = 2.373e-12
+  centerline residual             = 3.534e-11
+  odd-parity residual             = 4.509e-13
+  first open-channel amplitude    = 1.450e-13
+  off-grid BIE residual           = 4.033e-03
+  decay left/right                = 1.335729e-02/1.335729e-02
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.04000000 ===
+predicted kb = 3.141135923496
+predicted sigma = 5.35678188e-02
+predicted Lambda_2 cutoff gap in kb = 4.567e-04
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.040000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.141135923496
+  kb BEM                          = 3.141150530217
+  sigma asym                      = 5.35678188e-02
+  sigma BEM                       = 5.27043414e-02
+  sigma/epsilon^2                 = 3.29402134e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 4.19147400e+00
+  relative sigma error            = 1.612%
+  relative singular value         = 4.363e-11
+  minimum drop                    = 1.681e+10
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 1.775e-10
+  one embedded mode supported     = PASS
+  wall residual                   = 2.436e-12
+  centerline residual             = 1.952e-11
+  odd-parity residual             = 4.252e-13
+  first open-channel amplitude    = 1.558e-13
+  off-grid BIE residual           = 1.011e-03
+  decay left/right                = 5.270434e-02/5.270434e-02
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.06000000 ===
+predicted kb = 3.139279774180
+predicted sigma = 1.20527592e-01
+predicted Lambda_2 cutoff gap in kb = 2.313e-03
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.060000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.139279774180
+  kb BEM                          = 3.139474736817
+  sigma asym                      = 1.20527592e-01
+  sigma BEM                       = 1.15337669e-01
+  sigma/epsilon^2                 = 3.20382415e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 8.54031762e+00
+  relative sigma error            = 4.306%
+  relative singular value         = 8.800e-12
+  minimum drop                    = 8.478e+10
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 1.289e-10
+  one embedded mode supported     = PASS
+  wall residual                   = 1.001e-11
+  centerline residual             = 5.578e-11
+  odd-parity residual             = 1.523e-12
+  first open-channel amplitude    = 8.066e-13
+  off-grid BIE residual           = 4.504e-04
+  decay left/right                = 1.153377e-01/1.153377e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.08000000 ===
+predicted kb = 3.134276985476
+predicted sigma = 2.14271275e-01
+predicted Lambda_2 cutoff gap in kb = 7.316e-03
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.080000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.134276985476
+  kb BEM                          = 3.135444038061
+  sigma asym                      = 2.14271275e-01
+  sigma BEM                       = 1.96456319e-01
+  sigma/epsilon^2                 = 3.06962998e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 1.37761578e+01
+  relative sigma error            = 8.314%
+  relative singular value         = 1.034e-11
+  minimum drop                    = 7.424e+10
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 1.002e-10
+  one embedded mode supported     = PASS
+  wall residual                   = 9.159e-12
+  centerline residual             = 1.758e-11
+  odd-parity residual             = 2.091e-12
+  first open-channel amplitude    = 1.201e-12
+  off-grid BIE residual           = 2.542e-04
+  decay left/right                = 1.964563e-01/1.964563e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.10000000 ===
+predicted kb = 3.123701989522
+predicted sigma = 3.34798868e-01
+predicted Lambda_2 cutoff gap in kb = 1.789e-02
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.100000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 2048
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.123701989522
+  kb BEM                          = 3.128197565971
+  sigma asym                      = 3.34798868e-01
+  sigma BEM                       = 2.89800603e-01
+  sigma/epsilon^2                 = 2.89800603e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 1.95424981e+01
+  relative sigma error            = 13.440%
+  relative singular value         = 8.612e-12
+  minimum drop                    = 9.264e+10
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 8.525e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 1.161e-11
+  centerline residual             = 3.649e-11
+  odd-parity residual             = 7.432e-12
+  first open-channel amplitude    = 4.323e-12
+  off-grid BIE residual           = 1.633e-04
+  decay left/right                = 2.898006e-01/2.898006e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.12000000 ===
+predicted kb = 3.104379808087
+predicted sigma = 4.82110369e-01
+predicted Lambda_2 cutoff gap in kb = 3.721e-02
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.120000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.104379808087
+  kb BEM                          = 3.117457530063
+  sigma asym                      = 4.82110369e-01
+  sigma BEM                       = 3.88668174e-01
+  sigma/epsilon^2                 = 2.69908454e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 2.55040676e+01
+  relative sigma error            = 19.382%
+  relative singular value         = 6.912e-12
+  minimum drop                    = 1.209e+11
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 8.941e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 3.264e-11
+  centerline residual             = 2.683e-11
+  odd-parity residual             = 4.009e-12
+  first open-channel amplitude    = 5.303e-12
+  off-grid BIE residual           = 1.139e-04
+  decay left/right                = 3.886682e-01/3.886682e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.14000000 ===
+predicted kb = 3.072295294194
+predicted sigma = 6.56205780e-01
+predicted Lambda_2 cutoff gap in kb = 6.930e-02
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.140000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 1024
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.072295294194
+  kb BEM                          = 3.103629407285
+  sigma asym                      = 6.56205780e-01
+  sigma BEM                       = 4.86917758e-01
+  sigma/epsilon^2                 = 2.48427428e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 3.13786085e+01
+  relative sigma error            = 25.798%
+  relative singular value         = 5.070e-12
+  minimum drop                    = 1.730e+11
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 7.811e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 3.530e-11
+  centerline residual             = 2.904e-11
+  odd-parity residual             = 3.805e-12
+  first open-channel amplitude    = 1.643e-11
+  off-grid BIE residual           = 8.414e-05
+  decay left/right                = 4.869178e-01/4.869178e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.16000000 ===
+predicted kb = 3.022417828599
+predicted sigma = 8.57085101e-01
+predicted Lambda_2 cutoff gap in kb = 1.192e-01
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.160000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 2048
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 3.022417828599
+  kb BEM                          = 3.087656600099
+  sigma asym                      = 8.57085101e-01
+  sigma BEM                       = 5.79638785e-01
+  sigma/epsilon^2                 = 2.26421400e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 3.69620224e+01
+  relative sigma error            = 32.371%
+  relative singular value         = 7.424e-12
+  minimum drop                    = 1.220e+11
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 7.222e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 1.656e-11
+  centerline residual             = 2.667e-11
+  odd-parity residual             = 4.972e-12
+  first open-channel amplitude    = 7.831e-12
+  off-grid BIE residual           = 6.479e-05
+  decay left/right                = 5.796388e-01/5.796388e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.18000000 ===
+predicted kb = 2.948376749912
+predicted sigma = 1.08474833e+00
+predicted Lambda_2 cutoff gap in kb = 1.932e-01
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.180000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 2048
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 2.948376749912
+  kb BEM                          = 3.070755230674
+  sigma asym                      = 1.08474833e+00
+  sigma BEM                       = 6.63375244e-01
+  sigma/epsilon^2                 = 2.04745446e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 4.21343406e+01
+  relative sigma error            = 38.845%
+  relative singular value         = 1.228e-11
+  minimum drop                    = 7.299e+10
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 7.630e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 2.643e-11
+  centerline residual             = 2.727e-11
+  odd-parity residual             = 3.066e-12
+  first open-channel amplitude    = 5.175e-11
+  off-grid BIE residual           = 5.304e-05
+  decay left/right                = 6.633753e-01/6.633752e-01
+  physical embedded-mode checks   = PASS
+
+=== epsilon=0.20000000 ===
+predicted kb = 2.841858527994
+predicted sigma = 1.33919547e+00
+predicted Lambda_2 cutoff gap in kb = 2.997e-01
+effective Beyn upper margin = 1.000e-05
+
+  --- Theorem 2.3(iii) validation result ---
+  epsilon                         = 0.200000
+  odd-sector Beyn rank            = 1
+  Beyn rank stable                = YES
+  final Beyn Nq                   = 2048
+  tighter-cutoff rank check       = True
+  resolved odd modes              = 1
+  kb asymptotic                   = 2.841858527994
+  kb BEM                          = 3.054163379749
+  sigma asym                      = 1.33919547e+00
+  sigma BEM                       = 7.35996230e-01
+  sigma/epsilon^2                 = 1.83999058e+01
+  C=pi^3 mu/b^3                   = 3.34798868e+01
+  scaled asymptotic remainder     = 4.68485951e+01
+  relative sigma error            = 45.042%
+  relative singular value         = 2.809e-12
+  minimum drop                    = 3.147e+11
+  cross-M change                      = N/A (single fixed M)
+  parity commutator residual      = 8.336e-11
+  one embedded mode supported     = PASS
+  wall residual                   = 1.984e-11
+  centerline residual             = 9.398e-12
+  odd-parity residual             = 1.608e-11
+  first open-channel amplitude    = 6.555e-11
+  off-grid BIE residual           = 6.501e-05
+  decay left/right                = 7.359963e-01/7.359962e-01
+  physical embedded-mode checks   = PASS
+
+=== FINAL SUMMARY ===
+stable odd-sector rank=1 + exactly one resolved mode: 10/10
+full embedded-field physical diagnostics: 10/10
+Publication claim audit:
+  -        supported: Theorem 2.3(iii) symmetry assumptions (a=0, X even, Y odd, nu=0)
+  -        supported: One physical mode; uniqueness supported only in the odd sector and sampled contour
+  - consistent-with-leading-term: sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)
+  -       documented: Numerical implementation sensitivity at fixed M
+  - theoretical-only: Analyticity in epsilon and epsilon log epsilon
+
+Files written to: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48

@@ -1,0 +1,16 @@
+[
+  {
+    "epsilon": 0.02,
+    "M": 24,
+    "matrix_relative_difference": 8.782043872165988e-08,
+    "modal_truncation_relative_change": 4.529467553548272e-08,
+    "modal_vector_residual": 1.1041783665111734e-07
+  },
+  {
+    "epsilon": 0.1,
+    "M": 24,
+    "matrix_relative_difference": 4.408660199805641e-07,
+    "modal_truncation_relative_change": 3.646515074271011e-08,
+    "modal_vector_residual": 5.608241560567607e-07
+  }
+]

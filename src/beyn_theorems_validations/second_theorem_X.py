@@ -61,7 +61,7 @@ import sys
 from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 
 # Avoid BLAS oversubscription on macOS / multi-process project environments.
 for _thread_env in (
@@ -87,6 +87,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice  # noqa: E402
 
 PI = np.pi
+ASSEMBLY_VERSION = "theorem-2.3-iii-periodic-green-v3"
 
 
 # ---------------------------------------------------------------------------
@@ -127,8 +128,8 @@ class Config:
     # Beyn on the odd-in-y reduced operator.  M here is the FULL obstacle
     # boundary order.  The odd operator has dimension M/2.
     bem_M: int = 24
-    beyn_quadrature_levels: tuple[int, ...] = (96, 192, 384)
-    beyn_adaptive_quadrature_levels: tuple[int, ...] = (768, 1536)
+    beyn_quadrature_levels: tuple[int, ...] = (256, 512, 1024)
+    beyn_adaptive_quadrature_levels: tuple[int, ...] = (2048, 4096)
     beyn_probe_dim: int = 8
     beyn_random_seed: int = 1729
 
@@ -159,6 +160,17 @@ class Config:
     local_sigma_scan_points: int = 120
     minimizer_sigma_xatol: float = 1.0e-12
     minimum_drop_factor: float = 100.0
+    near_singular_tolerance: float = 1.0e-6
+    singular_vector_residual_tolerance: float = 1.0e-8
+    equilibrated_residual_tolerance: float = 1.0e-8
+    parity_operator_tolerance: float = 1.0e-7
+    full_vector_residual_tolerance: float = 1.0e-8
+    beyn_moment_convergence_tolerance: float = 1.0e-3
+    beyn_linear_solve_tolerance: float = 1.0e-10
+    mu_boundary_residual_tolerance: float = 1.0e-7
+    mu_identity_relative_tolerance: float = 1.0e-6
+    field_modal_relative_tolerance: float = 1.0e-12
+    field_modal_terms: int = 128
     relative_near_singular_tolerance: float = 1.0e-4
 
     # Physical diagnostics for the embedded mode.
@@ -217,6 +229,8 @@ class MuMFSRow:
     nu: float
     boundary_relative_residual: float
     zero_total_source_error: float
+    offgrid_relative_residual: float = math.nan
+    identity_relative_error: float = math.nan
 
 
 @dataclass
@@ -234,6 +248,13 @@ class BeynDiagnostics:
     raw_eigenvalues: int
     accepted_candidates: int
     near_contour_seeds: int
+    s0_relative_change: float = math.nan
+    s1_relative_change: float = math.nan
+    moments_converged: bool = False
+    rank_stable: bool = False
+    candidate_stable: bool = False
+    _s0: ClassVar[Any] = None
+    _s1: ClassVar[Any] = None
 
 
 @dataclass
@@ -265,6 +286,8 @@ class BeynConvergenceRow:
     primary_candidate_imag: float
     max_candidate_shift_from_previous: float
     rank_stable_from_previous: bool
+    s1_relative_change_from_previous: float = math.nan
+    moments_converged: bool = False
 
 
 @dataclass
@@ -304,6 +327,11 @@ class ModeResult:
     final_drop_factor: float
     final_relative_mesh_change: float  # NaN for compatibility: no M sweep.
     resolved: bool
+    normalized_residual: float = math.nan
+    equilibrated_residual: float = math.nan
+    equilibrated_sigma_min: float = math.nan
+    full_vector_residual: float = math.nan
+    parity_leakage_residual: float = math.nan
 
 
 @dataclass
@@ -372,6 +400,20 @@ class ValidationResult:
     decay_rate_left: float
     decay_rate_right: float
     physical_embedded_mode_verified: bool | None
+    mode_exists_supported: bool = False
+    odd_uniqueness_supported: bool = False
+    full_problem_uniqueness_supported: bool = False
+    diagnostic_complete: bool = False
+    beyn_threshold_rank: int = -1
+    beyn_gap_rank: int = -1
+    beyn_final_s1_relative_change: float = math.nan
+    beyn_moments_converged: bool = False
+    normalized_residual: float = math.nan
+    equilibrated_residual: float = math.nan
+    equilibrated_sigma_min: float = math.nan
+    full_vector_residual: float = math.nan
+    parity_leakage_residual: float = math.nan
+    assembly_version: str = ASSEMBLY_VERSION
 
 
 @dataclass
@@ -668,6 +710,17 @@ def compute_mu_mfs(
     nu = -float(np.dot(c, sx)) / (2.0 * PI)
     mu = -float(np.dot(c, sy)) / (2.0 * PI)
 
+    # Independent target points, not collocation points, and paper (2.3).
+    tt=2*PI*(np.arange(4*N,dtype=float)+.173)/(4*N)
+    xx,yy,xxp,yyp,*_=reference_obstacle_geometry(tt,cfg);ss=np.hypot(xxp,yyp)
+    nxx=-yyp/ss;nyy=xxp/ss
+    ddx=xx[:,None]-sx;ddy=yy[:,None]-sy;rr=ddx*ddx+ddy*ddy
+    off=-(ddx*nxx[:,None]+ddy*nyy[:,None])/(2*PI*rr)@c
+    offgrid=float(np.linalg.norm(off-nyy)/np.linalg.norm(nyy))
+    psi=-(np.log(rr)/(4*PI))@c
+    dt=2*PI/len(tt);area=.5*dt*np.sum(xx*yyp-yy*xxp)
+    identity=(area+dt*np.sum(nyy*psi*ss))/(2*PI)
+    identity_error=float(abs(identity-mu)/max(abs(mu),1e-30))
     return MuMFSRow(
         beta=float(cfg.shape_beta),
         order=N,
@@ -676,6 +729,7 @@ def compute_mu_mfs(
         nu=nu,
         boundary_relative_residual=float(residual),
         zero_total_source_error=total_source,
+        offgrid_relative_residual=offgrid,identity_relative_error=identity_error,
     )
 
 
@@ -696,11 +750,13 @@ def run_mu_convergence(config: Config) -> tuple[float, float, list[MuMFSRow], Mu
     if len(rows) >= 2:
         rel = abs(rows[-1].mu - rows[-2].mu) / max(abs(rows[-1].mu), 1.0e-30)
         if rel > config.mu_convergence_relative_tolerance:
-            print(
-                "WARNING: mu MFS convergence is weaker than configured tolerance: "
-                f"relative last-step change={rel:.3e}."
-            )
+            raise RuntimeError(f"mu MFS not converged: {rel:.3e}")
 
+    for row in rows+[circle]:
+        if (not np.all(np.isfinite([row.mu,row.nu,row.offgrid_relative_residual,row.identity_relative_error]))
+                or row.offgrid_relative_residual>config.mu_boundary_residual_tolerance
+                or row.identity_relative_error>config.mu_identity_relative_tolerance):
+            raise RuntimeError("MFS off-grid/identity diagnostics failed")
     if finest.mu <= 0.0:
         raise RuntimeError(f"Computed mu must be positive; got {finest.mu}.")
     return float(finest.mu), float(finest.nu), rows, circle
@@ -726,27 +782,15 @@ def make_green_functions(
         Lh=config.harmonic_order,
     )
 
-    def green(x: float, y: float, xi: float, eta: float) -> complex:
-        return lattice.greens_dirichlet(
-            x,
-            y + b,
-            xi,
-            eta + b,
-            coefficients,
-            k,
-            d,
-        )
-
-    def green_regularized(x: float, y: float, xi: float, eta: float) -> complex:
-        return lattice.greens_dirichlet_reg(
-            x,
-            y + b,
-            xi,
-            eta + b,
-            coefficients,
-            k,
-            d,
-        )
+    period = 2*d
+    def wrap(value):
+        return (value + period/2) % period - period/2
+    def green(x, y, xi, eta):
+        return (lattice.greens_periodic(x-xi, wrap(y-eta), coefficients, k, period)
+                - lattice.greens_periodic(x-xi, wrap(y+eta+2*b), coefficients, k, period))
+    def green_regularized(x, y, xi, eta):
+        return (lattice.greens_periodic_reg(x-xi, wrap(y-eta), coefficients, k, period)
+                - lattice.greens_periodic(x-xi, wrap(y+eta+2*b), coefficients, k, period))
 
     return green, green_regularized
 
@@ -810,20 +854,48 @@ def assemble_full_matrix(
     M: int,
     config: Config,
 ) -> np.ndarray:
-    theta = boundary_nodes(M)
-    G, G_regularized = make_green_functions(kb, config)
-    K = np.empty((M, M), dtype=np.complex128)
-    for i, psi in enumerate(theta):
-        for j, source_theta in enumerate(theta):
-            K[i, j] = weighted_normal_kernel(
-                float(psi),
-                float(source_theta),
-                epsilon,
-                config,
-                G,
-                G_regularized,
-            )
-    return np.eye(M, dtype=np.complex128) - (4.0 * PI / M) * K
+    period = 4*config.b
+    k = complex(kb)/config.b
+    coeffs = lattice.lattice_sums(period,k,beta=0.,M=config.lattice_terms,Lh=config.harmonic_order)
+    X,Y,Dx,Dy,Iy,xp,yp,curvature,plans = _assembly_geometry(epsilon,M,config)
+    shifted = (_periodic_array(X,Y,coeffs,k,False,plans[0])
+               - _periodic_array(X,Iy,coeffs,k,False,plans[1]))
+    h=config.finite_difference_step
+    gx=(shifted[0]-shifted[1])/(2*h);gy=(shifted[2]-shifted[3])/(2*h)
+    weighted=xp[None,:]*gy-yp[None,:]*gx
+    reg=(_periodic_array(Dx,Dy,coeffs,k,True,plans[2])
+         - _periodic_array(Dx,plans[4],coeffs,k,False,plans[3]))
+    gx=(reg[0]-reg[1])/(2*h);gy=(reg[2]-reg[3])/(2*h)
+    weighted[np.diag_indices(M)]=curvature+xp*gy-yp*gx
+    return np.eye(M,dtype=complex)-(4*PI/M)*weighted
+
+
+def _periodic_array(X,Y,coeffs,k,regularized,plan):
+    radius,angular=plan
+    argument=k*radius
+    result=lattice.J0(argument) if regularized else lattice.H0(argument)
+    for order,coefficient in enumerate(coeffs):
+        result=result+(1 if order==0 else 2)*coefficient*lattice.jv(order,argument)*angular[order]
+    return -.25j*result
+
+
+@lru_cache(maxsize=16)
+def _assembly_geometry(epsilon,M,config):
+    t=boundary_nodes(M);x,y,xp,yp,xpp,ypp=obstacle_geometry(t,epsilon,config)
+    h=config.finite_difference_step;period=4*config.b
+    xi=np.stack([x+h,x-h,x,x]);eta=np.stack([y,y,y+h,y-h])
+    X=x[None,:,None]-xi[:,None,:];Y=y[None,:,None]-eta[:,None,:]
+    Iy=y[None,:,None]+eta[:,None,:]+2*config.b
+    Dx=x[None,:]-xi;Dy=y[None,:]-eta;Di=y[None,:]+eta+2*config.b
+    def prepare(xx,yy):
+        yy=(yy+period/2)%period-period/2
+        radius=np.hypot(xx,yy)
+        if np.any(radius>.99*period):raise ValueError("Outside lattice Green disk")
+        angle=PI/2-np.arctan2(yy,xx)
+        return radius,np.stack([np.cos(n*angle) for n in range(2*config.harmonic_order+1)])
+    plans=(prepare(X,Y),prepare(X,Iy),prepare(Dx,Dy),prepare(Dx,Di),Di)
+    curvature=(xpp*yp-ypp*xp)/(4*PI*(xp*xp+yp*yp))
+    return X,Y,Dx,Dy,Iy,xp,yp,curvature,plans
 
 
 def assemble_odd_matrix(
@@ -1000,6 +1072,18 @@ def cluster_real_candidates(values: list[complex], config: Config) -> list[compl
     return [sum(c) / len(c) for c in clusters]
 
 
+def contour_quadrature(points):
+    edges=np.unique(np.r_[0.,np.geomspace(1e-12,PI/2,16),np.linspace(.01,PI/2,17)])
+    order=max(2,math.ceil(points/(4*(len(edges)-1))))
+    x,w=leggauss(order);nodes=[];weights=[]
+    for quadrant in range(4):
+        for lo,hi in zip(edges[:-1],edges[1:]):
+            t=lo+(hi-lo)*(x+1)/2
+            nodes.extend(quadrant*PI/2+(t if quadrant%2==0 else PI/2-t))
+            weights.extend(w*(hi-lo)/2)
+    return np.asarray(nodes),np.asarray(weights)
+
+
 def beyn_discover(
     epsilon: float,
     quadrature_points: int,
@@ -1017,8 +1101,8 @@ def beyn_discover(
     S1 = np.zeros_like(S0)
     max_residual = 0.0
 
-    for j in range(Nq):
-        theta = 2.0 * PI * (j + 0.5) / Nq
+    angles,weights=contour_quadrature(Nq)
+    for theta,angular_weight in zip(angles,weights):
         z, dz = ellipse_point(
             theta,
             epsilon,
@@ -1027,10 +1111,12 @@ def beyn_discover(
             cutoff_margin_override=cutoff_margin_override,
         )
         A = assemble_odd_matrix(z, epsilon, M, config)
+        if not np.all(np.isfinite(A)):raise ValueError("Nonfinite contour matrix")
         X = np.linalg.solve(A, V)
         rel_res = np.linalg.norm(A @ X - V) / max(np.linalg.norm(V), 1.0e-30)
+        if not np.isfinite(rel_res):raise ValueError("Nonfinite contour solve")
         max_residual = max(max_residual, float(rel_res))
-        weight = dz / (1j * Nq)
+        weight = dz * angular_weight / (2j * PI)
         S0 += weight * X
         S1 += weight * z * X
 
@@ -1104,6 +1190,7 @@ def beyn_discover(
         accepted_candidates=accepted,
         near_contour_seeds=near_count,
     )
+    diag._s0=S0;diag._s1=S1
     return eigenvalues, s, diag, rows, S0
 
 
@@ -1160,6 +1247,7 @@ def run_beyn_convergence_study(
     all_rows: list[BeynEigenvalueRow] = []
     convergence: list[BeynConvergenceRow] = []
     previous_S0: np.ndarray | None = None
+    previous_S1: np.ndarray | None = None
     previous_candidates: list[complex] = []
     raw_real_history: list[float] = []
 
@@ -1171,7 +1259,7 @@ def run_beyn_convergence_study(
     final_near: list[complex] = []
 
     def run_level(Nq: int) -> None:
-        nonlocal previous_S0, previous_candidates
+        nonlocal previous_S0, previous_S1, previous_candidates
         nonlocal final_eigs, final_s, final_diag, final_rows, final_strict, final_near
 
         eigs, s, diag, rows, S0 = beyn_discover(epsilon, Nq, mu, config)
@@ -1195,6 +1283,12 @@ def run_beyn_convergence_study(
         rank_stable = bool(
             diagnostics and diagnostics[-1].estimated_rank == diag.estimated_rank
         )
+        s1_change=math.nan if previous_S1 is None else float(np.linalg.norm(diag._s1-previous_S1)/max(np.linalg.norm(diag._s1),1e-30))
+        diag.s0_relative_change=s0_change;diag.s1_relative_change=s1_change
+        diag.moments_converged=bool(np.isfinite(s0_change) and np.isfinite(s1_change)
+                                    and max(s0_change,s1_change)<=config.beyn_moment_convergence_tolerance)
+        diag.rank_stable=rank_stable
+        diag.candidate_stable=bool(strict and np.isfinite(shift) and shift<=config.beyn_candidate_convergence_tolerance)
         convergence.append(
             BeynConvergenceRow(
                 epsilon=float(epsilon),
@@ -1209,11 +1303,14 @@ def run_beyn_convergence_study(
                 primary_candidate_imag=(float(primary.imag) if primary is not None else math.nan),
                 max_candidate_shift_from_previous=shift,
                 rank_stable_from_previous=rank_stable,
+                s1_relative_change_from_previous=s1_change,
+                moments_converged=diag.moments_converged,
             )
         )
         diagnostics.append(diag)
         all_rows.extend(rows)
         previous_S0 = S0
+        previous_S1 = diag._s1
         previous_candidates = strict
         final_eigs, final_s, final_diag, final_rows = eigs, s, diag, rows
         final_strict, final_near = strict, near
@@ -1227,14 +1324,20 @@ def run_beyn_convergence_study(
             len(convergence) >= 2
             and convergence[-1].estimated_rank == convergence[-2].estimated_rank
         )
-        if final_strict and rank_stable:
+        if (final_strict and rank_stable and final_diag.moments_converged
+                and final_diag.candidate_stable and final_diag.threshold_rank==final_diag.gap_rank==final_diag.estimated_rank
+                and final_diag.max_linear_solve_relative_residual<=config.beyn_linear_solve_tolerance):
             break
         run_level(int(Nq))
 
     assert final_diag is not None
 
+    # Preserve strict candidates from every level; a candidate disappearing
+    # under refinement is not silently erased from the diagnostic.
+    accepted_history=[complex(row.real_part,row.imag_part) for row in all_rows if row.accepted_for_refinement]
+    all_strict=cluster_real_candidates(accepted_history,config)
     seeds: list[DiscoverySeed] = [
-        DiscoverySeed(float(z.real), float(z.imag), "strict-beyn") for z in final_strict
+        DiscoverySeed(float(z.real),float(z.imag),"strict-beyn") for z in all_strict
     ]
     if not seeds:
         seeds.extend(
@@ -1310,7 +1413,21 @@ def refine_candidate_for_M(
         method="bounded",
         options={"xatol": config.minimizer_sigma_xatol, "maxiter": 200},
     ))
+    if not result.success:raise RuntimeError(f"Sigma minimization failed: {result.message}")
+    if not np.all(np.isfinite(vals)):raise ValueError("Nonfinite local scan")
     sigma_star = float(result.x)
+    # scipy bounded uses sqrt(eps)*abs(x) as part of its stopping rule.
+    # Center a second minimization to reach the requested absolute sigma
+    # resolution without changing the singular-value objective or tolerances.
+    width=hi-lo
+    polish=cast(Any,minimize_scalar(
+        lambda t:absolute_sv_from_sigma(sigma_star+width*float(t),epsilon,M,config),
+        bounds=((lo-sigma_star)/width,(hi-sigma_star)/width),method="bounded",
+        options={"xatol":config.minimizer_sigma_xatol/width,"maxiter":200}))
+    if not polish.success:raise RuntimeError(f"Centered sigma minimization failed: {polish.message}")
+    polished_sigma=sigma_star+width*float(polish.x)
+    if absolute_sv_from_sigma(polished_sigma,epsilon,M,config)<absolute_sv_from_sigma(sigma_star,epsilon,M,config):
+        sigma_star=polished_sigma
     kb_star = kb_from_sigma(sigma_star, config)
     smin, smax, rel = odd_singular_metrics(kb_star, epsilon, M, config)
 
@@ -1323,6 +1440,8 @@ def refine_candidate_for_M(
         sigma_star > sigma_left + edge_margin
         and sigma_star < sigma_right - edge_margin
     )
+    if not np.all(np.isfinite([kb_star,sigma_star,smin,smax,rel,drop,left_val,right_val])):
+        raise ValueError("Nonfinite refinement diagnostics")
     return kb_star, sigma_star, smin, smax, rel, float(drop), interior
 
 
@@ -1368,6 +1487,30 @@ def global_sigma_fallback_seed(
     return seed, (float(sigmas[idx - 1]), float(sigmas[idx + 1]))
 
 
+def certify_odd_mode(kb,epsilon,M,interior,drop,config):
+    full=assemble_full_matrix(complex(kb),epsilon,M,config);Q=odd_lift_matrix(M)
+    if not np.all(np.isfinite(full)):raise ValueError("Nonfinite mode matrix")
+    A=Q.conj().T@full@Q;_,sv,vh=np.linalg.svd(A);v=vh.conj().T[:,-1]
+    rows=np.linalg.norm(A,axis=1)
+    if sv[0]<=0 or np.any(rows<=np.finfo(float).tiny):raise ValueError("Degenerate mode matrix")
+    B=A/rows[:,None];scaled=np.linalg.svd(B,compute_uv=False)
+    residual=float(np.linalg.norm(A@v)/(sv[0]*np.linalg.norm(v)))
+    eq=float(np.linalg.norm(B@v)/(scaled[0]*np.linalg.norm(v)))
+    vf=Q@v;fullnorm=np.linalg.norm(full,2)
+    fullres=float(np.linalg.norm(full@vf)/(fullnorm*np.linalg.norm(vf)))
+    leakage=float(np.linalg.norm((np.eye(M)-Q@Q.conj().T)@full@vf)/(fullnorm*np.linalg.norm(vf)))
+    values=[residual,eq,scaled[-1],fullres,leakage,drop]
+    supported=bool(np.all(np.isfinite(values)) and interior and drop>=config.minimum_drop_factor
+                   and sv[-1]/sv[0]<=config.relative_near_singular_tolerance
+                   and residual<=config.singular_vector_residual_tolerance
+                   and eq<=config.equilibrated_residual_tolerance
+                   and scaled[-1]<=config.near_singular_tolerance
+                   and fullres<=config.full_vector_residual_tolerance
+                   and leakage<=config.parity_operator_tolerance)
+    return dict(supported=supported,normalized_residual=residual,equilibrated_residual=eq,
+                equilibrated_sigma_min=float(scaled[-1]),full_vector_residual=fullres,parity_leakage_residual=leakage)
+
+
 def run_candidate_refinement(
     epsilon: float,
     candidate_index: int,
@@ -1403,11 +1546,8 @@ def run_candidate_refinement(
 
     final = rows[-1]
     final_change = math.nan  # Not applicable: certification uses one fixed M.
-    resolved = bool(
-        final.minimum_is_interior
-        and final.relative_singular_value <= config.relative_near_singular_tolerance
-        and final.drop_factor >= config.minimum_drop_factor
-    )
+    certificate=certify_odd_mode(final.kb,epsilon,config.bem_M,final.minimum_is_interior,final.drop_factor,config)
+    resolved=certificate['supported']
     mode = ModeResult(
         epsilon=float(epsilon),
         candidate_index=int(candidate_index),
@@ -1420,6 +1560,11 @@ def run_candidate_refinement(
         final_drop_factor=final.drop_factor,
         final_relative_mesh_change=float(final_change),
         resolved=resolved,
+        normalized_residual=certificate['normalized_residual'],
+        equilibrated_residual=certificate['equilibrated_residual'],
+        equilibrated_sigma_min=certificate['equilibrated_sigma_min'],
+        full_vector_residual=certificate['full_vector_residual'],
+        parity_leakage_residual=certificate['parity_leakage_residual'],
     )
     return rows, mode
 
@@ -1449,6 +1594,15 @@ def make_extended_field_green(kb: float, config: Config) -> Callable[..., comple
         yf = y + b
         ys = eta + b
         X = x - xi
+        if abs(X)>=b:
+            n=np.arange(1,config.field_modal_terms+1,dtype=float);p=n*PI/d
+            q=np.sqrt(p*p-k*k+0j)
+            q=np.where(p<k.real,-1j*np.sqrt(k*k-p*p+0j),q)
+            terms=np.exp(-q*abs(X))*np.sin(p*yf)*np.sin(p*ys)/q
+            scale=max(float(np.sum(np.abs(terms))),np.finfo(float).tiny)
+            if (not np.all(np.isfinite(terms)) or np.sum(np.abs(terms[len(terms)//2:]))>config.field_modal_relative_tolerance*scale):
+                raise ValueError("Modal field Green did not converge")
+            return complex(-np.sum(terms)/d)
         Y1 = wrap(yf - ys)
         Y2 = wrap(yf + ys)
         return (
@@ -1742,11 +1896,13 @@ def validate_epsilon(
         else math.nan
     )
 
+    candidate_failures=[]
     sigma_tasks: list[tuple[DiscoverySeed, tuple[float, float]]] = []
     for seed in seeds:
         try:
             sigma_tasks.append((seed, sigma_bracket_from_seed(seed, config)))
-        except ValueError:
+        except ValueError as exc:
+            candidate_failures.append({"seed":asdict(seed),"error":str(exc)})
             continue
 
     if not sigma_tasks and final_diag.estimated_rank == 1 and rank_stable:
@@ -1757,13 +1913,19 @@ def validate_epsilon(
     refinement_rows: list[ModeRefinementRow] = []
     modes: list[ModeResult] = []
     for idx, (seed, bracket) in enumerate(sigma_tasks, start=1):
-        rows, mode = run_candidate_refinement(
-            epsilon, idx, seed, bracket, config
-        )
+        try:
+            rows, mode = run_candidate_refinement(epsilon, idx, seed, bracket, config)
+        except Exception as exc:
+            candidate_failures.append({"seed":asdict(seed),"error":f"{type(exc).__name__}: {exc}"})
+            continue
         refinement_rows.extend(rows)
         modes.append(mode)
 
-    resolved = [m for m in modes if m.resolved]
+    resolved=[]
+    for mode in modes:
+        if mode.resolved and not any(abs(mode.sigma_numerical-old.sigma_numerical)
+                <=1e-5*max(mode.sigma_numerical,old.sigma_numerical) for old in resolved):
+            resolved.append(mode)
 
     # Tighter upper-threshold contour check.
     tighter_consistent: bool | None = None
@@ -1773,20 +1935,28 @@ def validate_epsilon(
             cutoff_margin * config.beyn_tighter_cutoff_margin_factor,
         )
         if tighter_margin < cutoff_margin * (1.0 - 1.0e-12):
-            _, _, tight_diag, _, _ = beyn_discover(
+            tight_eigs, _, tight_diag, tight_rows, _ = beyn_discover(
                 epsilon,
                 final_diag.quadrature_points,
                 mu,
                 config,
                 cutoff_margin_override=tighter_margin,
             )
-            tighter_consistent = bool(tight_diag.estimated_rank == final_diag.estimated_rank)
+            tight_candidates,_=candidate_values(tight_eigs,tight_rows,config)
+            original_candidates,_=candidate_values(final_eigs,final_rows,config)
+            tighter_consistent = bool(tight_diag.estimated_rank==tight_diag.threshold_rank==tight_diag.gap_rank==final_diag.estimated_rank
+                                      and tight_diag.max_linear_solve_relative_residual<=config.beyn_linear_solve_tolerance
+                                      and candidate_set_shift(original_candidates,tight_candidates)<=config.beyn_candidate_convergence_tolerance)
 
     one_mode_supported = bool(
         rank_stable
         and final_diag.estimated_rank == 1
         and len(resolved) == 1
-        and (tighter_consistent is None or bool(tighter_consistent))
+        and bool(tighter_consistent)
+        and final_diag.moments_converged and final_diag.candidate_stable
+        and final_diag.threshold_rank==final_diag.gap_rank==final_diag.estimated_rank
+        and final_diag.max_linear_solve_relative_residual<=config.beyn_linear_solve_tolerance
+        and not candidate_failures and all(m.resolved for m in modes)
     )
 
     if resolved:
@@ -1877,6 +2047,7 @@ def validate_epsilon(
             one_mode_supported
             and np.isfinite(k2_num)
             and lambda_1(config) <= k2_num < lambda_2(config)
+            and bool(physical_verified) and parity_comm<=config.parity_operator_tolerance
         ),
         wall_relative_residual=(
             physical.wall_relative_residual if physical is not None else math.nan
@@ -1900,7 +2071,27 @@ def validate_epsilon(
         decay_rate_left=(physical.decay_rate_left if physical is not None else math.nan),
         decay_rate_right=(physical.decay_rate_right if physical is not None else math.nan),
         physical_embedded_mode_verified=physical_verified,
+        mode_exists_supported=bool(resolved and physical_verified and parity_comm<=config.parity_operator_tolerance),
+        odd_uniqueness_supported=bool(one_mode_supported and physical_verified and parity_comm<=config.parity_operator_tolerance),
+        full_problem_uniqueness_supported=False,
+        diagnostic_complete=bool(not candidate_failures and all(m.resolved for m in modes)
+                                 and final_diag.moments_converged),
+        beyn_threshold_rank=final_diag.threshold_rank,beyn_gap_rank=final_diag.gap_rank,
+        beyn_final_s1_relative_change=final_diag.s1_relative_change,
+        beyn_moments_converged=final_diag.moments_converged,
+        normalized_residual=final_mode.normalized_residual if final_mode else math.nan,
+        equilibrated_residual=final_mode.equilibrated_residual if final_mode else math.nan,
+        equilibrated_sigma_min=final_mode.equilibrated_sigma_min if final_mode else math.nan,
+        full_vector_residual=final_mode.full_vector_residual if final_mode else math.nan,
+        parity_leakage_residual=final_mode.parity_leakage_residual if final_mode else math.nan,
     )
+    directory=Path(config.output_directory)/'geometry_diagnostics'/f'epsilon_{epsilon:.12g}'
+    directory.mkdir(parents=True,exist_ok=True)
+    harness.atomic_json(directory/'candidate_failures.json',candidate_failures)
+    harness.atomic_json(directory/'certificate.json',asdict(result))
+    write_dataclass_csv(directory/'beyn_levels.csv',diagnostics)
+    write_dataclass_csv(directory/'candidate_modes.csv',modes)
+    write_dataclass_csv(directory/'physical.csv',[physical] if physical is not None else [])
     return (
         result,
         diagnostics,
@@ -2160,17 +2351,17 @@ def build_publication_claims(
         r for r in results
         if r.epsilon <= config.publication_asymptotic_epsilon_max
     ]
-    unique = sum(r.unique_embedded_mode_supported for r in small)
+    unique = sum(r.odd_uniqueness_supported for r in small)
     physical = sum(bool(r.physical_embedded_mode_verified) for r in small)
     existence_status = (
         "supported"
         if len(small) >= config.publication_min_asymptotic_points
-        and unique == len(small)
+        and unique == len(small) and physical==len(small)
         else "partial"
     )
     claims.append(
         PublicationClaimRow(
-            claim="One odd embedded trapped mode in [Lambda_1,Lambda_2) for sampled small epsilon",
+            claim="One physical mode; uniqueness supported only in the odd sector and sampled contour",
             status=existence_status,
             evidence=(
                 f"{unique}/{len(small)} small-epsilon cases have stable odd-sector Beyn rank one "
@@ -2189,7 +2380,7 @@ def build_publication_claims(
         q_values = [r.scaled_asymptotic_remainder for r in ordered]
         trend = errors[0] <= errors[-1]
         bounded_q = all(np.isfinite(q_values))
-        asym_status = "supported" if trend and bounded_q else "partial"
+        asym_status = "consistent-with-leading-term" if trend and bounded_q and all(r.mode_exists_supported for r in ordered) else "not-established"
         evidence = (
             f"At the smallest sampled epsilon, sigma/epsilon^2={ordered[0].sigma_over_epsilon_squared:.8g} "
             f"versus C=pi^3 mu/b^3={C:.8g}; scaled remainders are finite over the reporting window."
@@ -2243,7 +2434,7 @@ def write_publication_report(
     lines: list[str] = []
     lines.append("# Numerical validation report — Theorem 2.3(iii)")
     lines.append("")
-    lines.append("This run uses the exact x-axis symmetry reduction (odd in y) described in Remark 2.5.")
+    lines.append("This run uses the exact x-axis symmetry reduction (odd in y) described in Remark 2.5. Full-problem uniqueness remains not established: the even sector and omitted thresholds are not counted. Finite-sample asymptotic trends are not a proof of Big-O.")
     lines.append("")
     lines.append("## Geometry and dipole strength")
     lines.append("")

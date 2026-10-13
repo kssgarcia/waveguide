@@ -79,7 +79,7 @@ class HarnessTests(unittest.TestCase):
                 with patch.object(module,'_kernel_geometry',side_effect=direct):
                     after=module.assemble_full_matrix(*args)
                 np.testing.assert_array_equal(before,after)
-            self.assertGreater(module._kernel_geometry.cache_info().hits,0)
+            self.assertGreater((module._assembly_geometry if hasattr(module,"_assembly_geometry") else module._kernel_geometry).cache_info().hits,0)
             if module is x:
                 odd=module.assemble_odd_matrix(2.+.01j,.05,8,cfg)
                 Q=module.odd_lift_matrix(8)

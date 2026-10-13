@@ -1,0 +1,140 @@
+{
+  "verified": true,
+  "M": 24,
+  "assembly_version": "theorem-2.3-iii-periodic-green-v3",
+  "fingerprint_matches_current_source": true,
+  "cases": 10,
+  "physical_modes_supported": 10,
+  "odd_uniqueness_supported": 10,
+  "full_problem_uniqueness_established": false,
+  "regression_tests": 69,
+  "maxima": {
+    "normalized_residual": 2.0523752511065758e-10,
+    "equilibrated_residual": 2.112755340581412e-10,
+    "equilibrated_sigma_min": 2.3870919492619675e-10,
+    "full_vector_residual": 1.3555374272077188e-10,
+    "parity_leakage_residual": 8.421500311541589e-11,
+    "operator_parity_commutator_residual": 3.7666014000530716e-10,
+    "beyn_final_s0_relative_change": 0.0007123001322726446,
+    "beyn_final_s1_relative_change": 0.0007123001287271972,
+    "wall_relative_residual": 3.529928420211499e-11,
+    "centerline_relative_residual": 5.577875756562005e-11,
+    "odd_parity_relative_residual": 1.607819440843468e-11,
+    "first_open_channel_relative_amplitude": 6.554903698586991e-11,
+    "boundary_integral_relative_residual": 0.0040334375763376095,
+    "dispersion_error": 1.7763568394002505e-15
+  },
+  "legacy_comparison": [
+    {
+      "epsilon": 0.02,
+      "corrected_kb": 3.1415642574654883,
+      "corrected_sigma": 0.013357294062541925,
+      "legacy_sigma": 0.013357294046322004,
+      "relative_sigma_change": 1.2143119080490544e-09
+    },
+    {
+      "epsilon": 0.04,
+      "corrected_kb": 3.1411505302173914,
+      "corrected_sigma": 0.052704341418503275,
+      "legacy_sigma": 0.05270434100903664,
+      "relative_sigma_change": 7.769125335593522e-09
+    },
+    {
+      "epsilon": 0.06,
+      "corrected_kb": 3.139474736817124,
+      "corrected_sigma": 0.11533766937304736,
+      "legacy_sigma": 0.11533767007643907,
+      "relative_sigma_change": 6.098542738164038e-09
+    },
+    {
+      "epsilon": 0.08,
+      "corrected_kb": 3.1354440380614004,
+      "corrected_sigma": 0.19645631899885077,
+      "legacy_sigma": 0.19645631855888424,
+      "relative_sigma_change": 2.239513280448713e-09
+    },
+    {
+      "epsilon": 0.1,
+      "corrected_kb": 3.128197565970862,
+      "corrected_sigma": 0.2898006027311444,
+      "legacy_sigma": 0.28980060551065573,
+      "relative_sigma_change": 9.591116502569745e-09
+    },
+    {
+      "epsilon": 0.12,
+      "corrected_kb": 3.117457530062946,
+      "corrected_sigma": 0.388668173823373,
+      "legacy_sigma": 0.38866817472616755,
+      "relative_sigma_change": 2.3227900356480797e-09
+    },
+    {
+      "epsilon": 0.14,
+      "corrected_kb": 3.103629407285461,
+      "corrected_sigma": 0.4869177582736693,
+      "legacy_sigma": 0.4869177591836635,
+      "relative_sigma_change": 1.8688868410509894e-09
+    },
+    {
+      "epsilon": 0.16,
+      "corrected_kb": 3.087656600098852,
+      "corrected_sigma": 0.5796387848956932,
+      "legacy_sigma": 0.579638784071533,
+      "relative_sigma_change": 1.4218513426270913e-09
+    },
+    {
+      "epsilon": 0.18,
+      "corrected_kb": 3.070755230673836,
+      "corrected_sigma": 0.6633752440200289,
+      "legacy_sigma": 0.6633752483615337,
+      "relative_sigma_change": 6.544568645649971e-09
+    },
+    {
+      "epsilon": 0.2,
+      "corrected_kb": 3.0541633797493932,
+      "corrected_sigma": 0.7359962302125752,
+      "legacy_sigma": 0.7359962218651456,
+      "relative_sigma_change": 1.1341674445792626e-08
+    }
+  ],
+  "maximum_relative_sigma_change_from_legacy": 1.1341674445792626e-08,
+  "independent_modal_representatives": [
+    {
+      "epsilon": 0.02,
+      "kb": 3.1415642574654883,
+      "M": 24,
+      "modal_terms": [
+        12000,
+        24000
+      ],
+      "matrix_relative_difference": 4.4909726584728415e-10,
+      "modal_truncation_relative_change": 4.149560765961563e-10,
+      "modal_vector_residual": 3.9560752100667907e-10
+    },
+    {
+      "epsilon": 0.1,
+      "kb": 3.128197565970862,
+      "M": 24,
+      "modal_terms": [
+        12000,
+        24000
+      ],
+      "matrix_relative_difference": 1.4491664224693636e-10,
+      "modal_truncation_relative_change": 3.658568975454575e-10,
+      "modal_vector_residual": 2.5583366448239196e-10
+    },
+    {
+      "epsilon": 0.2,
+      "kb": 3.0541633797493932,
+      "M": 24,
+      "modal_terms": [
+        12000,
+        24000
+      ],
+      "matrix_relative_difference": 1.843150957646423e-10,
+      "modal_truncation_relative_change": 4.4144130201128886e-10,
+      "modal_vector_residual": 4.88167315042894e-10
+    }
+  ],
+  "H40_relative_sigma_change_at_epsilon_010": 0.0,
+  "scope": "Numerical BEM evidence for one physical odd BIC in the sampled band; neither even-sector exclusion nor analytic Big-O/analyticity proof."
+}
