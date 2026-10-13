@@ -109,3 +109,15 @@ python src/beyn_theorems_validations/runners/validate_second_theorem_X.py
 Valida .02,.10,.20 y continúa el barrido sólo si pasan los certificados físicos y de unicidad del sector impar. Comparte los checkpoints firmados dentro de la nueva ejecución. Ver [criterios corregidos](docs/theorem_2_3_iii/CORRECTED_VALIDATION.md). El flag de unicidad del problema completo se mantiene separado: no se ha excluido el sector par ni los márgenes omitidos.
 
 La ejecución X corregida v3 terminó con 10/10 modos físicos y conteos convergentes del sector impar. [Informe verificado](results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/results_audit.md). Las salidas anteriores permanecen intactas; la unicidad del problema completo continúa fuera del certificado impar.
+
+## Figuras revisadas sin repetir el cálculo
+
+Ver el [paquete revisado](results/reviewed_figures/2026-10-13_17-46-59/README.md), con baseline/suplemento 2.1 y ejecuciones finales X/Y. Los originales están intactos y la procedencia se registra con hashes.
+
+Para regenerar automáticamente otra versión desde las últimas tablas guardadas:
+
+```sh
+python src/beyn_theorems_validations/runners/refresh_reviewed_figures.py
+```
+
+Este runner sólo lee tablas/checkpoints y crea gráficas; no ejecuta solvers. Las ejecuciones numéricas futuras incorporan también las funciones plot corregidas.

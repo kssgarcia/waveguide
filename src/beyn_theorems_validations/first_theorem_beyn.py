@@ -4474,7 +4474,7 @@ def plot_candidate_refinement(
         plt.ylabel(r"$\sigma$")
         plt.title(
             rf"Beyn candidate {candidate_index}, $\varepsilon={epsilon:.2f}$: "
-            r"$\sigma$ convergence"
+            r"fixed-M $\sigma$ localization"
         )
         plt.tight_layout()
         plt.savefig(
@@ -4609,7 +4609,9 @@ def plot_internal_convergence(
         y = np.array([row.relative_sigma_shift_from_baseline for row in subset], dtype=float)
         order = np.argsort(x)
         plt.figure(figsize=(7, 4.5))
-        plt.semilogy(x[order], np.maximum(y[order], 1.0e-16), "o-")
+        plt.plot(x[order], y[order], "o-")
+        plt.yscale("symlog",linthresh=1e-12)
+        if parameter=="finite_difference_step":plt.xscale("log")
         plt.xlabel(parameter)
         plt.ylabel("relative shift in sigma from baseline")
         plt.title(f"Internal numerical sensitivity: {parameter}")

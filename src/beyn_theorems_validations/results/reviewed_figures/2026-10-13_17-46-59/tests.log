@@ -1,0 +1,18 @@
+...........................................Reusing corrected sweep with verified fingerprint: /var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpck6zbz7e/paper_a_sweep_M24.csv
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmp7bgmpnof/2026-10-13_17-46-25_full_ae7e9643e4c6
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmp7bgmpnof/2026-10-13_17-46-25_full_86778394ffc5
+.Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpkx13zt6x/2026-10-13_17-46-25_gated_41d1bb679050
+.Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmp4k6dedr_/2026-10-13_17-46-25_pending_e3cea9cce73d
+.........................................
+----------------------------------------------------------------------
+Ran 86 tests in 2.046s
+
+OK
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9

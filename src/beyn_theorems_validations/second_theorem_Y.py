@@ -2585,9 +2585,10 @@ def plot_mfs_convergence(rows: list[MFSRow], output: Path, config: Config) -> No
     N = np.array([r.order for r in rows], dtype=float)
 
     plt.figure(figsize=(7, 4.5))
-    plt.plot(N, [r.mu for r in rows], "o-")
+    plt.plot(N, [abs(r.mu-rows[-1].mu) for r in rows], "o-")
+    plt.yscale("symlog",linthresh=1e-13)
     plt.xlabel("MFS order")
-    plt.ylabel(r"$\mu$")
+    plt.ylabel("|mu_N - mu_last| (zero retained)")
     plt.tight_layout()
     plt.savefig(output / "mu_mfs_convergence.png", dpi=config.plot_dpi)
     plt.close()
@@ -2598,7 +2599,7 @@ def plot_mfs_convergence(rows: list[MFSRow], output: Path, config: Config) -> No
     plt.axhline(
         -config.shape_beta / 12.0,
         linestyle="--",
-        label=r"Example 5.4: $-\beta/12$",
+        label=r"Printed example: $-\beta/12$ (inconsistent; not a target)",
     )
     plt.xlabel("MFS order")
     plt.ylabel(r"$a_1$")
@@ -2673,14 +2674,25 @@ def plot_summary(
     plt.axhline(
         max(config.relative_near_singular_tolerance, config.scaled_smin_tolerance),
         linestyle="--",
-        label="combined spectral tolerance",
+        label="auxiliary tolerance only (not the full certificate)",
     )
     plt.xlabel(r"$\varepsilon$")
-    plt.ylabel("combined singularity measure")
+    plt.ylabel("auxiliary combined singularity measure")
+    plt.title("Auxiliary diagnostic; normalized/equilibrated certificates required")
     plt.legend()
     plt.tight_layout()
     plt.savefig(output / "relative_singular_value.png", dpi=config.plot_dpi)
     plt.close()
+
+    plt.figure(figsize=(8,5))
+    for field,label,tolerance in [("normalized_residual","normalized",config.singular_vector_residual_tolerance),
+                                   ("equilibrated_residual","row-equilibrated",config.equilibrated_residual_tolerance),
+                                   ("equilibrated_sigma_min","scaled smin",config.equilibrated_smin_tolerance)]:
+        plt.semilogy(eps,[getattr(r,field)/tolerance for r in results],"o-",label=label)
+    plt.axhline(1.,color="black",linestyle="--",label="acceptance limit")
+    plt.xlabel("epsilon");plt.ylabel("metric / its configured tolerance")
+    plt.title("Spectral certificates (physical checks are additional)")
+    plt.legend();plt.tight_layout();plt.savefig(output/"effective_spectral_certificates.png",dpi=config.plot_dpi);plt.close()
 
 
 def plot_uniqueness_scan(
@@ -2693,19 +2705,20 @@ def plot_uniqueness_scan(
 ) -> None:
     if len(scan) == 0:
         return
-    plt.figure(figsize=(8, 5))
-    plt.semilogy(scan, values, "o-", markersize=3)
-    plt.axvline(result.kb_numerical, linestyle="--", label="main BIC")
-    plt.xlabel(r"$kb$")
-    plt.ylabel("combined singularity measure")
-    plt.title(rf"Whole-band BIC screen, $\varepsilon={epsilon:.2f}$")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(
-        output / f"whole_band_epsilon_{epsilon:.2f}.png",
-        dpi=config.plot_dpi,
-    )
-    plt.close()
+    fig,axes=plt.subplots(1,2,figsize=(12,5))
+    refined=max(result.relative_singular_value_final,result.scaled_singular_value_final)
+    for ax in axes:
+        ax.semilogy(scan,values,"o-",markersize=3,label="sampled grid")
+        ax.semilogy([result.kb_numerical],[refined],"r*",markersize=12,label="refined certified root")
+        ax.axvline(result.kb_numerical,linestyle="--",color="grey")
+        ax.set_xlabel("kb");ax.set_ylabel("auxiliary singularity measure");ax.legend()
+    axes[0].axvspan(kb_1(config),scan[0],color="grey",alpha=.2)
+    axes[0].axvspan(scan[-1],kb_2(config),color="grey",alpha=.2,label="omitted margins")
+    delta=max(5*abs(kb_2(config)-result.kb_numerical),1e-6)
+    axes[1].set_xlim(max(kb_1(config),result.kb_numerical-delta),min(kb_2(config),result.kb_numerical+delta))
+    axes[1].set_title("Near-cutoff zoom; line joins samples only")
+    fig.suptitle(f"Sampled-band screen, epsilon={epsilon:.2f}; global uniqueness not established")
+    fig.tight_layout();fig.savefig(output/f"whole_band_epsilon_{epsilon:.2f}.png",dpi=config.plot_dpi);plt.close(fig)
 
 
 def plot_internal_convergence(
@@ -2729,9 +2742,15 @@ def plot_internal_convergence(
         )
         if parameter == "finite_difference_step":
             plt.xscale("log")
-        plt.yscale("log")
+        plt.yscale("symlog",linthresh=1e-12)
+        passed=[r for r in subset if r.physical_bic_verified and r.status=="certified"]
+        failed=[r for r in subset if r not in passed]
+        plt.scatter([r.value for r in passed],[r.relative_sigma_shift_from_reference for r in passed],marker="o",color="green",zorder=4,label="certified")
+        plt.scatter([r.value for r in failed],[r.relative_sigma_shift_from_reference for r in failed],marker="x",s=70,color="red",zorder=5,label="ambiguous / failed certificate")
+        plt.legend()
         plt.xlabel(parameter)
-        plt.ylabel("relative sigma shift from reference")
+        plt.ylabel("relative sigma shift (zero retained)")
+        plt.title("Frequency stability alone does not certify a mode")
         plt.tight_layout()
         plt.savefig(
             output / f"internal_convergence_{parameter}.png",

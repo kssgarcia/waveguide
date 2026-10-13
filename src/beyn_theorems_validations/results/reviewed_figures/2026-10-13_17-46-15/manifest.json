@@ -1,0 +1,63 @@
+{
+  "purpose": "presentation-only regeneration; no solves",
+  "sources": {
+    "theorem_2_3_iii": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48",
+    "theorem_2_3_iv": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891",
+    "theorem_2_1": {
+      "baseline": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d",
+      "supplement": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b",
+      "limitation": "Baseline not recomputed; supplemental final tables override matching geometry keys."
+    }
+  },
+  "files": {
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/mu_circle_calibration.csv": "7102d34afad932a3e8b686a513f986eebf4493ec0cfb9e60463a32eac0610542",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/beyn_convergence.csv": "33d959acbce65fbb16c6ace2aa4998c089ad53f90332b19196ee03329b181a54",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/summary.csv": "8b42c8e2f027d9201b1eff6184549b6002d69724249f32ffebe84a9a1b49208c",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/beyn_diagnostics.csv": "a5b5f4a2f77b8d6672abcb4540ca1da28284767daf582c927217e2ac6279d9eb",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/internal_convergence.csv": "c1f879d859e8f5847e44d3db4dce216e033c5fc7732eea250095b64a8efebabb",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/mode_results.csv": "5f80af35e7e76195305aa683da6d2428a2fa3d6a8a722382939c30e1e2223e52",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/shape_diagnostics.csv": "eb128742b70afc3346d4cd669590bc86050c6a8641d3ff830e157e0e758daac0",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/mode_refinement.csv": "883d49b11ca9a39f3145dca3f407043a596b89bdd26581711ead9d3100d2f21e",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/physical_diagnostics.csv": "f7ccecee59d16507edefd0f7f607590d61396179f5a68be676ebedf9dbdbd65f",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/publication_claims.csv": "b798db2d2d989314435bcf866055876124adf1384ac7679900acbaad44e6ded1",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/beyn_raw_eigenvalues.csv": "5def5344864f55fad5f13261fb43c7c0511a624aa12fffabde4dbbf9f8a64a69",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/publication_asymptotic_window.csv": "c5e7db6d4b7d03d6ac8bd94d418d295a6bd47aa23c261eba8203ebf9596c7991",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_14-59-29_full_0a01e51d6f48/mu_mfs_convergence.csv": "e4c93927a821ac857a4cf66acaac084abbc46d5aefb06c99a39693df84f9661d",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/summary.csv": "8994b4f7a66c2a85cc6b71897db0e5f19efbfe2b917c09b83ffc4bb84f31fde0",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/placement_a1_fit.csv": "c0bdd2c7e5eadfccbb2db7d6f3db2e6076f2c7f5f5bd8b09c96d596e4f1abd27",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/internal_convergence.csv": "596364f01e160b334bea11bcbb64801e0742635bb5594003c74ce62f0cc2c78f",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/shape_diagnostics.csv": "6fb6c8b40b4ae7c93064e9278626a9aa66fb013c5bf6d44d8185b26689ea8c32",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/physical_diagnostics.csv": "b448a2e57a9198cd5d80b391434038bd083918395f9f3a2d1803592f2055992f",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/publication_claims.csv": "b348755520322ad837b3641bb50225913d3aabb7c142696bb49bdfa6647f2316",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/a1_robustness.csv": "5905dde7df0ad27887b0c3bd53c3dec2dffb6d00b4bfaf6647d80c8d4771adce",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/mfs_convergence.csv": "506391e16072b854c9bd27b7e4c62e927f50f02ce6b968159f6392241143918c",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/tuned_modes.csv": "d7f9dafd9cf742abc8f17dcfd1efd8191cb2bfdf84678021df627ffbb8b6d659",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/a1_small_beta_diagnostic.csv": "2b65a6252cd63d5da141c0a88b36a0e857038b92f84a50214f79851c252a94f9",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/mfs_circle_calibration.csv": "8bcc97e1a4b5a19c970990a9b35e0d7faa8d36ad8ed5dbef774f60fcfcf89536",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/publication_asymptotic_window.csv": "0971170b98296345c805a75b533a72f3302cd0b5fb29f7ad66aad17da15820e1",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/additional_candidates.csv": "1c51bd7feb87d4640cc33af2c71b4994b276bdf88384b5a1d130c0373ae614cc",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_16-21-58_full_c622152bc891/a1_small_beta_fit.csv": "5c33c9060772daccec3070a88d3d080b71e04da0eee3f7f5f2c24689b3fd402e",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/beyn_convergence.csv": "745953d3fe0aa2d6b86d1a4bcaf8dd2b84e63c274b05f2d331384023f8cbfa07",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/summary.csv": "ad1d21c6d1dec6f7899fc4c1826cdf0149c5bf0092c3f29fb6b83e6512b33ef7",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/beyn_diagnostics.csv": "107d2386b4e6ae6693d2e387ccfb16fac2b2299c1a7d591a441fa0810b6fef4b",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/internal_convergence.csv": "c5d38503a668dda198e0ee6d9920bb948e475ffa1daa82ef78c425010cbde574",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/mode_results.csv": "be4fca83074d55628450d83de09c622e5562992e65d497af450f8bfd2793f7d3",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/critical_height_probes.csv": "88ea9e23f2a6fbf13cfb0472e170808f7cb3a39ec9ced68fe1929ceca27adf68",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/mode_refinement.csv": "b693997da32285618225ea8f48b63dc323e7cf8910b5928ad155c5c2924f3515",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/physical_diagnostics.csv": "b9c03e39a00ecfbaede79648591ac6e9d4231710ea84a9d3e0c47fc19901cc7b",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/publication_claims.csv": "b5c65bcae903491d7f349e1bbabcad95108631e6f7b7e450768bc164f68b9333",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/beyn_raw_eigenvalues.csv": "c776ddaaf23320287c7750f435c5cf5edf5ed4cf93ea1f192c1cea5a5439a99c",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/publication_asymptotic_window.csv": "12812fb9df615996a8ed47d7196eedfdc61a0491f5c1048eff5d6a04d90898b5",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/critical_height.csv": "ad5e0b49437ba2e208f010bd8d2b38ab2f2350d066d587f37cf9aaffdfa6f227",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-07_11-06-56_full_832cf4c8c71d/paper_a_sweep_M24.csv": "55fc2c76ef22b65b3cf86cda019ece588f4776c8aaeec5b3a246ffb3b47bfbd7",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b/critical_height_probes.csv": "805040272329f688d015a6b62a759dd975cf311248e1499fba4dceb55f7dba25",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b/critical_height.csv": "b2a4f5952d697d9ec1a75cde930540a9cb22446c6a474f4bdd0dc42d2efe416f",
+    "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-11_07-34-49_resolve-pending_e921a3fdfe2b/paper_a_sweep_M24.csv": "d61b889d0015a57f32f0522997993bb5e0d0a3798c0bd21860a3fe37dcc96d9e"
+  },
+  "numerical_code_unchanged": {
+    "first_theorem_beyn.py": true,
+    "second_theorem_X.py": true,
+    "second_theorem_Y.py": true
+  },
+  "generated_pngs": 88
+}

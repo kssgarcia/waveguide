@@ -2214,9 +2214,10 @@ def plot_mu_convergence(rows: list[MuMFSRow], output: Path, config: Config) -> N
     if not rows:
         return
     fig, ax = plt.subplots(figsize=(6.2, 4.4))
-    ax.plot([r.order for r in rows], [r.mu for r in rows], marker="o")
+    ax.plot([r.order for r in rows], [abs(r.mu-rows[-1].mu) for r in rows], marker="o")
+    ax.set_yscale("symlog",linthresh=1e-13)
     ax.set_xlabel("MFS order")
-    ax.set_ylabel("mu")
+    ax.set_ylabel("|mu_N - mu_last| (zero retained)")
     ax.set_title("Independent dipole-strength convergence")
     ax.grid(True, alpha=0.25)
     fig.tight_layout()
@@ -2306,9 +2307,9 @@ def plot_internal_convergence(
         )
         if all(r.value > 0 for r in subset):
             ax.set_xscale("log" if parameter != "M" else "linear")
-        ax.set_yscale("log")
+        ax.set_yscale("symlog", linthresh=1e-12)
         ax.set_xlabel(parameter)
-        ax.set_ylabel("relative shift in sigma")
+        ax.set_ylabel("relative shift in sigma (zero retained)")
         ax.set_title(f"Numerical convergence: {parameter}")
         ax.grid(True, alpha=0.25)
         fig.tight_layout()
