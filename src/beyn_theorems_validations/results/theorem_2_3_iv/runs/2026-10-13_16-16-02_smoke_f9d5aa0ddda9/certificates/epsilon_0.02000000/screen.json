@@ -1,0 +1,41 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "points": 102,
+      "brackets": 1,
+      "evaluated": 1,
+      "unresolved": 0,
+      "known_roots": 1,
+      "additional_modes": [],
+      "errors": [],
+      "complete": true,
+      "candidate_sets_stable": false
+    },
+    {
+      "level": 2,
+      "points": 198,
+      "brackets": 1,
+      "evaluated": 1,
+      "unresolved": 0,
+      "known_roots": 1,
+      "additional_modes": [],
+      "errors": [],
+      "complete": true,
+      "candidate_sets_stable": true
+    }
+  ],
+  "complete": true,
+  "sampled_screen_passed": true,
+  "uniqueness_supported": false,
+  "limitation": "Finite grid and omitted cutoff intervals; no certified global exclusion.",
+  "candidate_sets_stable": true,
+  "lower_omitted_interval": [
+    1.5707963267948966,
+    1.5709963267948965
+  ],
+  "upper_omitted_interval": [
+    3.1415925535897933,
+    3.141592653589793
+  ]
+}

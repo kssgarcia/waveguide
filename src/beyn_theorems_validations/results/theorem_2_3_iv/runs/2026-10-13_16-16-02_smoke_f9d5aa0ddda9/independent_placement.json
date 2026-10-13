@@ -1,0 +1,74 @@
+[
+  {
+    "epsilon": 0.02,
+    "search_a1": 0.0,
+    "correction_bound": 32.0,
+    "a_recovered": -0.004595457722510306,
+    "placement_difference": 8.737437856565222e-13,
+    "relative_sigma_difference": 3.101776011467252e-11,
+    "root_norm": 8.800235524834197e-11,
+    "physical_supported": true,
+    "spectral_supported": true,
+    "attempts": [
+      {
+        "source": "zero-placement",
+        "optimizer_success": true,
+        "message": "`xtol` termination condition is satisfied.",
+        "root_norm": 1.0757921164867682e-10,
+        "coupling_residual": 3.0349962495896232e-12,
+        "jacobian_condition": 6.757958169302272,
+        "correction": -11.488644306384073,
+        "log_sigma_ratio": -0.0020126742270808423,
+        "accepted": true
+      },
+      {
+        "source": "positive-placement",
+        "optimizer_success": true,
+        "message": "`xtol` termination condition is satisfied.",
+        "root_norm": 8.800235524834197e-11,
+        "coupling_residual": 1.3647601822527742e-11,
+        "jacobian_condition": 6.757960750996666,
+        "correction": -11.488644306275765,
+        "log_sigma_ratio": -0.0020126743242026234,
+        "accepted": true
+      }
+    ],
+    "passed": true
+  },
+  {
+    "epsilon": 0.1,
+    "search_a1": 0.0,
+    "correction_bound": 32.0,
+    "a_recovered": -0.023017220676493044,
+    "placement_difference": 7.5692924150772e-14,
+    "relative_sigma_difference": 2.2032844144232366e-11,
+    "root_norm": 1.2617028309283139e-11,
+    "physical_supported": true,
+    "spectral_supported": true,
+    "attempts": [
+      {
+        "source": "zero-placement",
+        "optimizer_success": true,
+        "message": "`xtol` termination condition is satisfied.",
+        "root_norm": 3.451584499569374e-11,
+        "coupling_residual": 8.852714353939758e-12,
+        "jacobian_condition": 1.5615213285503853,
+        "correction": -2.3017220676397945,
+        "log_sigma_ratio": -0.13805882237696945,
+        "accepted": true
+      },
+      {
+        "source": "positive-placement",
+        "optimizer_success": true,
+        "message": "`xtol` termination condition is satisfied.",
+        "root_norm": 1.2617028309283139e-11,
+        "coupling_residual": 1.3396650847854225e-11,
+        "jacobian_condition": 1.5604434837100059,
+        "correction": -2.3017220676493038,
+        "log_sigma_ratio": -0.1380588223629359,
+        "accepted": true
+      }
+    ],
+    "passed": true
+  }
+]

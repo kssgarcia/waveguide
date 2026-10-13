@@ -1,0 +1,104 @@
+test_both_moments_must_converge (test_first_theorem_beyn.BeynTests.test_both_moments_must_converge) ... ok
+test_diagonal_nonlinear_eigenproblem (test_first_theorem_beyn.BeynTests.test_diagonal_nonlinear_eigenproblem) ... ok
+test_rank_alone_never_certifies_uniqueness (test_first_theorem_beyn.BeynTests.test_rank_alone_never_certifies_uniqueness) ... ok
+test_configuration_and_geometry_invalidate_fingerprint (test_first_theorem_beyn.CacheTests.test_configuration_and_geometry_invalidate_fingerprint) ... ok
+test_legacy_directory_cannot_be_written (test_first_theorem_beyn.CacheTests.test_legacy_directory_cannot_be_written) ... ok
+test_unsigned_legacy_cache_is_not_reused (test_first_theorem_beyn.CacheTests.test_unsigned_legacy_cache_is_not_reused) ... ok
+test_genuine_near_null_vector_passes (test_first_theorem_beyn.CertificateTests.test_genuine_near_null_vector_passes) ... ok
+test_large_unrelated_scale_does_not_hide_nonsingular_valley (test_first_theorem_beyn.CertificateTests.test_large_unrelated_scale_does_not_hide_nonsingular_valley) ... ok
+test_nonfinite_matrix_rejected (test_first_theorem_beyn.CertificateTests.test_nonfinite_matrix_rejected) ... ok
+test_small_ratio_but_wrong_vector_large_residual_rejected (test_first_theorem_beyn.CertificateTests.test_small_ratio_but_wrong_vector_large_residual_rejected) ... ok
+test_cutoff_near_pole_count_and_moment_converge (test_first_theorem_beyn.ContourQuadratureTests.test_cutoff_near_pole_count_and_moment_converge) ... ok
+test_midpoint_compatibility_and_invalid_rule (test_first_theorem_beyn.ContourQuadratureTests.test_midpoint_compatibility_and_invalid_rule) ... ok
+test_positive_weights_cover_circle_and_smooth_integral (test_first_theorem_beyn.ContourQuadratureTests.test_positive_weights_cover_circle_and_smooth_integral) ... ok
+test_candidate_lost_between_levels_cannot_support_absence (test_first_theorem_beyn.CrossRouteTests.test_candidate_lost_between_levels_cannot_support_absence) ... ok
+test_complete_scan_cannot_override_incomplete_beyn_diagnostic (test_first_theorem_beyn.CrossRouteTests.test_complete_scan_cannot_override_incomplete_beyn_diagnostic) ... ok
+test_evaluated_rejected_valley_requires_independent_exclusion (test_first_theorem_beyn.CrossRouteTests.test_evaluated_rejected_valley_requires_independent_exclusion) ... ok
+test_local_existence_retained_when_global_moments_do_not_converge (test_first_theorem_beyn.CrossRouteTests.test_local_existence_retained_when_global_moments_do_not_converge) ... ok
+test_nan_candidate_cannot_be_closed_by_exclusion (test_first_theorem_beyn.CrossRouteTests.test_nan_candidate_cannot_be_closed_by_exclusion) ... ok
+test_new_audit_fields_survive_csv_roundtrip (test_first_theorem_beyn.CrossRouteTests.test_new_audit_fields_survive_csv_roundtrip) ... ok
+test_signed_cache_roundtrip_and_configuration_change (test_first_theorem_beyn.CrossRouteTests.test_signed_cache_roundtrip_and_configuration_change) ... ok
+test_constant_invertible_matrix_has_zero_count (test_first_theorem_beyn.DeterminantExclusionTests.test_constant_invertible_matrix_has_zero_count) ... ok
+test_ill_conditioned_matrix_never_supports_exclusion (test_first_theorem_beyn.DeterminantExclusionTests.test_ill_conditioned_matrix_never_supports_exclusion) ... ok
+test_nan_or_failure_never_supports_exclusion (test_first_theorem_beyn.DeterminantExclusionTests.test_nan_or_failure_never_supports_exclusion) ... ok
+test_one_zero_never_supports_absence (test_first_theorem_beyn.DeterminantExclusionTests.test_one_zero_never_supports_absence) ... ok
+test_phase_underresolution_never_supports_absence (test_first_theorem_beyn.DeterminantExclusionTests.test_phase_underresolution_never_supports_absence) ... ok
+test_modal_and_lattice_agree_in_overlap (test_first_theorem_beyn.ExtendedFieldTests.test_modal_and_lattice_agree_in_overlap) ... ok
+test_modal_field_outside_lattice_disk_and_near_cutoff (test_first_theorem_beyn.ExtendedFieldTests.test_modal_field_outside_lattice_disk_and_near_cutoff) ... ok
+test_difficult_boundary_points_against_modal_and_harmonics (test_first_theorem_beyn.GreenTests.test_difficult_boundary_points_against_modal_and_harmonics) ... ok
+test_field_and_assembly_use_same_green (test_first_theorem_beyn.GreenTests.test_field_and_assembly_use_same_green) ... ok
+test_linton_table_2 (test_first_theorem_beyn.GreenTests.test_linton_table_2) ... ok
+test_periodic_and_regularized_are_consistent (test_first_theorem_beyn.GreenTests.test_periodic_and_regularized_are_consistent) ... ok
+test_vectorized_assembly_matches_scalar_midpoint_rule (test_first_theorem_beyn.GreenTests.test_vectorized_assembly_matches_scalar_midpoint_rule) ... ok
+test_all_nan_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_all_nan_is_ambiguous) ... ok
+test_completed_monotone_scan_supports_non_detection (test_first_theorem_beyn.NonexistenceTests.test_completed_monotone_scan_supports_non_detection) ... ok
+test_discarded_candidates_are_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_discarded_candidates_are_ambiguous) ... ok
+test_evaluation_exception_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_evaluation_exception_is_ambiguous) ... ok
+test_failed_refinement_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_failed_refinement_is_ambiguous) ... ok
+test_one_nan_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_one_nan_is_ambiguous) ... ok
+test_unresolved_valley_is_ambiguous (test_first_theorem_beyn.NonexistenceTests.test_unresolved_valley_is_ambiguous) ... ok
+test_checkpoint_reuse_tamper_configuration_and_failure (test_first_theorem_beyn.PerformanceSafetyTests.test_checkpoint_reuse_tamper_configuration_and_failure) ... ok
+test_geometry_cache_key_and_immutable_arrays (test_first_theorem_beyn.PerformanceSafetyTests.test_geometry_cache_key_and_immutable_arrays) ... ok
+test_lattice_matches_frozen_reference (test_first_theorem_beyn.PerformanceSafetyTests.test_lattice_matches_frozen_reference) ... ok
+test_default_command_keeps_full_execution (test_first_theorem_beyn.RunVersioningTests.test_default_command_keeps_full_execution) ... ok
+test_each_invocation_is_unique_and_preserves_previous_files (test_first_theorem_beyn.RunVersioningTests.test_each_invocation_is_unique_and_preserves_previous_files) ... Reusing corrected sweep with verified fingerprint: /var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpdbljqe6h/paper_a_sweep_M24.csv
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Cached sweep missing/incompatible fingerprint; recomputing corrected results.
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpcrm93ex2/2026-10-13_16-44-53_full_65691d6ded4c
+Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpcrm93ex2/2026-10-13_16-44-53_full_395ed3b149ee
+ok
+test_gate_configuration_runs_in_same_directory_and_failure_is_marked (test_first_theorem_beyn.RunVersioningTests.test_gate_configuration_runs_in_same_directory_and_failure_is_marked) ... Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpwp4xz_eh/2026-10-13_16-44-53_gated_bbd78cb2dad9
+ok
+test_only_pending_selects_stages_without_running_baseline (test_first_theorem_beyn.RunVersioningTests.test_only_pending_selects_stages_without_running_baseline) ... Results for this execution: /private/var/folders/rd/ztm3378n6fz9btnt4s_7p2qw0000gn/T/tmpf71bf_w0/2026-10-13_16-44-53_pending_ab0fea049aaf
+ok
+test_cutoff_and_outside_low_k_remain_excluded (test_first_theorem_beyn.ScanEndpointTests.test_cutoff_and_outside_low_k_remain_excluded) ... ok
+test_endpoint_failure_is_not_hidden (test_first_theorem_beyn.ScanEndpointTests.test_endpoint_failure_is_not_hidden) ... ok
+test_low_k_endpoint_is_evaluated_at_exact_configured_k (test_first_theorem_beyn.ScanEndpointTests.test_low_k_endpoint_is_evaluated_at_exact_configured_k) ... ok
+test_batched_matches_scalar_kernel (test_second_theorem_X_science.XScience.test_batched_matches_scalar_kernel) ... ok
+test_disappearing_strict_candidate_is_preserved (test_second_theorem_X_science.XScience.test_disappearing_strict_candidate_is_preserved) ... ok
+test_failed_optimizer_rejected (test_second_theorem_X_science.XScience.test_failed_optimizer_rejected) ... ok
+test_graded_quadrature_counts_zero_one_two (test_second_theorem_X_science.XScience.test_graded_quadrature_counts_zero_one_two) ... ok
+test_green_modal_and_periodicity (test_second_theorem_X_science.XScience.test_green_modal_and_periodicity) ... ok
+test_independent_accelerated_modal_matrix (test_second_theorem_X_science.XScience.test_independent_accelerated_modal_matrix) ... ok
+test_modal_far_field (test_second_theorem_X_science.XScience.test_modal_far_field) ... ok
+test_moments_missing_do_not_converge (test_second_theorem_X_science.XScience.test_moments_missing_do_not_converge) ... ok
+test_mu_circle_and_identity (test_second_theorem_X_science.XScience.test_mu_circle_and_identity) ... ok
+test_nan_matrix_rejected (test_second_theorem_X_science.XScience.test_nan_matrix_rejected) ... ok
+test_odd_green_matches_half_channel_modal (test_second_theorem_X_science.XScience.test_odd_green_matches_half_channel_modal) ... ok
+test_physical_failure_and_rank_disagreement_block_uniqueness (test_second_theorem_X_science.XScience.test_physical_failure_and_rank_disagreement_block_uniqueness) ... ok
+test_projection_and_full_mode_residual (test_second_theorem_X_science.XScience.test_projection_and_full_mode_residual) ... ok
+test_reduced_complex_conjugation (test_second_theorem_X_science.XScience.test_reduced_complex_conjugation) ... ok
+test_scale_disguised_valley_rejected (test_second_theorem_X_science.XScience.test_scale_disguised_valley_rejected) ... ok
+test_batched_matches_scalar (test_second_theorem_Y_science.YScience.test_batched_matches_scalar) ... ok
+test_candidate_limit_not_silently_discarded (test_second_theorem_Y_science.YScience.test_candidate_limit_not_silently_discarded) ... ok
+test_direct_open_coefficient_and_modal_field (test_second_theorem_Y_science.YScience.test_direct_open_coefficient_and_modal_field) ... ok
+test_false_scale_and_nan_certificate (test_second_theorem_Y_science.YScience.test_false_scale_and_nan_certificate) ... ok
+test_green_modal_harmonics_and_periodicity (test_second_theorem_Y_science.YScience.test_green_modal_harmonics_and_periodicity) ... ok
+test_linton_reference (test_second_theorem_Y_science.YScience.test_linton_reference) ... ok
+test_mfs_circle_and_small_beta (test_second_theorem_Y_science.YScience.test_mfs_circle_and_small_beta) ... ok
+test_missing_physics_never_supported (test_second_theorem_Y_science.YScience.test_missing_physics_never_supported) ... ok
+test_modal_operator_independent (test_second_theorem_Y_science.YScience.test_modal_operator_independent) ... ok
+test_nan_and_failure_do_not_approve_scan (test_second_theorem_Y_science.YScience.test_nan_and_failure_do_not_approve_scan) ... ok
+test_no_silent_sigma_clipping (test_second_theorem_Y_science.YScience.test_no_silent_sigma_clipping) ... ok
+test_offgrid_batched_matches_scalar (test_second_theorem_Y_science.YScience.test_offgrid_batched_matches_scalar) ... ok
+test_optimizer_failure_not_accepted (test_second_theorem_Y_science.YScience.test_optimizer_failure_not_accepted) ... ok
+test_primary_dedup_uses_local_resolution_and_vector (test_second_theorem_Y_science.YScience.test_primary_dedup_uses_local_resolution_and_vector) ... ok
+test_printed_example_integral (test_second_theorem_Y_science.YScience.test_printed_example_integral) ... ok
+test_refinement_failure_rejected (test_second_theorem_Y_science.YScience.test_refinement_failure_rejected) ... ok
+test_signed_channel_recovers_formula_2_7 (test_second_theorem_Y_science.YScience.test_signed_channel_recovers_formula_2_7) ... ok
+test_cached_geometry_preserves_full_and_odd_matrices (test_second_theorem_harness.HarnessTests.test_cached_geometry_preserves_full_and_odd_matrices) ... ok
+test_checkpoint_inputs_config_tamper_and_failure (test_second_theorem_harness.HarnessTests.test_checkpoint_inputs_config_tamper_and_failure) ... ok
+test_failure_and_interrupt_are_not_completed (test_second_theorem_harness.HarnessTests.test_failure_and_interrupt_are_not_completed) ... ok
+test_unique_runs_preserve_previous_results (test_second_theorem_harness.HarnessTests.test_unique_runs_preserve_previous_results) ... ok
+test_y_continuation_seed_is_part_of_fingerprint (test_second_theorem_harness.HarnessTests.test_y_continuation_seed_is_part_of_fingerprint) ... ok
+
+----------------------------------------------------------------------
+Ran 86 tests in 1.990s
+
+OK
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9
+  sampled real-band screen: level=1, points=9
+  sampled real-band screen: level=2, points=9

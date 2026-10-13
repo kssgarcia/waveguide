@@ -56,6 +56,8 @@ A petición del usuario se eliminaron todos los resultados anteriores del Teorem
 
 Los resultados de los Teoremas 2.3 iii y iv se conservan bajo `results/theorem_2_3_iii/` y `results/theorem_2_3_iv/`. Cada nueva ejecución de X/Y se guarda automáticamente en su propia carpeta `runs/<fecha>_full_<id>/`; las salidas históricas se conservan. Ver [harness del Teorema 2.3](docs/THEOREM_2_3_HARNESS.md).
 
+La [validación corregida de Y](docs/theorem_2_3_iv/CORRECTED_VALIDATION.md) distingue existencia física, screen muestreado y unicidad completa. Su runner permite `--stage smoke` (.02/.10/.20 con contraste modal independiente) y `--stage full`; el script principal conserva la ejecución completa y el versionado automático.
+
 ## Pruebas del harness de 2.3
 
 ```sh

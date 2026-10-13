@@ -8,7 +8,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import second_theorem_X as x
 
 
-def modal_matrix(kb,epsilon,config,terms=3000):
+def modal_matrix(kb,epsilon,config,terms=3000,*,geometry=None,projection=None):
     """Linton modal Green, k=0 tail summed analytically; separate FD kernel."""
     width=2*config.b;k=complex(kb)/config.b
     n=np.arange(1,terms+1);p=n*np.pi/width
@@ -23,7 +23,8 @@ def modal_matrix(kb,epsilon,config,terms=3000):
         value=smooth-np.log(distance(y+eta+2*config.b)/distance(y-eta))/(4*np.pi)
         if regularized:value+=.25j*hankel1(0,k*np.hypot(xx-xi,y-eta))
         return value
-    t=x.boundary_nodes(config.bem_M);xx,yy,xp,yp,xpp,ypp=x.obstacle_geometry(t,epsilon,config)
+    t=x.boundary_nodes(config.bem_M)
+    xx,yy,xp,yp,xpp,ypp=(geometry or x.obstacle_geometry)(t,epsilon,config)
     A=np.eye(config.bem_M,dtype=complex);h=config.finite_difference_step
     for i in range(len(t)):
         for j in range(len(t)):
@@ -33,7 +34,9 @@ def modal_matrix(kb,epsilon,config,terms=3000):
             weighted=xp[j]*gy-yp[j]*gx
             if reg:weighted+=(xpp[j]*yp[j]-ypp[j]*xp[j])/(4*np.pi*(xp[j]**2+yp[j]**2))
             A[i,j]-=4*np.pi/len(t)*weighted
-    Q=x.odd_lift_matrix(config.bem_M)
+    if geometry is not None and projection is None:
+        return A
+    Q=x.odd_lift_matrix(config.bem_M) if projection is None else projection
     return Q.conj().T@A@Q
 
 

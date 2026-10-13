@@ -51,9 +51,10 @@ Instead it:
      and uses a coarse SVD minimization ONLY to obtain a seed;
   4. solves the two real equations
          Re(lambda_0(A(k,a))) = 0,
-         Im(lambda_0(A(k,a))) = 0,
-     where lambda_0 is the eigenvalue of the full BEM matrix closest to zero;
-     continuation in epsilon is used to remain on the same branch;
+         signed n=1 modal radiation coupling = 0,
+     tracking the simple eigenvalue branch from each seed. The full COMPLEX
+     matrix residual and both outgoing coefficients are certified afterwards;
+     continuation in epsilon is used only from a physically certified mode;
   5. uses fixed-M SVD only as an independent local certification of that root;
   6. reconstructs the FULL field and verifies:
          - wall Dirichlet values,
@@ -61,7 +62,7 @@ Instead it:
          - evenness under x -> -x (expected by the proof),
          - suppression of the first open transverse channel,
          - exponential decay with rate sigma;
-  7. optionally scans the entire real interval Lambda_1 < k^2 < Lambda_2 at
+  7. optionally screens a refined finite real grid strictly inside the band at
      the tuned placement to look for additional non-radiating singular minima;
   8. checks both asymptotic laws
          sigma/epsilon^2 -> pi^3*mu/b^3
@@ -76,13 +77,16 @@ The paper also gives, in Example 5.4 for a slightly perturbed circle,
 
 This script does NOT hard-code that approximation.  It evaluates the theorem's
 formula (2.7) numerically from Psi.  The value -beta/12 is written to the output
-only as a separate paper-example diagnostic.
+only as a separate paper-example diagnostic. Substitution of the printed
+f0/f1 into (5.47) gives -beta/2; the last coefficient in that example conflicts
+with its preceding formulas. No printed coefficient is imposed on the solver.
 
 This is a numerical validation, not a proof of theorem-wide existence,
 uniqueness, analyticity, or Big-O bounds.
 """
 
 import csv
+import json
 from functools import lru_cache
 import execution_harness as harness
 import math
@@ -117,7 +121,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 import lattice_sums as lattice  # noqa: E402
 
 PI = np.pi
-ASSEMBLY_VERSION = "2026-10-07-periodic-green-direct-a1-v2"
+ASSEMBLY_VERSION = "2026-10-13-Y-signed-channel-certified-v3"
 
 
 # ---------------------------------------------------------------------------
@@ -205,10 +209,14 @@ class Config:
     coarse_seed_xtol: float = 1.0e-6
     coarse_seed_ftol: float = 1.0e-8
 
-    # Stage 2: solve Re(lambda_0)=Im(lambda_0)=0 for the eigenvalue of A
+    # Stage 2: solve the spectral crossing and signed modal coupling; certify
+    # the full complex operator afterwards. Track the eigenvalue of A
     # closest to zero. Variables are c and log(sigma/sigma_asym), where
     # a=epsilon*a1+c*epsilon^2.
-    root_max_nfev: int = 80
+    root_max_nfev: int = 120
+    root_jacobian_step: float = 1.0e-3
+    root_jacobian_condition_limit: float = 1.0e10
+    root_branch_overlap_minimum: float = 0.5
     root_xtol: float = 1.0e-11
     root_ftol: float = 1.0e-11
     root_gtol: float = 1.0e-11
@@ -232,6 +240,14 @@ class Config:
     # an otherwise non-small smin look acceptable.
     relative_near_singular_tolerance: float = 1.0e-4
     scaled_smin_tolerance: float = 1.0e-4
+    singular_vector_residual_tolerance: float = 1.0e-8
+    equilibrated_residual_tolerance: float = 1.0e-8
+    equilibrated_smin_tolerance: float = 1.0e-8
+    field_modal_terms: int = 128
+    field_modal_relative_tolerance: float = 1.0e-12
+    physical_modal_projection_tolerance: float = 1.0e-7
+    mfs_offgrid_residual_tolerance: float = 1.0e-7
+    mfs_identity_relative_tolerance: float = 1.0e-7
     minimum_drop_factor: float = 100.0
     drop_probe_relative_sigma: float = 0.08
 
@@ -261,6 +277,8 @@ class Config:
     uniqueness_upper_k_margin: float = 1.0e-7
     uniqueness_exclusion_k_radius: float = 2.0e-3
     uniqueness_max_candidates: int = 10
+    uniqueness_refinement_levels: tuple[int, ...] = (1, 2)
+    uniqueness_candidate_stability_tolerance: float = 1.0e-7
 
     # Geometry/symmetry checks.
     geometry_symmetry_tolerance: float = 1.0e-12
@@ -314,6 +332,9 @@ class MFSRow:
     a1_paper_example_leading: float
     boundary_relative_residual: float
     zero_total_source_error: float
+    offgrid_relative_residual: float = math.nan
+    mu_boundary_identity: float = math.nan
+    identity_relative_error: float = math.nan
 
 
 @dataclass
@@ -355,6 +376,13 @@ class TunedMode:
     root_nfev: int
     root_seed_source: str
     continuation_seed_used: bool
+    normalized_residual: float = math.nan
+    equilibrated_residual: float = math.nan
+    equilibrated_sigma_min: float = math.nan
+    root_jacobian_condition: float = math.inf
+    modal_coupling_residual: float = math.nan
+    root_optimizer_message: str = ""
+    root_attempts_json: str = "[]"
 
 
 @dataclass
@@ -387,6 +415,8 @@ class PhysicalDiagnostics:
     walls_verified: bool
     boundary_integral_verified: bool
     decay_verified: bool
+    modal_projection_discrepancy: float = math.nan
+    modal_projection_verified: bool = False
 
 
 @dataclass
@@ -401,6 +431,24 @@ class AdditionalCandidate:
     boundary_even_residual: float
     open_channel_relative_amplitude: float
     nonradiating_resolved_candidate: bool
+    status: str = "ambiguous"
+    reason: str = ""
+    optimizer_success: bool = False
+    minimum_is_interior: bool = False
+    scan_level: int = 0
+
+
+@dataclass
+class ScreenResult:
+    scan: np.ndarray
+    values: np.ndarray
+    candidates: list[AdditionalCandidate]
+    diagnostics: dict
+
+    def __iter__(self):
+        yield self.scan
+        yield self.values
+        yield self.candidates
 
 
 @dataclass
@@ -442,6 +490,13 @@ class ValidationResult:
     uniqueness_screen_run: bool
     additional_resolved_bics: int
     uniqueness_screen_passed: bool | None
+    mode_exists_supported: bool = False
+    uniqueness_supported: bool = False
+    uniqueness_status: str = "ambiguous/not-established"
+    screen_diagnostics_json: str = "{}"
+    normalized_residual: float = math.nan
+    equilibrated_residual: float = math.nan
+    equilibrated_sigma_min: float = math.nan
 
 
 @dataclass
@@ -455,6 +510,12 @@ class InternalConvergenceRow:
     scaled_singular_value: float
     relative_kb_shift_from_reference: float
     relative_sigma_shift_from_reference: float
+    a_numerical: float = math.nan
+    a_shift_from_reference: float = math.nan
+    physical_bic_verified: bool = False
+    open_channel_relative_amplitude: float = math.nan
+    normalized_residual: float = math.nan
+    status: str = "ambiguous"
 
 
 @dataclass
@@ -671,6 +732,7 @@ def _solve_reference_mfs(
     ts = 2.0 * PI * np.arange(N, dtype=float) / N
     Xs, Ys, *_ = reference_obstacle_geometry(ts, cfg)
     rho = float(cfg.mfs_source_scale if source_scale_override is None else source_scale_override)
+    if not 0<rho<1:raise ValueError("MFS sources must lie inside the star-shaped obstacle")
     sx = rho * Xs
     sy = rho * Ys
 
@@ -733,6 +795,12 @@ def _solve_reference_mfs(
         abs(a1_27), abs(a1_547), 1.0e-30
     )
 
+    normal_x=-Ypq/np.hypot(Xpq,Ypq);normal_y=Xpq/np.hypot(Xpq,Ypq)
+    r2q=dxq*dxq+dyq*dyq
+    offgrid=-(dxq*normal_x[:,None]+dyq*normal_y[:,None])/(2*PI*r2q)@c
+    offgrid_res=float(np.linalg.norm(offgrid-normal_y)/np.linalg.norm(normal_y))
+    mu_identity=float((area+dt*np.sum(Psi*Xpq))/(2*PI))
+    identity_error=abs(mu_identity-mu)/max(abs(mu),1e-30)
     row = MFSRow(
         beta=float(cfg.shape_beta),
         order=N,
@@ -746,6 +814,8 @@ def _solve_reference_mfs(
         a1_paper_example_leading=float(-cfg.shape_beta / 12.0),
         boundary_relative_residual=float(residual),
         zero_total_source_error=total_source,
+        offgrid_relative_residual=offgrid_res,mu_boundary_identity=mu_identity,
+        identity_relative_error=float(identity_error),
     )
     return row, c, sx, sy
 
@@ -778,7 +848,7 @@ def run_mfs_convergence(
     if len(rows) >= 2:
         mu_change = abs(rows[-1].mu - rows[-2].mu) / max(abs(rows[-1].mu), 1e-30)
         a1_change = abs(rows[-1].a1_formula_2_7 - rows[-2].a1_formula_2_7) / max(
-            abs(rows[-1].a1_formula_2_7), 1e-30
+            abs(rows[-1].a1_formula_2_7), config.mfs_circle_a1_tolerance
         )
         if mu_change > config.mfs_convergence_relative_tolerance:
             print(
@@ -791,6 +861,14 @@ def run_mfs_convergence(
                 f"{a1_change:.3e} exceeds configured tolerance."
             )
 
+    for row in [circle,final]:
+        if (not np.all(np.isfinite([row.mu,row.a1_formula_2_7,row.offgrid_relative_residual,row.identity_relative_error]))
+            or row.offgrid_relative_residual>config.mfs_offgrid_residual_tolerance
+            or row.identity_relative_error>config.mfs_identity_relative_tolerance):
+            raise RuntimeError("MFS off-grid/identity certificate failed")
+    if len(rows)<2:raise RuntimeError("MFS convergence needs at least two orders")
+    if max(mu_change,a1_change)>config.mfs_convergence_relative_tolerance:
+        raise RuntimeError("MFS mu/a1 order convergence not established")
     if final.mu <= 0.0:
         raise RuntimeError(f"Theorem requires mu>0; MFS returned {final.mu}.")
 
@@ -844,6 +922,9 @@ def run_a1_robustness_study(
             "WARNING: a1 robustness spread exceeds tolerance: "
             f"max relative difference={worst:.3e}."
         )
+    if (not rows or not np.all(np.isfinite([r.relative_difference_from_primary for r in rows]))
+        or worst>config.a1_robustness_relative_tolerance):
+        raise RuntimeError("a1 source-scale/quadrature robustness not established")
     return rows
 
 
@@ -936,8 +1017,8 @@ def make_green_functions(
         yf = float(y) + b
         ys = float(eta) + b
         X = float(x) - float(xi)
-        Y1 = wrap_periodic_y(yf - ys)
-        Y2 = wrap_periodic_y(yf + ys)
+        Y1 = wrap_periodic_y(float(y) - float(eta))
+        Y2 = wrap_periodic_y(float(y) + float(eta) + 2*b)
         term1 = lattice.greens_periodic(X, Y1, coefficients, k, period)
         term2 = lattice.greens_periodic(X, Y2, coefficients, k, period)
         return term1 - term2
@@ -946,8 +1027,8 @@ def make_green_functions(
         yf = float(y) + b
         ys = float(eta) + b
         X = float(x) - float(xi)
-        Y1 = wrap_periodic_y(yf - ys)
-        Y2 = wrap_periodic_y(yf + ys)
+        Y1 = wrap_periodic_y(float(y) - float(eta))
+        Y2 = wrap_periodic_y(float(y) + float(eta) + 2*b)
         term1 = lattice.greens_periodic_reg(X, Y1, coefficients, k, period)
         term2 = lattice.greens_periodic(X, Y2, coefficients, k, period)
         return term1 - term2
@@ -1012,7 +1093,7 @@ def weighted_normal_kernel(
     return geometric_term + regularized_term
 
 
-def assemble_full_matrix(
+def assemble_full_matrix_scalar(
     kb: complex,
     epsilon: float,
     a: float,
@@ -1040,12 +1121,64 @@ def assemble_full_matrix(
     return np.eye(M, dtype=np.complex128) - (4.0 * PI / M) * K
 
 
+def assemble_full_matrix(
+    kb: complex,
+    epsilon: float,
+    a: float,
+    M: int,
+    config: Config,
+) -> np.ndarray:
+    period = 4*config.b
+    k = complex(kb)/config.b
+    coeffs = lattice.lattice_sums(period,k,beta=0.,M=config.lattice_terms,Lh=config.harmonic_order)
+    X,Y,Dx,Dy,Iy,xp,yp,curvature,plans = _assembly_geometry(epsilon,a,M,config)
+    shifted = (_periodic_array(X,Y,coeffs,k,False,plans[0])
+               - _periodic_array(X,Iy,coeffs,k,False,plans[1]))
+    h=config.finite_difference_step
+    gx=(shifted[0]-shifted[1])/(2*h);gy=(shifted[2]-shifted[3])/(2*h)
+    weighted=xp[None,:]*gy-yp[None,:]*gx
+    reg=(_periodic_array(Dx,Dy,coeffs,k,True,plans[2])
+         - _periodic_array(Dx,plans[4],coeffs,k,False,plans[3]))
+    gx=(reg[0]-reg[1])/(2*h);gy=(reg[2]-reg[3])/(2*h)
+    weighted[np.diag_indices(M)]=curvature+xp*gy-yp*gx
+    return np.eye(M,dtype=complex)-(4*PI/M)*weighted
+
+
+def _periodic_array(X,Y,coeffs,k,regularized,plan):
+    radius,angular=plan
+    argument=k*radius
+    result=lattice.J0(argument) if regularized else lattice.H0(argument)
+    for order,coefficient in enumerate(coeffs):
+        result=result+(1 if order==0 else 2)*coefficient*lattice.jv(order,argument)*angular[order]
+    return -.25j*result
+
+
+@lru_cache(maxsize=16)
+def _assembly_geometry(epsilon,a,M,config):
+    t=boundary_nodes(M);x,y,xp,yp,xpp,ypp=obstacle_geometry(t,epsilon,a,config)
+    h=config.finite_difference_step;period=4*config.b
+    xi=np.stack([x+h,x-h,x,x]);eta=np.stack([y,y,y+h,y-h])
+    X=x[None,:,None]-xi[:,None,:];Y=y[None,:,None]-eta[:,None,:]
+    Iy=y[None,:,None]+eta[:,None,:]+2*config.b
+    Dx=x[None,:]-xi;Dy=y[None,:]-eta;Di=y[None,:]+eta+2*config.b
+    def prepare(xx,yy):
+        yy=(yy+period/2)%period-period/2
+        radius=np.hypot(xx,yy)
+        if np.any(radius>.99*period):raise ValueError("Outside lattice Green disk")
+        angle=PI/2-np.arctan2(yy,xx)
+        return radius,np.stack([np.cos(n*angle) for n in range(2*config.harmonic_order+1)])
+    plans=(prepare(X,Y),prepare(X,Iy),prepare(Dx,Dy),prepare(Dx,Di),Di)
+    curvature=(xpp*yp-ypp*xp)/(4*PI*(xp*xp+yp*yp))
+    return X,Y,Dx,Dy,Iy,xp,yp,curvature,plans
+
+
+
 def _matrix_reference_scale(A: np.ndarray) -> float:
     """Typical row scale used to prevent one huge singular value from hiding smin."""
     row_norms = np.linalg.norm(A, axis=1)
     finite = row_norms[np.isfinite(row_norms) & (row_norms > 0.0)]
-    if finite.size == 0:
-        return 1.0
+    if finite.size!=len(row_norms) or not np.all(np.isfinite(A)):
+        raise ValueError("Nonfinite or zero row scale")
     return max(float(np.median(finite)), np.finfo(float).tiny)
 
 
@@ -1096,13 +1229,13 @@ def relative_sv_from_sigma(
 ) -> float:
     kb = kb_from_sigma(float(sigma), config)
     if not (kb_1(config) < kb < kb_2(config)):
-        return 1.0
+        return math.nan
     try:
         _, _, rel, scaled = full_singular_metrics(
             kb, epsilon, a, config.bem_M, config
         )
     except Exception:
-        return 1.0
+        return math.nan
     return float(rel)
 
 
@@ -1115,13 +1248,13 @@ def singularity_measure_from_sigma(
     """Combined scale-robust singularity measure used for local discovery."""
     kb = kb_from_sigma(float(sigma), config)
     if not (kb_1(config) < kb < kb_2(config)):
-        return 1.0
+        return math.nan
     try:
         _, _, rel, scaled = full_singular_metrics(
             kb, epsilon, a, config.bem_M, config
         )
     except Exception:
-        return 1.0
+        return math.nan
     return float(max(rel, scaled))
 
 
@@ -1138,54 +1271,111 @@ def boundary_x_even_residual(vector: np.ndarray) -> float:
     )
 
 
+def modal_open_channel_coefficients(kb, epsilon, a, vector, config):
+    """Exact n=1 outgoing coefficient of the represented double-layer density.
+
+    G_n=-exp(-q|x-xi|) phi_n(y)phi_n(eta)/(2b*q), q=-i*p1.
+    Both sides use exp(+i*p1*distance); the source derivative gives the signs
+    below. No y-quadrature, harmonic expansion or finite differences is used.
+    """
+    t=boundary_nodes(len(vector));xi,eta,xp,yp,*_=obstacle_geometry(t,epsilon,a,config)
+    q1=math.sqrt((kb/config.b)**2-lambda_1(config));p=PI/(2*config.b)
+    phi=np.cos(p*eta);dphi=-p*np.sin(p*eta);dt=2*PI/len(t)
+    right=dt*np.sum(vector*np.exp(-1j*q1*xi)*(xp*dphi+1j*q1*yp*phi))
+    left=dt*np.sum(vector*np.exp(+1j*q1*xi)*(xp*dphi-1j*q1*yp*phi))
+    factor=-1j/(2*config.b*q1)
+    return complex(factor*left),complex(factor*right)
+
+
+def certify_full_mode(kb,epsilon,a,M,interior,drop,config):
+    A=assemble_full_matrix(complex(kb),epsilon,a,M,config)
+    if not np.all(np.isfinite(A)):raise ValueError("Nonfinite mode matrix")
+    _,sv,vh=np.linalg.svd(A);v=vh.conj().T[:,-1];rows=np.linalg.norm(A,axis=1)
+    if sv[0]<=0 or np.any(rows<=np.finfo(float).tiny):raise ValueError("Degenerate mode matrix")
+    B=A/rows[:,None];bs=np.linalg.svd(B,compute_uv=False)
+    residual=float(np.linalg.norm(A@v)/(sv[0]*np.linalg.norm(v)))
+    eq=float(np.linalg.norm(B@v)/(bs[0]*np.linalg.norm(v)))
+    supported=bool(np.all(np.isfinite([residual,eq,bs[-1],drop])) and interior
+                   and drop>=config.minimum_drop_factor
+                   and sv[-1]/sv[0]<=config.relative_near_singular_tolerance
+                   and sv[-1]/_matrix_reference_scale(A)<=config.scaled_smin_tolerance
+                   and residual<=config.singular_vector_residual_tolerance
+                   and eq<=config.equilibrated_residual_tolerance
+                   and bs[-1]<=config.equilibrated_smin_tolerance)
+    return dict(supported=supported,normalized_residual=residual,
+                equilibrated_residual=eq,equilibrated_sigma_min=float(bs[-1]))
+
+
 def near_zero_eigenpair(
     kb: float,
     epsilon: float,
     a: float,
     M: int,
     config: Config,
+    anchor: np.ndarray | None = None,
 ) -> tuple[complex, np.ndarray, float]:
     """Return the eigenvalue of A closest to zero and its right eigenvector.
 
     A true BIC at real (k,a) makes the full outgoing BEM operator singular.
-    For a simple root, one eigenvalue lambda_0(A) crosses zero in C.  Solving
-    Re(lambda_0)=Im(lambda_0)=0 uses exactly the two real parameters available
-    here: the O(epsilon^2) placement correction and sigma.
+    Each root solve tracks its seeded eigenvector overlap. The root uses a
+    signed radiation constraint; the full complex eigenvalue is still tested
+    independently before spectral certification.
     """
     A = assemble_full_matrix(complex(kb, 0.0), epsilon, a, M, config)
     eigvals, eigvecs = np.linalg.eig(A)
-    idx = int(np.argmin(np.abs(eigvals)))
+    if anchor is None:
+        idx = int(np.argmin(np.abs(eigvals)))
+    else:
+        overlaps=np.abs(anchor.conj()@eigvecs)/np.linalg.norm(eigvecs,axis=0)
+        idx=int(np.argmax(overlaps))
+        if overlaps[idx]<config.root_branch_overlap_minimum:
+            raise ValueError("Lost tracked eigenvalue branch")
     lam = complex(eigvals[idx])
     vec = np.asarray(eigvecs[:, idx], dtype=np.complex128)
     vec /= max(float(np.linalg.norm(vec)), 1.0e-30)
-    pivot = int(np.argmax(np.abs(vec)))
-    if abs(vec[pivot]) > 0.0:
-        vec *= np.exp(-1j * np.angle(vec[pivot]))
+    if anchor is not None:
+        vec *= np.exp(-1j*np.angle(np.vdot(anchor,vec)))
+    else:
+        pivot = int(np.argmax(np.abs(vec)))
+        if abs(vec[pivot]) > 0.0:
+            vec *= np.exp(-1j * np.angle(vec[pivot]))
     scale = _matrix_reference_scale(A)
     return lam, vec, scale
 
 
-def _root_residual(
-    x: np.ndarray,
-    epsilon: float,
-    a1: float,
-    sigma_asym: float,
-    config: Config,
-) -> np.ndarray:
-    a, sigma, kb = _joint_candidate_from_variables(
-        epsilon, a1, sigma_asym, float(x[0]), float(x[1]), config
-    )
-    ok, _ = geometry_admissibility(epsilon, a, config)
-    if not ok or not (kb_1(config) < kb < kb_2(config)):
-        return np.array([1.0, 1.0], dtype=float)
-    try:
-        lam, _, matrix_scale = near_zero_eigenpair(
-            kb, epsilon, a, config.bem_M, config
-        )
-    except Exception:
-        return np.array([1.0, 1.0], dtype=float)
-    scale = max(matrix_scale, 1.0e-30)
-    return np.array([lam.real / scale, lam.imag / scale], dtype=float)
+def _root_residual(x,epsilon,a1,sigma_asym,config,anchor=None):
+    """Spectral crossing plus signed radiation coupling in the x-even branch.
+
+    For a real x-even density the modal source integral is real (left=right),
+    and its zero cancels the outgoing n=1 wave. This avoids solving its squared
+    leakage through Im(lambda). The final COMPLEX matrix residual and both
+    COMPLEX outgoing coefficients remain independent acceptance requirements.
+    """
+    a,sigma,kb=_joint_candidate_from_variables(epsilon,a1,sigma_asym,float(x[0]),float(x[1]),config)
+    ok,reason=geometry_admissibility(epsilon,a,config)
+    if not ok:raise ValueError(reason)
+    lam,vec,scale=near_zero_eigenpair(kb,epsilon,a,config.bem_M,config,anchor)
+    q1=math.sqrt((kb/config.b)**2-lambda_1(config))
+    left,right=modal_open_channel_coefficients(kb,epsilon,a,vec.real.astype(complex),config)
+    # Undo -i/(2b*q1), then normalize the O(epsilon^2) source coupling.
+    coupling=(1j*2*config.b*q1*(left+right)/2).real/max(epsilon**2,1e-30)
+    residual=np.array([lam.real/scale,coupling],float)
+    if not np.all(np.isfinite(residual)):raise ValueError("Nonfinite root residual")
+    return residual
+
+
+def _root_jacobian(x,epsilon,a1,sigma_asym,config,anchor=None):
+    h=config.root_jacobian_step
+    columns=[]
+    for j in range(2):
+        step=np.eye(2)[j]*h
+        plus=x+step;minus=x-step
+        if j==1:
+            low,high=_log_sigma_bounds(sigma_asym,config)
+            plus[1]=min(plus[1],high);minus[1]=max(minus[1],low)
+        columns.append((_root_residual(plus,epsilon,a1,sigma_asym,config,anchor)
+                        -_root_residual(minus,epsilon,a1,sigma_asym,config,anchor))/(plus[j]-minus[j]))
+    return np.column_stack(columns)
 
 
 def _variables_from_previous_mode(
@@ -1204,92 +1394,64 @@ def _variables_from_previous_mode(
     return np.array([c, log_ratio], dtype=float)
 
 
+def _log_sigma_bounds(sigma_asym,config):
+    low,high=sigma_band(config);limit=math.log(config.sigma_search_factor)
+    bounds=(max(-limit,math.log(low/sigma_asym)+1e-8),
+            min(limit,math.log(high/sigma_asym)-1e-8))
+    if not bounds[0]<bounds[1]:raise ValueError("Empty physical sigma search window")
+    return bounds
+
+
 def _clip_seed(
     seed: np.ndarray,
     c_bound: float,
-    log_bound: float,
+    log_bounds: tuple[float,float],
 ) -> np.ndarray:
     margin = 1.0e-9
     return np.array([
         float(np.clip(seed[0], -c_bound + margin, c_bound - margin)),
-        float(np.clip(seed[1], -log_bound + margin, log_bound - margin)),
+        float(np.clip(seed[1], log_bounds[0] + margin, log_bounds[1] - margin)),
     ])
 
 
-def _solve_complex_eigenvalue_root(
-    epsilon: float,
-    a1: float,
-    sigma_asym: float,
-    c_bound: float,
-    seeds: list[tuple[str, np.ndarray]],
-    config: Config,
-) -> tuple[Any, str, complex, float]:
-    """Solve the complex zero from several seeds without accepting the first root blindly.
-
-    Priority seeds (continuation/theorem-leading/coarse-SVD) are all evaluated and
-    compared.  The deterministic multistart cloud is used only if none of those
-    produces an acceptable root.  This avoids branch selection being determined
-    solely by seed ordering, which is particularly important for the smallest
-    epsilon where several near-singular branches can coexist numerically.
-    """
-    log_bound = math.log(config.sigma_search_factor)
-
-    def solve_one(source: str, raw_seed: np.ndarray) -> tuple[Any, str, complex, float] | None:
-        seed = _clip_seed(np.asarray(raw_seed, dtype=float), c_bound, log_bound)
+def _solve_complex_eigenvalue_root(epsilon,a1,sigma_asym,c_bound,seeds,config):
+    """Track each seeded branch and retain complete failure/endpoint diagnostics."""
+    log_bounds=_log_sigma_bounds(sigma_asym,config);attempts=[];results=[]
+    for source,raw_seed in seeds:
+        if source.startswith('multistart') and any(r[4] for r in results):break
+        seed=_clip_seed(np.asarray(raw_seed,float),c_bound,log_bounds)
         try:
-            result: Any = least_squares(
-                lambda x: _root_residual(
-                    np.asarray(x, dtype=float),
-                    epsilon,
-                    a1,
-                    sigma_asym,
-                    config,
-                ),
-                x0=seed,
-                bounds=(
-                    np.array([-c_bound, -log_bound], dtype=float),
-                    np.array([ c_bound,  log_bound], dtype=float),
-                ),
-                xtol=config.root_xtol,
-                ftol=config.root_ftol,
-                gtol=config.root_gtol,
-                max_nfev=config.root_max_nfev,
-                x_scale='jac',
-            )
-        except Exception:
-            return None
-
-        a, sigma, kb = _joint_candidate_from_variables(
-            epsilon, a1, sigma_asym, float(result.x[0]), float(result.x[1]), config
-        )
-        try:
-            lam, _, matrix_scale = near_zero_eigenpair(
-                kb, epsilon, a, config.bem_M, config
-            )
-            root_norm = abs(lam) / max(matrix_scale, 1.0e-30)
-        except Exception:
-            return None
-        return result, source, lam, float(root_norm)
-
-    priority = [(name, seed) for name, seed in seeds if not name.startswith('multistart')]
-    fallback = [(name, seed) for name, seed in seeds if name.startswith('multistart')]
-
-    priority_results = [r for name, seed in priority if (r := solve_one(name, seed)) is not None]
-    acceptable = [r for r in priority_results if r[3] <= config.root_residual_tolerance]
-    if acceptable:
-        return min(acceptable, key=lambda item: item[3])
-
-    all_results = list(priority_results)
-    fallback_results = [r for name, seed in fallback if (r := solve_one(name, seed)) is not None]
-    all_results.extend(fallback_results)
-    if not all_results:
-        raise RuntimeError('Complex-eigenvalue root solve failed for all seeds.')
-    return min(all_results, key=lambda item: item[3])
-
-
-# ---------------------------------------------------------------------------
-# Joint placement/eigenvalue search
-# ---------------------------------------------------------------------------
+            a,_,kb=_joint_candidate_from_variables(epsilon,a1,sigma_asym,*seed,config)
+            _,anchor,_=near_zero_eigenpair(kb,epsilon,a,config.bem_M,config)
+            result=least_squares(lambda x:_root_residual(x,epsilon,a1,sigma_asym,config,anchor),
+                seed,jac=lambda x:_root_jacobian(x,epsilon,a1,sigma_asym,config,anchor),
+                bounds=([-c_bound,log_bounds[0]],[c_bound,log_bounds[1]]),
+                xtol=config.root_xtol,ftol=config.root_ftol,gtol=config.root_gtol,
+                max_nfev=config.root_max_nfev,x_scale='jac')
+            a,_,kb=_joint_candidate_from_variables(epsilon,a1,sigma_asym,*result.x,config)
+            lam,vec,scale=near_zero_eigenpair(kb,epsilon,a,config.bem_M,config,anchor)
+            norm=abs(lam)/scale
+            jac=_root_jacobian(result.x,epsilon,a1,sigma_asym,config,anchor)
+            condition=float(np.linalg.cond(jac));coupling=float(abs(_root_residual(result.x,epsilon,a1,sigma_asym,config,anchor)[1]))
+            result.jacobian_condition=condition;result.coupling_residual=coupling
+            accepted=bool(result.success and np.isfinite(norm) and norm<=config.root_residual_tolerance
+                          and condition<=config.root_jacobian_condition_limit
+                          and coupling<=config.root_residual_tolerance)
+            attempts.append(dict(source=source,optimizer_success=bool(result.success),message=str(result.message),
+                root_norm=float(norm),coupling_residual=coupling,jacobian_condition=condition,
+                correction=float(result.x[0]),log_sigma_ratio=float(result.x[1]),accepted=accepted))
+            results.append((result,source,lam,float(norm),accepted))
+        except Exception as exc:
+            attempts.append(dict(source=source,optimizer_success=False,accepted=False,error=f'{type(exc).__name__}: {exc}'))
+        # Evaluate ALL priority seeds. Only skip fallback once one is certified
+        # by the spectral and signed-coupling endpoints, never by lambda alone.
+        if source.startswith('multistart') and any(r[4] for r in results):
+            break
+    if not results:raise RuntimeError('All root attempts failed: '+json.dumps(attempts))
+    candidates=[r for r in results if r[4]] or results
+    chosen=min(candidates,key=lambda r:(not r[4],r[3]+getattr(r[0],'coupling_residual',math.inf)))
+    chosen[0].attempts=attempts
+    return chosen[:4]
 
 
 def _joint_candidate_from_variables(
@@ -1303,7 +1465,8 @@ def _joint_candidate_from_variables(
     a = epsilon * a1 + correction * epsilon**2
     sigma = sigma_asym * math.exp(log_sigma_ratio)
     smin, smax = sigma_band(config)
-    sigma = min(max(sigma, smin), smax)
+    if not smin < sigma < smax:
+        raise ValueError("Spectral variable outside the open band; no clipping")
     return float(a), float(sigma), float(kb_from_sigma(sigma, config))
 
 
@@ -1329,6 +1492,8 @@ def _joint_objective(
         kb, epsilon, a, config.bem_M, config
     )
     measure = max(rel, scaled)
+    if not math.isfinite(measure):
+        raise ValueError("Invalid coarse spectral objective")
     return float(math.log10(max(measure, np.finfo(float).tiny)))
 
 
@@ -1355,7 +1520,8 @@ def _polish_sigma(
         method="bounded",
         options={"xatol": config.minimizer_xatol},
     )
-    sigma = float(result.x) if result.success else float(sigma_seed)
+    if not result.success:raise RuntimeError("Scalar sigma polishing failed")
+    sigma = float(result.x)
     kb = kb_from_sigma(sigma, config)
     smin, smax, rel, scaled = full_singular_metrics(
         kb, epsilon, a, config.bem_M, config
@@ -1397,7 +1563,7 @@ def tune_embedded_mode(
         kb_asym, epsilon, a_leading, config.bem_M, config
     )
 
-    log_bound = math.log(config.sigma_search_factor)
+    log_low,log_high = _log_sigma_bounds(sigma_asym,config)
     chosen: tuple[Any, str, complex, float, float, bool] | None = None
 
     for correction_bound in config.placement_correction_factors:
@@ -1413,7 +1579,7 @@ def tune_embedded_mode(
             ),
             x0=np.array([0.0, 0.0], dtype=float),
             method='Powell',
-            bounds=[(-c_bound, c_bound), (-log_bound, log_bound)],
+            bounds=[(-c_bound, c_bound), (log_low, log_high)],
             options={
                 'maxiter': config.coarse_seed_maxiter,
                 'xtol': config.coarse_seed_xtol,
@@ -1452,7 +1618,7 @@ def tune_embedded_mode(
         c = float(result.x[0])
         logr = float(result.x[1])
         c_interior = abs(c) <= config.placement_boundary_fraction * c_bound
-        sigma_interior = abs(logr) <= config.placement_boundary_fraction * log_bound
+        sigma_interior = config.placement_boundary_fraction*log_low <= logr <= config.placement_boundary_fraction*log_high
 
         chosen = (
             result, source, lam, root_norm, c_bound,
@@ -1460,7 +1626,10 @@ def tune_embedded_mode(
         )
 
         # Stop widening once a genuine interior complex root has been found.
-        if c_interior and sigma_interior and root_norm <= config.root_residual_tolerance:
+        if (c_interior and sigma_interior and result.success
+                and result.jacobian_condition <= config.root_jacobian_condition_limit
+                and result.coupling_residual <= config.root_residual_tolerance
+                and root_norm <= config.root_residual_tolerance):
             break
 
     if chosen is None:
@@ -1479,14 +1648,19 @@ def tune_embedded_mode(
     scaled_correction = (a - a_leading) / max(epsilon**2, 1.0e-30)
     placement_interior = bool(
         abs(scaled_correction) <= config.placement_boundary_fraction * c_bound
-        and abs(log_ratio) <= config.placement_boundary_fraction * log_bound
+        and config.placement_boundary_fraction*log_low <= log_ratio <= config.placement_boundary_fraction*log_high
     )
 
     measure = max(rel, scaled)
     drop = _spectral_drop_factor(epsilon, a, sigma, measure, config)
-    root_ok = bool(root_norm <= config.root_residual_tolerance)
+    root_ok = bool(result.success and math.isfinite(root_norm)
+                   and root_norm <= config.root_residual_tolerance
+                   and result.coupling_residual <= config.root_residual_tolerance
+                   and result.jacobian_condition <= config.root_jacobian_condition_limit)
+    certificate=certify_full_mode(kb,epsilon,a,config.bem_M,placement_interior,drop,config)
     resolved = bool(
-        placement_interior
+        certificate["supported"]
+        and placement_interior
         and root_ok
         and rel <= config.relative_near_singular_tolerance
         and scaled <= config.scaled_smin_tolerance
@@ -1512,7 +1686,7 @@ def tune_embedded_mode(
         search_minimum_is_interior=bool(placement_interior),
         resolved=resolved,
         leading_point_relative_singular_value=float(leading_rel),
-        root_success=root_ok,
+        root_success=bool(result.success),
         root_residual_norm=float(root_norm),
         root_eigenvalue_real=float(lam.real),
         root_eigenvalue_imag=float(lam.imag),
@@ -1520,6 +1694,12 @@ def tune_embedded_mode(
         root_nfev=int(getattr(result, 'nfev', -1)),
         root_seed_source=str(source),
         continuation_seed_used=bool(continuation_seed_used),
+        normalized_residual=certificate['normalized_residual'],
+        equilibrated_residual=certificate['equilibrated_residual'],
+        equilibrated_sigma_min=certificate['equilibrated_sigma_min'],
+        root_jacobian_condition=result.jacobian_condition,
+        modal_coupling_residual=result.coupling_residual,
+        root_optimizer_message=str(result.message),root_attempts_json=json.dumps(result.attempts),
     )
 
 
@@ -1528,10 +1708,7 @@ def tune_embedded_mode(
 # ---------------------------------------------------------------------------
 
 
-def make_extended_field_green(
-    kb: float,
-    config: Config,
-) -> Callable[..., complex]:
+def make_extended_field_green(kb: float, config: Config) -> Callable[..., complex]:
     b = config.b
     d = 2.0 * b
     period = 2.0 * d
@@ -1551,13 +1728,23 @@ def make_extended_field_green(
         yf = y + b
         ys = eta + b
         X = x - xi
-        Y1 = wrap(yf - ys)
-        Y2 = wrap(yf + ys)
+        if abs(X)>=b:
+            n=np.arange(1,config.field_modal_terms+1,dtype=float);p=n*PI/d
+            q=np.sqrt(p*p-k*k+0j)
+            q=np.where(p<k.real,-1j*np.sqrt(k*k-p*p+0j),q)
+            terms=np.exp(-q*abs(X))*np.sin(p*yf)*np.sin(p*ys)/q
+            scale=max(float(np.sum(np.abs(terms))),np.finfo(float).tiny)
+            if (not np.all(np.isfinite(terms)) or np.sum(np.abs(terms[len(terms)//2:]))>config.field_modal_relative_tolerance*scale):
+                raise ValueError("Modal field Green did not converge")
+            return complex(-np.sum(terms)/d)
+        Y1 = wrap(y - eta)
+        Y2 = wrap(y + eta + 2*b)
         return (
             lattice.greens_periodic(X, Y1, coeffs, k, period)
             - lattice.greens_periodic(X, Y2, coeffs, k, period)
         )
 
+    green.kb=kb
     return green
 
 
@@ -1584,6 +1771,25 @@ def weighted_kernel_at_field_point(
     return float(xi_p) * G_eta - float(eta_p) * G_xi
 
 
+def _modal_field(points,vector,theta,epsilon,a,kb,config):
+    n=np.arange(1,config.field_modal_terms+1,dtype=float);p=n*PI/(2*config.b)
+    k=kb/config.b;q=np.sqrt(p*p-k*k+0j)
+    q=np.where(p<k,-1j*np.sqrt(k*k-p*p+0j),q)
+    xi,eta,xp,yp,*_=obstacle_geometry(theta,epsilon,a,config)
+    points=np.asarray(points,float);X=points[:,0,None]-xi[None,:]
+    if np.any(abs(X)<config.b):raise ValueError("Modal reconstruction requires separated sections")
+    exp=np.exp(-abs(X)[:,:,None]*q[None,None,:])
+    source=(xp[:,None]*p[None,:]*np.cos((eta[:,None]+config.b)*p[None,:])/q[None,:]
+            -np.sign(X)[:,:,None]*yp[None,:,None]*np.sin((eta[:,None]+config.b)*p[None,:]))
+    terms=-(2*PI/len(theta))/(2*config.b)*np.sum(exp*source*vector[None,:,None],axis=1)
+    terms*=np.sin((points[:,1,None]+config.b)*p[None,:])
+    if not np.all(np.isfinite(terms)):raise ValueError("Nonfinite modal field")
+    tail=np.sum(abs(terms[:,len(n)//2:]),axis=1)
+    scale=np.maximum(np.sum(abs(terms),axis=1),np.finfo(float).tiny)
+    if np.any(tail>config.field_modal_relative_tolerance*scale):raise ValueError("Modal field tail did not converge")
+    return np.sum(terms,axis=1)
+
+
 def reconstruct_field_at_points(
     points: list[tuple[float, float]],
     boundary_vector: np.ndarray,
@@ -1596,7 +1802,11 @@ def reconstruct_field_at_points(
     dtheta = 2.0 * PI / len(theta)
     values = np.empty(len(points), dtype=np.complex128)
 
+    far=[i for i,(x,y) in enumerate(points) if np.min(abs(x-obstacle_geometry(theta,epsilon,a,config)[0]))>=config.b]
+    if far:
+        values[far]=_modal_field([points[i] for i in far],boundary_vector,theta,epsilon,a,float(G.kb),config)
     for i, (x, y) in enumerate(points):
+        if i in far:continue
         kernel = np.array(
             [
                 weighted_kernel_at_field_point(
@@ -1630,6 +1840,27 @@ def periodic_fourier_interpolate(
         1j * np.outer(np.asarray(theta_targets, dtype=float) - theta0, frequencies)
     )
     return phase @ coeffs
+
+
+def _offgrid_kernel_array(x,y,xi,eta,xp,yp,kb,config):
+    """Batched version of the unchanged centered source-difference kernel."""
+    h=config.finite_difference_step;period=4*config.b;k=complex(kb)/config.b
+    coefficients=lattice.lattice_sums(period,k,beta=0.,M=config.lattice_terms,Lh=config.harmonic_order)
+    xis=np.stack([xi+h,xi-h,xi,xi]);etas=np.stack([eta,eta,eta+h,eta-h])
+    X=x[None,:,None]-xis[:,None,:]
+    Y=y[None,:,None]-etas[:,None,:];IY=y[None,:,None]+etas[:,None,:]+2*config.b
+    def prepare(Y):
+        Y=(Y+period/2)%period-period/2;radius=np.hypot(X,Y)
+        if np.any(radius<=np.finfo(float).tiny):raise ValueError("Off-grid kernel source collision")
+        if np.any(radius>.99*period):raise ValueError("Outside lattice expansion disk")
+        angle=PI/2-np.arctan2(Y,X)
+        return radius,np.stack([np.cos(n*angle) for n in range(2*config.harmonic_order+1)])
+    values=(_periodic_array(X,Y,coefficients,k,False,prepare(Y))
+            -_periodic_array(X,IY,coefficients,k,False,prepare(IY)))
+    gx=(values[0]-values[1])/(2*h);gy=(values[2]-values[3])/(2*h)
+    kernel=xp[None,:]*gy-yp[None,:]*gx
+    if not np.all(np.isfinite(kernel)):raise ValueError("Nonfinite off-grid kernel")
+    return kernel
 
 
 def offgrid_boundary_integral_residual(
@@ -1668,25 +1899,11 @@ def offgrid_boundary_integral_residual(
     ) % (2.0 * PI)
 
     u_targets = periodic_fourier_interpolate(theta, boundary_vector, targets)
-    G, Greg = make_green_functions(complex(kb, 0.0), config)
-    dtheta = 2.0 * PI / source_count
-
-    residuals = np.empty(sample_count, dtype=np.complex128)
-    rhs_values = np.empty(sample_count, dtype=np.complex128)
-
-    for i, psi in enumerate(targets):
-        kernel = np.array(
-            [
-                weighted_normal_kernel(
-                    float(psi), float(src), epsilon, a, config, G, Greg
-                )
-                for src in source_theta
-            ],
-            dtype=np.complex128,
-        )
-        rhs = dtheta * np.dot(kernel, source_values)
-        rhs_values[i] = rhs
-        residuals[i] = 0.5 * u_targets[i] - rhs
+    x,y,*_=obstacle_geometry(targets,epsilon,a,config)
+    xi,eta,xp,yp,*_=obstacle_geometry(source_theta,epsilon,a,config)
+    kernel=_offgrid_kernel_array(x,y,xi,eta,xp,yp,kb,config)
+    rhs_values=(2*PI/source_count)*kernel@source_values
+    residuals=0.5*u_targets-rhs_values
 
     scale = max(
         float(np.max(np.abs(0.5 * u_targets))),
@@ -1727,6 +1944,7 @@ def first_open_channel_diagnostics(
     k = kb / b
     q1 = math.sqrt(max(k * k - lambda_1(config), 0.0))
 
+    norms_left=[];norms_right=[]
     coeffs_left: list[complex] = []
     coeffs_right: list[complex] = []
     ratios_left: list[float] = []
@@ -1742,39 +1960,32 @@ def first_open_channel_diagnostics(
             field_norm = math.sqrt(float(np.sum(y_weights * np.abs(field) ** 2)))
             ratio = abs(coeff) * math.sqrt(norm_phi_sq) / max(field_norm, 1.0e-30)
             if label == "left":
+                norms_left.append(field_norm)
                 coeffs_left.append(coeff)
                 ratios_left.append(float(ratio))
             else:
+                norms_right.append(field_norm)
                 coeffs_right.append(coeff)
                 ratios_right.append(float(ratio))
 
-    def phase_consistency(coeffs: list[complex], side: str) -> tuple[float, complex]:
-        if not coeffs:
-            return math.nan, complex(math.nan, math.nan)
-        arr = np.asarray(coeffs, dtype=np.complex128)
-        # With the project Green-function convention the outgoing sign can be
-        # implementation-dependent. Try both signs and keep the one with the
-        # smaller relative cross-section variation. This is diagnostic only.
-        candidates: list[tuple[float, np.ndarray]] = []
-        for sign in (-1.0, 1.0):
-            if side == "right":
-                phase = np.exp(sign * 1j * q1 * distances)
-            else:
-                phase = np.exp(sign * 1j * q1 * distances)
-            dephased = arr * phase
-            mean = np.mean(dephased)
-            variation = float(
-                np.max(np.abs(dephased - mean))
-                / max(float(np.max(np.abs(dephased))), 1.0e-30)
-            )
-            candidates.append((variation, dephased))
-        variation, dephased = min(candidates, key=lambda item: item[0])
-        return variation, complex(np.mean(dephased))
+    def phase_consistency(coeffs,side):
+        if not coeffs:return math.nan,complex(math.nan,math.nan)
+        arr=np.asarray(coeffs,complex)
+        dephased=arr*np.exp(-1j*q1*distances)
+        variation=float(np.max(abs(dephased-np.mean(dephased)))/max(float(np.max(abs(dephased))),1e-30))
+        return variation,complex(np.mean(dephased))
 
     left_consistency, left_signed = phase_consistency(coeffs_left, "left")
     right_consistency, right_signed = phase_consistency(coeffs_right, "right")
 
+    modal_left,modal_right=modal_open_channel_coefficients(kb,epsilon,a,vector,config)
+    discrepancies=[]
+    for coeffs,norms,modal in [(coeffs_left,norms_left,modal_left),(coeffs_right,norms_right,modal_right)]:
+        for distance,coeff,norm in zip(distances,coeffs,norms):
+            discrepancies.append(abs(coeff*np.exp(-1j*q1*distance)-modal)*math.sqrt(norm_phi_sq)/max(norm,1e-30))
     return {
+        "modal_projection_discrepancy":float(max(discrepancies,default=math.inf)),
+        "modal_coefficient_left":modal_left,"modal_coefficient_right":modal_right,
         "ratio_left": float(max(ratios_left) if ratios_left else math.nan),
         "ratio_right": float(max(ratios_right) if ratios_right else math.nan),
         "coefficient_left": left_signed,
@@ -1927,6 +2138,8 @@ def physical_mode_diagnostics(
         boundary_integral_verified=(
             bie_rel <= config.physical_boundary_residual_tolerance
         ),
+        modal_projection_discrepancy=channel["modal_projection_discrepancy"],
+        modal_projection_verified=channel["modal_projection_discrepancy"]<=config.physical_modal_projection_tolerance,
         decay_verified=bool(
             monotone_left
             and monotone_right
@@ -1996,124 +2209,126 @@ def sampled_local_minimum_brackets(
     return brackets
 
 
-def refine_k_bracket(
-    left: float,
-    right: float,
-    epsilon: float,
-    a: float,
-    config: Config,
-) -> tuple[float, float, float, float, float, float, np.ndarray]:
-    tiny = np.finfo(float).tiny
-
-    def measure(kb: float) -> float:
-        _, _, rel, scaled = full_singular_metrics(
-            float(kb), epsilon, a, config.bem_M, config
-        )
-        return max(rel, scaled)
-
-    left_measure = measure(left)
-    right_measure = measure(right)
-    result: Any = minimize_scalar(
-        lambda k: math.log10(max(measure(float(k)), tiny)),
-        bounds=(left, right),
-        method="bounded",
-        options={"xatol": config.minimizer_xatol},
-    )
-    kb = float(result.x)
-    smin, _, rel, scaled, vector = full_singular_pair(
-        kb, epsilon, a, config.bem_M, config
-    )
-    center_measure = max(rel, scaled)
-    drop = min(left_measure, right_measure) / max(center_measure, tiny)
-    return kb, sigma_from_kb(kb, config), smin, rel, scaled, drop, vector
+def refine_k_bracket(left,right,epsilon,a,config):
+    # Work in sigma: bounded optimization in k loses small-cutoff separations
+    # through its sqrt(machine-epsilon)*abs(k) stopping floor.
+    sigma_lo=sigma_from_kb(right,config);sigma_hi=sigma_from_kb(left,config)
+    def measure(sig):
+        kb=kb_from_sigma(float(sig),config)
+        _,_,rel,scaled=full_singular_metrics(kb,epsilon,a,config.bem_M,config)
+        value=max(rel,scaled)
+        if not np.isfinite(value):raise ValueError("Nonfinite refinement objective")
+        return value
+    endpoints=[measure(sigma_lo),measure(sigma_hi)]
+    result=minimize_scalar(lambda sig:math.log10(max(measure(sig),np.finfo(float).tiny)),
+            bounds=(sigma_lo,sigma_hi),method='bounded',options={'xatol':config.minimizer_xatol})
+    if not result.success:raise RuntimeError('Refinement failed: '+str(result.message))
+    sigma=float(result.x)
+    if not sigma_lo<sigma<sigma_hi:raise RuntimeError("Minimum is not interior")
+    kb=kb_from_sigma(sigma,config)
+    smin,_,rel,scaled,vector=full_singular_pair(kb,epsilon,a,config.bem_M,config)
+    drop=min(endpoints)/max(rel,scaled,np.finfo(float).tiny)
+    if not np.all(np.isfinite([sigma,kb,smin,rel,scaled,drop])):raise ValueError("Incomplete candidate metrics")
+    return kb,sigma,smin,rel,scaled,drop,vector
 
 
-def whole_band_uniqueness_screen(
-    epsilon: float,
-    mu: float,
-    mode: TunedMode,
-    config: Config,
-) -> tuple[np.ndarray, np.ndarray, list[AdditionalCandidate]]:
-    scan = build_uniqueness_grid(epsilon, mu, config)
-    values = np.empty(len(scan), dtype=float)
-
-    print(
-        f"  whole-band real-axis screen: {len(scan)} points, "
-        f"fixed M={config.bem_M}"
-    )
-
-    for i, kb in enumerate(scan):
-        _, _, rel_i, scaled_i = full_singular_metrics(
-            float(kb),
-            epsilon,
-            mode.a_numerical,
-            config.bem_M,
-            config,
-        )
-        values[i] = max(rel_i, scaled_i)
-        if (i + 1) % 20 == 0 or i + 1 == len(scan):
-            print(f"    {i+1:>3}/{len(scan)}")
-
-    brackets = sampled_local_minimum_brackets(scan, values)
-    brackets = [
-        br for br in brackets
-        if not (
-            br[0] - config.uniqueness_exclusion_k_radius
-            <= mode.kb_numerical
-            <= br[1] + config.uniqueness_exclusion_k_radius
-        )
-    ][: config.uniqueness_max_candidates]
-
-    additional: list[AdditionalCandidate] = []
-
-    for left, right in brackets:
-        kb, sigma, _, rel, scaled, drop, vector = refine_k_bracket(
-            left, right, epsilon, mode.a_numerical, config
-        )
-
-        even_res = boundary_x_even_residual(vector)
-        theta = boundary_nodes(config.bem_M)
-        channel = first_open_channel_diagnostics(
-            epsilon,
-            mode.a_numerical,
-            kb,
-            vector,
-            theta,
-            config,
-        )
-        open_rel = max(channel["ratio_left"], channel["ratio_right"])
-
-        # Do NOT require x-even parity here: uniqueness concerns any additional
-        # embedded eigenvalue, regardless of its x-parity.
-        resolved = bool(
-            rel <= config.relative_near_singular_tolerance
-            and scaled <= config.scaled_smin_tolerance
-            and drop >= config.minimum_drop_factor
-            and open_rel <= config.physical_open_channel_relative_tolerance
-            and channel["phase_consistency"] <= config.physical_channel_phase_consistency_tolerance
-        )
-
-        additional.append(
-            AdditionalCandidate(
-                epsilon=float(epsilon),
-                a=float(mode.a_numerical),
-                kb=float(kb),
-                sigma=float(sigma),
-                relative_singular_value=float(rel),
-                scaled_singular_value=float(scaled),
-                drop_factor=float(drop),
-                boundary_even_residual=float(even_res),
-                first_open_channel_relative_amplitude=float(open_rel),
-                nonradiating_resolved_candidate=resolved,
-            )
-        )
-
-    return scan, values, additional
+def candidate_matches_primary(kb,sigma,vector,epsilon,mode,config):
+    # scipy's bounded refinement has a sqrt(eps)*sigma stopping floor even
+    # when xatol is smaller. Propagate it to kb, rather than using a fixed
+    # exclusion radius. An independently recomputed vector must also agree.
+    resolution=max(10*config.minimizer_xatol,
+                   8*np.sqrt(np.finfo(float).eps)*config.b**2*sigma**2/max(abs(kb),1e-30),
+                   5*mode.normalized_residual*config.b**2*sigma**2/max(abs(kb),1e-30))
+    if abs(kb-mode.kb_numerical)>resolution:return False
+    *_,primary=full_singular_pair(mode.kb_numerical,epsilon,mode.a_numerical,config.bem_M,config)
+    overlap=abs(np.vdot(primary,vector))/(np.linalg.norm(primary)*np.linalg.norm(vector))
+    return bool(np.isfinite(overlap) and overlap>=1-1e-7)
 
 
-# ---------------------------------------------------------------------------
-# Validation
-# ---------------------------------------------------------------------------
+def whole_band_uniqueness_screen(epsilon,mu,mode,config):
+    """Converged sampled screen, never a theorem-wide uniqueness certificate."""
+    all_candidates=[];diagnostics={'levels':[],'complete':False,'sampled_screen_passed':False,
+        'uniqueness_supported':False,'limitation':'Finite grid and omitted cutoff intervals; no certified global exclusion.'}
+    previous_roots=None;stable=False
+    scan=np.array([],float);values=np.array([],float)
+    for level in config.uniqueness_refinement_levels:
+        cfg=replace(config,uniqueness_linear_points=config.uniqueness_linear_points*level,
+                    uniqueness_log_points=config.uniqueness_log_points*level)
+        scan=build_uniqueness_grid(epsilon,mu,cfg);values=np.full(len(scan),math.nan)
+        errors=[];rows=[];roots=[]
+        print(f'  sampled real-band screen: level={level}, points={len(scan)}')
+        for i,kb in enumerate(scan):
+            try:
+                _,_,rel,scaled=full_singular_metrics(float(kb),epsilon,mode.a_numerical,config.bem_M,config)
+                values[i]=max(rel,scaled)
+                if not np.isfinite(values[i]):errors.append(f'nonfinite@{kb:.16g}')
+            except Exception as exc:errors.append(f'{type(exc).__name__}@{kb:.16g}: {exc}')
+        brackets=sampled_local_minimum_brackets(scan,values)
+        for index,(left,right) in enumerate(brackets):
+            base=dict(epsilon=float(epsilon),a=float(mode.a_numerical),kb=(left+right)/2,
+                sigma=math.nan,relative_singular_value=math.nan,scaled_singular_value=math.nan,
+                drop_factor=math.nan,boundary_even_residual=math.nan,open_channel_relative_amplitude=math.nan,
+                nonradiating_resolved_candidate=False,scan_level=level)
+            if index>=config.uniqueness_max_candidates:
+                rows.append(AdditionalCandidate(**base,status='pending/candidate-limit',reason='Not evaluated; blocks screen approval'))
+                continue
+            try:
+                kb,sigma,_,rel,scaled,drop,v=refine_k_bracket(left,right,epsilon,mode.a_numerical,config)
+                base.update(kb=kb,sigma=sigma,relative_singular_value=rel,scaled_singular_value=scaled,
+                            drop_factor=drop,boundary_even_residual=boundary_x_even_residual(v))
+                cert=certify_full_mode(kb,epsilon,mode.a_numerical,config.bem_M,True,drop,config)
+                # Local deduplication AFTER refinement, not a broad pre-exclusion.
+                known=candidate_matches_primary(kb,sigma,v,epsilon,mode,config)
+                if known:
+                    status='known-root';reason='Matches independently certified primary root within local residual uncertainty'
+                elif max(rel,scaled)>max(config.relative_near_singular_tolerance,config.scaled_smin_tolerance):
+                    status='excluded-by-sampled-residual';reason='Refined sampled valley is not near singular'
+                elif not cert['supported']:
+                    status='ambiguous';reason='Near singular valley lacks complete spectral certificate'
+                else:
+                    candidate_mode=replace(mode,kb_numerical=kb,sigma_numerical=sigma)
+                    phys=physical_mode_diagnostics(epsilon,candidate_mode,config)
+                    base['open_channel_relative_amplitude']=phys.first_open_channel_relative_amplitude
+                    # Global uniqueness must allow both x-parities.
+                    physical=bool(phys.open_channel_suppressed and phys.open_channel_phase_consistent
+                        and phys.walls_verified and phys.boundary_integral_verified and phys.decay_verified
+                        and phys.modal_projection_verified)
+                    if physical:
+                        status='additional-mode-supported';reason='Full spectral and physical checks passed'
+                        base['nonradiating_resolved_candidate']=True;roots.append(kb)
+                    elif not phys.open_channel_suppressed and phys.modal_projection_verified:
+                        status='radiating-candidate';reason='Independently checked open channel is nonzero at configured resolution'
+                    else:status='ambiguous';reason='Physical diagnostics incomplete or inconclusive'
+                rows.append(AdditionalCandidate(**base,status=status,reason=reason,optimizer_success=True,minimum_is_interior=True))
+            except Exception as exc:
+                rows.append(AdditionalCandidate(**base,status='ambiguous/refinement-failed',reason=f'{type(exc).__name__}: {exc}'))
+        unresolved=[r for r in rows if r.status.startswith(('ambiguous','pending'))]
+        complete=bool(len(scan)>=3 and not errors and not unresolved and np.all(np.isfinite(values)))
+        stable=bool(previous_roots is not None and len(previous_roots)==len(roots)
+                    and (not roots or np.max(abs(np.sort(previous_roots)-np.sort(roots)))<=config.uniqueness_candidate_stability_tolerance))
+        diagnostics['levels'].append(dict(level=level,points=len(scan),brackets=len(brackets),
+            evaluated=min(len(brackets),config.uniqueness_max_candidates),unresolved=len(unresolved),
+            known_roots=sum(r.status=='known-root' for r in rows),additional_modes=roots,
+            errors=errors,complete=complete,candidate_sets_stable=stable))
+        all_candidates.extend(rows);previous_roots=roots
+    diagnostics['complete']=bool(diagnostics['levels'] and all(r['complete'] for r in diagnostics['levels']))
+    diagnostics['sampled_screen_passed']=bool(diagnostics['complete'] and stable and not previous_roots)
+    diagnostics['candidate_sets_stable']=stable
+    diagnostics['lower_omitted_interval']=[kb_1(config),kb_1(config)+config.uniqueness_lower_k_margin]
+    diagnostics['upper_omitted_interval']=[kb_2(config)-config.uniqueness_upper_k_margin,kb_2(config)]
+    return ScreenResult(scan,values,all_candidates,diagnostics)
+
+
+def physical_is_supported(physical):
+    if physical is None:return False
+    checks=('boundary_x_even_verified','field_x_even_verified','open_channel_suppressed',
+            'open_channel_phase_consistent','walls_verified','boundary_integral_verified','decay_verified',
+            'modal_projection_verified')
+    metrics=('boundary_x_even_residual','field_x_even_residual','first_open_channel_relative_amplitude',
+             'wall_relative_residual','boundary_integral_relative_residual','decay_relative_error_left',
+             'decay_relative_error_right','modal_projection_discrepancy')
+    return bool(all(getattr(physical,k,False) is True for k in checks)
+                and np.all(np.isfinite([getattr(physical,k,math.nan) for k in metrics])))
 
 
 def validate_epsilon(
@@ -2147,15 +2362,7 @@ def validate_epsilon(
     physical_ok: bool | None = None
     if config.run_physical_diagnostics and mode.resolved:
         physical = physical_mode_diagnostics(epsilon, mode, config)
-        physical_ok = bool(
-            physical.boundary_x_even_verified
-            and physical.field_x_even_verified
-            and physical.open_channel_suppressed
-            and physical.open_channel_phase_consistent
-            and physical.walls_verified
-            and physical.boundary_integral_verified
-            and physical.decay_verified
-        )
+        physical_ok = physical_is_supported(physical)
 
     run_scan = bool(
         config.run_uniqueness_screen
@@ -2165,19 +2372,23 @@ def validate_epsilon(
     )
 
     if run_scan:
-        scan, scan_values, additional = whole_band_uniqueness_screen(
+        screen = whole_band_uniqueness_screen(
             epsilon, mu, mode, config
         )
+        scan,scan_values,additional=screen
+        screen_diagnostics=screen.diagnostics
         additional_resolved = sum(
-            c.nonradiating_resolved_candidate for c in additional
+            c.nonradiating_resolved_candidate
+            for c in additional if c.scan_level==config.uniqueness_refinement_levels[-1]
         )
-        uniqueness_passed: bool | None = additional_resolved == 0
+        uniqueness_passed: bool | None = True if screen_diagnostics["sampled_screen_passed"] else None
     else:
         scan = np.array([], dtype=float)
         scan_values = np.array([], dtype=float)
         additional = []
         additional_resolved = 0
         uniqueness_passed = None
+        screen_diagnostics={"complete":False,"reason":"Screen not run"}
 
     C = asymptotic_coefficient(mu, config)
     sigma_error = abs(mode.sigma_numerical - sigma_asym) / max(
@@ -2230,8 +2441,18 @@ def validate_epsilon(
         uniqueness_screen_run=run_scan,
         additional_resolved_bics=int(additional_resolved),
         uniqueness_screen_passed=uniqueness_passed,
+        mode_exists_supported=bool(mode.resolved and physical_ok is True),
+        uniqueness_supported=False,uniqueness_status="ambiguous/not-established",
+        screen_diagnostics_json=json.dumps(screen_diagnostics),
+        normalized_residual=mode.normalized_residual,equilibrated_residual=mode.equilibrated_residual,
+        equilibrated_sigma_min=mode.equilibrated_sigma_min,
     )
 
+    directory=Path(config.output_directory)/'certificates'/f'epsilon_{epsilon:.8f}'
+    harness.atomic_json(directory/'mode.json',asdict(mode))
+    harness.atomic_json(directory/'certificate.json',asdict(result))
+    harness.atomic_json(directory/'screen.json',screen_diagnostics)
+    if physical is not None:harness.atomic_json(directory/'physical.json',asdict(physical))
     return result, mode, physical, scan, scan_values, additional
 
 
@@ -2304,78 +2525,34 @@ def build_placement_a1_fits(
 # ---------------------------------------------------------------------------
 
 
-def run_internal_convergence_study(
-    summaries: list[ValidationResult],
-    a1: float,
-    config: Config,
-) -> list[InternalConvergenceRow]:
-    if not config.run_internal_convergence_study:
-        return []
-
-    target = min(
-        summaries,
-        key=lambda r: abs(r.epsilon - config.internal_convergence_epsilon),
-    )
-    eps = target.epsilon
-    a = target.a_numerical
-    sigma_seed = target.sigma_numerical
-
-    def solve(cfg: Config) -> tuple[float, float, float, float]:
-        sigma, kb, _, rel, scaled = _polish_sigma(eps, a, sigma_seed, cfg)
-        return kb, sigma, rel, scaled
-
-    reference_cfg = config
-    kb_ref, sigma_ref, _, _ = solve(reference_cfg)
-
-    rows: list[InternalConvergenceRow] = []
-
-    def append(parameter: str, value: float, cfg: Config) -> None:
-        kb, sigma, rel, scaled = solve(cfg)
-        rows.append(
-            InternalConvergenceRow(
-                epsilon=float(eps),
-                parameter=parameter,
-                value=float(value),
-                kb=float(kb),
-                sigma_bem=float(sigma),
-                relative_singular_value=float(rel),
-                scaled_singular_value=float(scaled),
-                relative_kb_shift_from_reference=float(
-                    abs(kb - kb_ref) / max(abs(kb_ref), 1e-30)
-                ),
-                relative_sigma_shift_from_reference=float(
-                    abs(sigma - sigma_ref) / max(abs(sigma_ref), 1e-30)
-                ),
-            )
-        )
-
-    for h in config.finite_difference_steps_test:
-        append(
-            "finite_difference_step",
-            h,
-            replace(config, finite_difference_step=h),
-        )
-
-    for value in config.lattice_terms_test:
-        append(
-            "lattice_terms",
-            float(value),
-            replace(config, lattice_terms=int(value)),
-        )
-
-    for value in config.harmonic_orders_test:
-        append(
-            "harmonic_order",
-            float(value),
-            replace(config, harmonic_order=int(value)),
-        )
-
+def run_internal_convergence_study(summaries,a1,config):
+    """Retune BOTH placement and frequency, then repeat physical certificates."""
+    if not config.run_internal_convergence_study:return []
+    target=min(summaries,key=lambda r:abs(r.epsilon-config.internal_convergence_epsilon))
+    eps=target.epsilon;mu=target.mu;rows=[]
+    reference=tune_embedded_mode(eps,mu,a1,config)
+    variations=[('finite_difference_step',h,replace(config,finite_difference_step=h)) for h in config.finite_difference_steps_test]
+    variations += [('lattice_terms',float(n),replace(config,lattice_terms=n)) for n in config.lattice_terms_test]
+    variations += [('harmonic_order',float(n),replace(config,harmonic_order=n)) for n in config.harmonic_orders_test]
+    for name,value,cfg in variations:
+        row=InternalConvergenceRow(eps,name,float(value),math.nan,math.nan,math.nan,math.nan,math.nan,math.nan)
+        try:
+            mode=tune_embedded_mode(eps,mu,a1,cfg,previous_mode=reference)
+            physical=physical_mode_diagnostics(eps,mode,cfg) if mode.resolved else None
+            verified=physical_is_supported(physical)
+            row.kb=mode.kb_numerical;row.sigma_bem=mode.sigma_numerical
+            row.relative_singular_value=mode.relative_singular_value;row.scaled_singular_value=mode.scaled_singular_value
+            row.relative_kb_shift_from_reference=abs(row.kb-reference.kb_numerical)/abs(reference.kb_numerical)
+            row.relative_sigma_shift_from_reference=abs(row.sigma_bem-reference.sigma_numerical)/abs(reference.sigma_numerical)
+            row.a_numerical=mode.a_numerical;row.a_shift_from_reference=abs(mode.a_numerical-reference.a_numerical)
+            row.physical_bic_verified=verified;row.normalized_residual=mode.normalized_residual
+            row.open_channel_relative_amplitude=physical.first_open_channel_relative_amplitude if physical else math.nan
+            row.status='certified' if verified and mode.resolved else 'ambiguous/not-established'
+        except Exception as exc:row.status=f'ambiguous/{type(exc).__name__}: {exc}'
+        rows.append(row)
+        print(f'  retuned convergence {name}={value:g}: {row.status}',flush=True)
     return rows
 
-
-# ---------------------------------------------------------------------------
-# Output / plots / report
-# ---------------------------------------------------------------------------
 
 
 def write_dataclass_csv(path: Path, rows: Sequence[Any]) -> None:
@@ -2638,8 +2815,9 @@ def build_publication_claims(
         default=0.0,
     )
     a1_robust_ok = bool(
-        not a1_robustness
-        or a1_worst <= config.a1_robustness_relative_tolerance
+        a1_robustness
+        and np.all(np.isfinite([r.relative_difference_from_primary for r in a1_robustness]))
+        and a1_worst <= config.a1_robustness_relative_tolerance
     )
     claims.append(
         PublicationClaimRow(
@@ -2704,7 +2882,7 @@ def build_publication_claims(
     )
     claims.append(
         PublicationClaimRow(
-            claim=r"Placement law a = epsilon a1 + O(epsilon^2)",
+            claim=r"Finite-sample consistency with placement law a = epsilon a1 + O(epsilon^2)",
             status="supported" if placement_ok else "partial",
             evidence=(
                 f"a1 from formula (2.7)={a1:.12g}; {correction_text}; {fit_text}."
@@ -2753,7 +2931,7 @@ def build_publication_claims(
         )
         claims.append(
             PublicationClaimRow(
-                claim=r"sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
+                claim=r"Finite-sample consistency with sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
                 status="supported" if scaling_ok else "partial",
                 evidence=(
                     f"Using physically verified BICs only, relative error of sigma/epsilon^2 "
@@ -2769,7 +2947,7 @@ def build_publication_claims(
     else:
         claims.append(
             PublicationClaimRow(
-                claim=r"sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
+                claim=r"Finite-sample consistency with sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)",
                 status="not-established",
                 evidence="No physically verified small-epsilon BICs available for the asymptotic comparison.",
                 limitation="Spectral near-roots alone are not used to certify a trapped-mode asymptotic law.",
@@ -2778,7 +2956,7 @@ def build_publication_claims(
 
     scanned = [r for r in small if r.uniqueness_screen_run]
     scan_ok = bool(
-        scanned
+        len(scanned)==len(small) and len(small)>0
         and all(r.physical_bic_verified is True for r in scanned)
         and all(r.uniqueness_screen_passed is True for r in scanned)
     )
@@ -2797,6 +2975,9 @@ def build_publication_claims(
         )
     )
 
+    claims.append(PublicationClaimRow(claim="Uniqueness of the embedded mode on the full open band",
+        status="ambiguous/not-established",evidence="A finite real-axis screen is not a certified spectral count.",
+        limitation="Unscreened cutoff intervals and finite-grid exclusion are not covered by a global certificate."))
     if small_beta_fit is not None:
         example_ok = bool(small_beta_fit.relative_difference_from_paper <= 0.10)
         claims.append(
@@ -2809,8 +2990,9 @@ def build_publication_claims(
                     f"{small_beta_fit.paper_slope_minus_one_twelfth:.8g}."
                 ),
                 limitation=(
-                    "A disagreement is reported, not attributed: it may reflect a convention/normalization issue "
-                    "or an inconsistency in the printed example and requires separate analytic review."
+                    "Substituting the printed f0, f1 into (5.47) gives -beta/2, not -beta/12; "
+                    "the MFS agrees with that substitution. The displayed example is internally inconsistent; "
+                    "(2.7) remains the numerical definition, without forcing a printed reference value."
                 ),
             )
         )
@@ -2849,6 +3031,9 @@ def write_publication_report(
         "",
         "## Configuration",
         f"- assembly version = `{ASSEMBLY_VERSION}`",
+        "- Result provenance: corrected/v3. Historical embedded_validation and v2 artifacts are legacy/pre-fix.",
+        "- Existence and full-band uniqueness are separate. The finite screen never certifies full-band uniqueness.",
+        "- Formula (2.7) is retained; the printed Example 5.4 coefficient disagrees with its own (5.47) substitution.",
         f"- b = {config.b}",
         f"- beta = {config.shape_beta}",
         f"- fixed BEM order M = {config.bem_M}",
@@ -3032,11 +3217,12 @@ def print_result(
     if result.uniqueness_screen_run:
         print(
             "whole-band uniqueness screen = "
-            f"{'PASS' if result.uniqueness_screen_passed else 'FAIL'} "
+            f"{'PASS (sampled screen only)' if result.uniqueness_screen_passed else 'AMBIGUOUS'} "
             f"(additional resolved BICs={result.additional_resolved_bics})"
         )
     else:
-        print("whole-band uniqueness screen = not run for this epsilon")
+        print("sampled-band screen = not run for this epsilon")
+    print(f"mode_exists_supported={result.mode_exists_supported}; uniqueness_supported={result.uniqueness_supported} ({result.uniqueness_status})")
 
 
 def _run_validation(config: Config) -> None:
@@ -3199,7 +3385,7 @@ def _run_validation(config: Config) -> None:
 
         summaries.append(result)
         modes.append(mode)
-        if mode.resolved:
+        if result.mode_exists_supported:
             previous_mode = mode
         if physical is not None:
             physical_rows.append(physical)

@@ -1,0 +1,9 @@
+{
+  "M": 24,
+  "epsilon": 0.1,
+  "batch_seconds": 0.08503941700109863,
+  "scalar_seconds": 0.1827113340004871,
+  "single_evaluation_speedup": 2.1485487606074094,
+  "matrix_relative_difference": 4.936989244353279e-12,
+  "limitation": "Single warm-process timing; not a full-sweep speedup estimate."
+}
