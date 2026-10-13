@@ -1,1 +1,8 @@
-svd_theorems_validations/images/results/
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+# Caché de imágenes de la implementación SVD previa.
+/src/svd_theorems_validations/images/results/
