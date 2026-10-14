@@ -1,0 +1,1483 @@
+\documentclass[11pt]{article}
+
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx,array}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{physics}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage[inline]{enumitem}
+\usepackage[colorlinks]{hyperref}
+
+\newtheorem{theorem}{Teorema}
+
+% Permite compilar el artículo aunque todavía no se hayan copiado
+% todas las figuras desde src/svd_theorems_validations/.
+\newcommand{\paperfigure}[2][0.85\textwidth]{%
+    \IfFileExists{#2}
+    {\includegraphics[width=#1]{#2}}
+    {\fbox{\parbox[c][5cm][c]{0.82\textwidth}{%
+        \centering
+        \textbf{Figura pendiente}\\[0.2cm]
+        \texttt{\detokenize{#2}}
+    }}}
+}
+
+\title{Validación numérica de modos atrapados y estados ligados en el continuo inducidos por obstáculos pequeños en una guía de ondas bidimensional}
+\author{M.I. Romero Rodr\'iguez\\
+Kevin Santiago Sepúlveda García\\
+H. Machuca Balaguera}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+
+Se estudian numéricamente los modos atrapados inducidos por un obstáculo pequeño en una guía de ondas bidimensional mediante el método de elementos de frontera (BEM). El punto de partida son los Teoremas~2.1 y~2.3 de~\cite{Zhevandrov2025}: el primero predice un modo discreto por debajo del inicio del espectro continuo, mientras que el segundo establece la aparición de estados ligados en el continuo (\emph{Bound States in the Continuum}, BIC) bajo determinadas condiciones de simetría. La validación combina la búsqueda del modo previsto, el refinamiento de la discretización de la frontera y un barrido independiente de la banda espectral, destinado a identificar posibles soluciones adicionales. Para los estados embebidos se examinan también la simetría del campo y la cancelación del primer canal propagante.
+
+La distancia espectral al umbral,
+\(\sigma=\sqrt{\Lambda_j-k^2}\),
+se utiliza como variable principal de comparación. La teoría predice que \(\sigma=\mathcal{O}(\varepsilon^2)\), mientras que el desplazamiento de \(k^2\) respecto al umbral es de orden \(\mathcal{O}(\varepsilon^4)\). Trabajar con \(\sigma\) permite distinguir con mayor claridad tres cuestiones que no son equivalentes: la resolución numérica del modo, su unicidad dentro de la banda explorada y la precisión de la aproximación asintótica. Para obstáculos suficientemente pequeños, las ramas calculadas se aproximan a los umbrales correspondientes y reproducen el comportamiento espectral previsto por la teoría.
+
+\end{abstract}
+
+\noindent\textbf{Palabras clave:}
+modos atrapados, BIC, guías de ondas, método de elementos de frontera, ecuación de Helmholtz, aproximaciones asintóticas, valores singulares.
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section{Introducción}
+% ============================================================
+
+Un obstáculo dentro de una guía de ondas modifica la distribución del campo y, bajo ciertas condiciones, puede confinar energía en su entorno. Surgen entonces estados localizados, conocidos como modos atrapados, que decaen a lo largo de la dirección no acotada y no transportan energía hacia el infinito \cite{Khallaf2000,Linton1992}. Desde el punto de vista matemático, corresponden a soluciones no triviales de un problema espectral con las condiciones de frontera de la guía y del obstáculo.
+
+Su existencia depende de la geometría y de las condiciones impuestas en las fronteras. Para algunas configuraciones se dispone de resultados basados en principios variacionales \cite{Evans1994}; las formulaciones integrales permiten, además, calcular los números de onda asociados y tratar obstáculos de forma general \cite{Linton1992}. El caso más delicado ocurre cuando el valor propio queda embebido en el espectro continuo. Estos estados ligados en el continuo, o BIC, permanecen localizados pese a que existen canales propagantes a la misma frecuencia \cite{Koshelev2023,Kang2023}. El fenómeno aparece en contextos fotónicos, acústicos y elásticos \cite{MartiSabate2024,Cao2021}.
+
+El trabajo que sirve de referencia \cite{Zhevandrov2025} estudia una guía cuántica plana. Su problema espectral estacionario puede escribirse, sin embargo, como una ecuación de Helmholtz ---o, equivalentemente, como un problema para el operador de Laplace--- con condiciones de Dirichlet en las paredes y de Neumann sobre un obstáculo pequeño. Esta formulación hace posible utilizar herramientas numéricas propias de la propagación de ondas, aunque la interpretación física del campo cambie según el contexto.
+
+Zhevandrov et al.~\cite{Zhevandrov2025} deducen condiciones geométricas para la existencia de un modo discreto y, cuando se cumplen simetrías adicionales, de valores propios embebidos. El análisis, basado en potenciales de capa, conduce a expresiones asintóticas explícitas para la posición de esos valores propios en función de \(\varepsilon\), el parámetro que fija el tamaño del obstáculo.
+
+La principal dificultad numérica es que las soluciones se encuentran muy cerca de los umbrales del espectro. En los casos considerados,
+\[
+\sigma=\mathcal{O}(\varepsilon^2),
+\]
+mientras que
+\[
+\Lambda_j-k^2=\sigma^2=\mathcal{O}(\varepsilon^4).
+\]
+Por tanto, cuando \(\varepsilon\) es pequeño, el valor propio queda extremadamente próximo a \(\Lambda_j\). Comparar únicamente los valores de \(k\) puede ocultar diferencias relevantes en la escala natural del problema. Por esta razón, la convergencia numérica y el acuerdo asintótico se analizan principalmente mediante \(\sigma\).
+
+Una coincidencia puntual entre el valor numérico de \(k\) y su aproximación asintótica no basta para validar las predicciones teóricas. También es necesario comprobar que el modo persiste al refinar la discretización, buscar otras soluciones en la banda considerada y, en los casos del Teorema~2.3, verificar que el estado no presenta una componente propagante apreciable.
+
+Con este propósito se emplea un BEM construido a partir de la función de Green de la guía. El indicador espectral es el menor valor singular de la matriz discretizada, \(s_{\min}(A(k))\). A la búsqueda local, inicializada cerca de la predicción teórica, se añade un barrido de la banda completa; así, la evaluación numérica de la unicidad no depende solo de haber buscado donde la teoría anticipa la solución.
+
+\subsection{Antecedentes numéricos}
+
+\paragraph{Métodos de coincidencia de modos.}
+La coincidencia de modos representa el campo mediante una expansión en modos transversales propagantes y evanescentes. En una región uniforme puede escribirse, de forma esquemática,
+\begin{equation}
+u(x,y)=\sum_n A_n e^{i\beta_nx}\psi_n(y),
+\end{equation}
+donde \(\psi_n\) son los modos transversales y \(\beta_n\) los números de onda axiales. Cuando la guía puede dividirse en regiones uniformes, las condiciones de continuidad del campo y de su flujo normal se imponen en las discontinuidades para determinar los coeficientes modales \cite{Klaren1994,FahyWalker2004}. El procedimiento es eficiente en geometrías separables, pero pierde simplicidad cuando el obstáculo tiene una forma general. Aquí se menciona como antecedente y no se utiliza en los cálculos.
+
+\paragraph{Métodos de elementos finitos.}
+El FEM permite tratar geometrías generales mediante una formulación variacional sobre un dominio discretizado \cite{Ihlenburg1998}. En guías infinitas es necesario cerrar el dominio computacional mediante condiciones transparentes, operadores Dirichlet--to--Neumann, capas perfectamente acopladas u otras técnicas equivalentes \cite{Harari1998}. Estas aproximaciones obligan a controlar tanto el error de discretización como el asociado al cierre artificial de la guía. En este trabajo no se realizan cálculos con FEM.
+
+\paragraph{Formulaciones integrales y BEM.}
+Las formulaciones integrales reducen la discretización a la frontera del obstáculo. Cuando se emplea la función de Green específica de la guía, las condiciones sobre las paredes y el comportamiento modal en las regiones no acotadas se incorporan directamente en el núcleo integral, sin introducir un truncamiento artificial del eje longitudinal \cite{Linton1992,Pozrikidis2002}. Este enfoque se ha utilizado para calcular modos atrapados discretos y embebidos en guías con obstáculos \cite{Linton1992,SargentMestel2019}. La reducción del problema a la frontera resulta especialmente conveniente para una guía infinita y para los obstáculos parametrizados considerados aquí. Por ello se adopta el BEM como método numérico principal.
+
+La Sección~\ref{FP} presenta el problema espectral, la geometría y las predicciones de los Teoremas~2.1 y~2.3. Después se describen la formulación BEM y el protocolo de validación. Los resultados abordan la convergencia, la existencia y unicidad numéricas de los modos, el acuerdo con las fórmulas asintóticas y, para los estados embebidos, la ausencia de radiación.
+
+% ============================================================
+\section{Formulación del problema}\label{FP}
+% ============================================================
+
+\subsection{Modos atrapados}\label{subsec:trapped_modes}
+
+Un modo atrapado es una función propia no trivial \(u\) del problema de Helmholtz que satisface las condiciones de frontera y permanece localizada en la dirección longitudinal. Se buscan \(u\) y \(k\) tales que
+\begin{equation}
+-\Delta u=k^2u,
+\qquad (x,y)\in\Omega,
+\end{equation}
+sujetos a
+\begin{align}
+u&=0,
+&&\text{en }\Gamma_\pm=\{y=\pm b\},\\
+\pdv{u}{n}&=0,
+&&\text{en }\gamma,\\
+u(x,y)&\to0,
+&&\text{cuando }|x|\to\infty.
+\end{align}
+
+Para una guía de ancho \(2b\) con condiciones de Dirichlet en sus paredes, los umbrales transversales vienen dados por
+\begin{equation}
+\Lambda_n=
+\left(\frac{n\pi}{2b}\right)^2,
+\qquad
+n=1,2,3,\ldots
+\label{eq:thresholds}
+\end{equation}
+
+El intervalo \(0<k^2<\Lambda_1\) está por debajo del primer canal propagante. En cambio, cuando
+\[
+\Lambda_1<k^2<\Lambda_2,
+\]
+hay un canal propagante abierto; cualquier estado localizado en esa banda corresponde, por tanto, a un valor propio embebido en el espectro continuo.
+
+\subsection{Descripción geométrica y contorno de referencia}
+
+Se considera una guía bidimensional de ancho \(2b\), con paredes en \(y=\pm b\), y un obstáculo cuyo tamaño está controlado por \(\varepsilon\ll1\). Siguiendo la convención de~\cite{Zhevandrov2025}, se distingue entre el contorno de referencia (o contorno ``inflado'')
+\begin{equation}
+\Gamma=
+\left\{
+(X(t),Y(t)):\,-\pi\leq t\leq\pi
+\right\},
+\end{equation}
+y el contorno físico del obstáculo,
+\begin{equation}
+\gamma_\varepsilon=
+\left\{
+q_\varepsilon(t)=
+\bigl(\varepsilon X(t),\,a+\varepsilon Y(t)\bigr):
+-\pi\leq t\leq\pi
+\right\}.
+\label{eq:scaled_obstacle}
+\end{equation}
+Las funciones \(X\) y \(Y\) son \(2\pi\)-periódicas, suaves y se toman con media nula,
+\begin{equation}
+\int_{-\pi}^{\pi}X(t)\,dt=0,
+\qquad
+\int_{-\pi}^{\pi}Y(t)\,dt=0.
+\end{equation}
+Esta distinción evita una ambigüedad importante: las cantidades \(S\), \(\mu\), \(\nu\), \(\Psi\) y \(a_1\) de los Teoremas~2.1 y~2.3 se calculan sobre \(\Gamma\), antes de aplicar el factor de escala \(\varepsilon\).
+
+Sea \(\Omega_0\) el exterior de \(\Gamma\) en el plano y sea \(n=(n_1,n_2)\) la normal utilizada en~\cite{Zhevandrov2025}, dirigida hacia el interior acotado por \(\Gamma\) (equivalentemente, la normal exterior de \(\Omega_0\)). Para una parametrización antihoraria,
+\begin{equation}
+n(t)=
+\frac{\bigl(-Y'(t),X'(t)\bigr)}{\sqrt{X'(t)^2+Y'(t)^2}},
+\qquad
+n_2(t)=\frac{X'(t)}{\sqrt{X'(t)^2+Y'(t)^2}}.
+\end{equation}
+La función \(\Psi\) se define por el problema exterior de Neumann
+\begin{equation}
+\Delta\Psi=0\quad\text{en }\Omega_0,
+\qquad
+\left.\pdv{\Psi}{n}\right|_\Gamma=n_2,
+\qquad
+\nabla\Psi\to0
+\quad\text{cuando }r\to\infty.
+\label{eq:Psi_neumann}
+\end{equation}
+Fijando a cero la constante aditiva, su comportamiento lejano puede escribirse como
+\begin{equation}
+\Psi(X,Y)
+=
+-\mu\frac{Y}{r^2}
+-\nu\frac{X}{r^2}
++\mathcal{O}(r^{-2}),
+\qquad
+r=\sqrt{X^2+Y^2}\to\infty,
+\end{equation}
+y las constantes geométricas están dadas por
+\begin{equation}
+\mu=
+\frac{1}{2\pi}
+\left(
+S+\int_\Gamma n_2\Psi\,dl
+\right),
+\qquad
+\nu=
+\frac{1}{2\pi}
+\int_\Gamma n_1\Psi\,dl,
+\label{eq:mu_nu_definitions}
+\end{equation}
+donde \(S\) es el área encerrada por \(\Gamma\).
+
+Para el caso circular empleado en el Teorema~2.1 se toma el contorno de referencia
+\[
+X(t)=R_0\cos t,
+\qquad
+Y(t)=R_0\sin t,
+\]
+de modo que el radio físico es
+\begin{equation}
+R=R_0\varepsilon.
+\end{equation}
+En los cálculos se fija \(R_0=1\), y por tanto \(R=\varepsilon\).
+
+Los parámetros geométricos que se utilizarán son:
+\begin{itemize}
+    \item \(b\): semi-ancho de la guía;
+    \item \(a\): posición vertical del centro del obstáculo;
+    \item \(\varepsilon\): parámetro de escala del obstáculo;
+    \item \(R_0\): radio del círculo de referencia y \(R=\varepsilon R_0\): radio físico;
+    \item \(\alpha=\pi a/b\): posición vertical normalizada utilizada en la expresión asintótica del Teorema~2.1.
+\end{itemize}
+
+Para el círculo con \(R_0=1\) centrado en \((0,a)\), la condición de admisibilidad geométrica es
+\begin{equation}
+|a|+\varepsilon<b.
+\label{eq:geometry_condition}
+\end{equation}
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure[0.6\textwidth]{images/geo_problema.jpeg}
+    \caption{Geometría del problema: guía bidimensional de ancho \(2b\) y obstáculo pequeño situado a una distancia vertical \(a\) del eje central. Adaptado de~\cite{Zhevandrov2025}.}
+    \label{fig:geo}
+\end{figure}
+
+\subsection{Enunciado del Teorema 2.1}
+
+El Teorema~2.1 de~\cite{Zhevandrov2025} describe asintóticamente el modo atrapado que aparece por debajo del primer umbral.
+
+\begin{theorem}[Teorema 2.1 de~\cite{Zhevandrov2025}]
+Para \(\varepsilon\) suficientemente pequeño existe un valor crítico
+\[
+a^*=a_0^*+\mathcal{O}(\varepsilon)
+\]
+tal que el problema posee un único modo atrapado con valor propio en
+\([0,\Lambda_1)\) cuando \(a>a^*\). Si \(a\leq a^*\), no existen modos atrapados en dicho intervalo. El valor propio puede escribirse como
+\begin{equation}
+k^2=\Lambda_1-\sigma^2,
+\end{equation}
+donde
+\begin{align}
+\sigma
+&=
+\varepsilon^2\frac{\pi^2}{4b^3}
+\left(
+\pi\mu\sin^2\frac{\alpha}{2}
+-\frac{1}{2}S\cos^2\frac{\alpha}{2}
+\right)
++\mathcal{O}(\varepsilon^3\ln\varepsilon),
+\label{eq:t21_sigma}\\
+\alpha&=\frac{\pi a}{b},\\
+a_0^*
+&=
+\frac{2b}{\pi}
+\arctan
+\sqrt{\frac{S}{2\pi\mu}}.
+\label{eq:a0_star}
+\end{align}
+Para un círculo de radio de referencia \(R_0\),
+\[
+\mu=R_0^2,
+\qquad
+S=\pi R_0^2.
+\]
+\end{theorem}
+
+En adelante se toma \(R_0=1\), de modo que
+\[
+\mu=1,
+\qquad
+S=\pi.
+\]
+
+La relación
+\begin{equation}
+\Lambda_1-k^2=\sigma^2
+\end{equation}
+implica que
+\[
+\sigma=\mathcal{O}(\varepsilon^2),
+\qquad
+\Lambda_1-k^2=\mathcal{O}(\varepsilon^4).
+\]
+Esta separación de escalas condiciona el procedimiento numérico y la forma de presentar los errores.
+
+\subsection{Enunciado del Teorema 2.3}
+
+El Teorema~2.3 de~\cite{Zhevandrov2025} caracteriza el espectro en
+\([\Lambda_1,\Lambda_2)\) y muestra cómo intervienen las simetrías del obstáculo.
+
+\begin{theorem}[Teorema 2.3 de~\cite{Zhevandrov2025}]
+Para \(\varepsilon\) suficientemente pequeño se cumplen las siguientes afirmaciones:
+
+\begin{enumerate}
+    \item[(i)]
+    No existen valores propios en
+    \([\Lambda_1,\Lambda_2-\sigma_0]\)
+    para cualquier \(\sigma_0>0\) fijo.
+
+    \item[(ii)]
+    Si \(\nu\neq0\), no existen valores propios en
+    \([\Lambda_1,\Lambda_2)\).
+
+    \item[(iii)]
+    Si el obstáculo es simétrico respecto al eje \(x\), es decir,
+    \(a=0\), \(X(t)\) es par y \(Y(t)\) es impar, entonces
+    \(\nu=0\) y existe un único valor propio en
+    \([\Lambda_1,\Lambda_2)\), dado por
+    \begin{equation}
+    k^2=\Lambda_2-\sigma^2,
+    \end{equation}
+    donde
+    \begin{equation}
+    \sigma
+    =
+    \varepsilon^2\frac{\pi^3}{b^3}\mu
+    +\mathcal{O}(\varepsilon^3\ln\varepsilon).
+    \label{eq:t23_sigma}
+    \end{equation}
+
+    \item[(iv)]
+    Si el obstáculo es simétrico respecto al eje \(y\), es decir,
+    \(X(t)\) es impar y \(Y(t)\) es par, entonces también
+    \(\nu=0\). En este caso existe un único valor propio en
+    \([\Lambda_1,\Lambda_2)\) cuando
+    \begin{equation}
+    a=\varepsilon a_1+\mathcal{O}(\varepsilon^2),
+    \label{eq:t23_position}
+    \end{equation}
+    con
+    \begin{equation}
+    a_1=
+    \frac{1}{2(2S+\pi\mu)}
+    \int_{-\pi}^{\pi}
+    (\dot X Y-3X\dot Y)
+    \bigl(Y-\Psi(X,Y)\bigr)\,dt.
+    \label{eq:t23_a1}
+    \end{equation}
+    El valor propio está nuevamente dado por
+    \(k^2=\Lambda_2-\sigma^2\), con \(\sigma\) definido como en~\eqref{eq:t23_sigma}.
+\end{enumerate}
+\end{theorem}
+
+Las afirmaciones (iii) y (iv) conducen a valores propios embebidos porque
+\[
+\Lambda_1<k^2<\Lambda_2.
+\]
+Como en este intervalo existe un canal abierto, la casi singularidad del operador discretizado no es suficiente para identificar un BIC. También debe comprobarse que la solución no tenga una componente propagante apreciable.
+
+\subsection{Objetivo del estudio}
+
+El propósito del estudio es contrastar, mediante una formulación BEM independiente de la derivación asintótica, las predicciones cualitativas y cuantitativas de los Teoremas~2.1 y~2.3.
+
+En particular, para el Teorema~2.1 se busca:
+
+\begin{enumerate}
+    \item localizar numéricamente la rama de modos atrapados predicha por la teoría;
+    \item verificar su persistencia bajo refinamiento de la discretización;
+    \item realizar una búsqueda adicional en toda la banda
+    \(0<k^2<\Lambda_1\)
+    para detectar posibles modos distintos del esperado;
+    \item comparar
+    \(\sigma_{\mathrm{BEM}}\)
+    con
+    \(\sigma_{\mathrm{asym}}\);
+    \item estudiar numéricamente la condición geométrica de existencia asociada al valor crítico \(a_0^*\).
+\end{enumerate}
+
+Para las afirmaciones (iii) y (iv) del Teorema~2.3 se busca además:
+
+\begin{enumerate}
+    \item verificar las condiciones geométricas de simetría y la condición \(\nu\simeq0\);
+    \item localizar el estado espectral próximo a \(\Lambda_2\);
+    \item comprobar su estabilidad frente al refinamiento de malla;
+    \item verificar la supresión del primer canal propagante;
+    \item descartar, dentro de la resolución numérica utilizada, otros BIC persistentes en
+    \(\Lambda_1<k^2<\Lambda_2\);
+    \item comparar la distancia espectral numérica al segundo umbral con la aproximación asintótica.
+\end{enumerate}
+
+Con este esquema se mantienen separadas dos preguntas: si el estado espectral se resuelve de manera consistente y si la expansión asintótica aproxima con suficiente precisión su posición.
+
+% ============================================================
+\section{Metodología}
+% ============================================================
+
+\subsection{Fundamentos del método de elementos de frontera}
+
+El método de elementos de frontera \cite{Pozrikidis2002} resulta natural para este problema: una función de Green adaptada a la guía permite incorporar su extensión infinita y las condiciones en las paredes sin discretizar el dominio completo.
+
+\subsubsection{Construcción de la función de Green de la guía}
+
+La implementación parte de la representación mediante sumas reticulares propuesta por
+Linton~\cite{Linton1998Green}. Sean
+\(P=(x,y)\) el punto de campo y \(q=(\xi,\eta)\) el punto fuente. En primer lugar se
+considera la función de Green cuasiperiódica \(\mathcal G_\beta^d\) con período \(d\).
+La ecuación~(2.46) de~\cite{Linton1998Green} proporciona, para
+\(X=x-\xi\), \(Y=y-\eta\), \(r=(X^2+Y^2)^{1/2}<d\) y
+\(\vartheta=\operatorname{atan2}(Y,X)\), la expansión
+\begin{equation}
+\mathcal G_\beta^d(X,Y;k)
+=
+-\frac{i}{4}
+\left[
+H_0^{(1)}(kr)
++
+\sum_{\ell=0}^{\infty}
+\epsilon_\ell S_\ell(\beta d,kd)
+J_\ell(kr)
+\cos\!\left(\ell\left(\frac{\pi}{2}-\vartheta\right)\right)
+\right],
+\label{eq:periodic_green_lattice}
+\end{equation}
+donde \(\epsilon_0=1\), \(\epsilon_\ell=2\) para \(\ell>0\), y
+\begin{equation}
+S_\ell(\beta d,kd)
+=
+\sum_{m=1}^{\infty}
+H_\ell^{(1)}(mkd)
+\left[
+e^{im\beta d}
++(-1)^\ell e^{-im\beta d}
+\right]
+\label{eq:lattice_sums_definition}
+\end{equation}
+son las sumas reticulares de Schlömilch. En los cálculos de la guía se toma
+\(\beta=0\). Las sumas \(S_\ell\) no se evalúan directamente mediante
+\eqref{eq:lattice_sums_definition}, sino con las expresiones aceleradas del mismo trabajo,
+que separan los canales propagantes y evanescentes y mejoran la convergencia de la serie.
+
+Para imponer las paredes de Dirichlet se traslada la guía
+\(-b<y<b\) al intervalo \(0<\bar y<2b\), mediante
+\begin{equation}
+\bar y=y+b,
+\qquad
+\bar\eta=\eta+b.
+\end{equation}
+La ecuación~(4.5) de~\cite{Linton1998Green} da entonces la función de Green de la guía:
+\begin{equation}
+\begin{aligned}
+G_s(P,q;k)
+&\equiv
+G_D^{2b}(X,\bar y,\bar\eta;k)\\
+&=
+\mathcal G_0^{4b}(X,\bar y-\bar\eta;k)
+-
+\mathcal G_0^{4b}(X,\bar y+\bar\eta;k).
+\end{aligned}
+\label{eq:waveguide_green_images}
+\end{equation}
+La resta de la fuente y su imagen antisimétrica garantiza que
+\(G_s=0\) en \(y=\pm b\). El ancho físico de la guía es \(2b\), mientras
+que la función periódica auxiliar de \eqref{eq:waveguide_green_images} tiene período
+\(4b\). En la implementación, esta construcción corresponde a evaluar dos veces la función
+periódica y restar los resultados.
+
+Seguimos la convención de signo de~\cite{Linton1998Green}; por tanto,
+\begin{equation}
+\left(\nabla_P^2+k^2\right)G_s(P,q;k)=\delta(P-q),
+\qquad
+G_s=0\quad\text{en }y=\pm b.
+\label{eq:waveguide_green_problem}
+\end{equation}
+Además de anularse en las paredes, \(G_s\) incorpora la condición modal en la dirección
+longitudinal. La discretización queda así restringida a la frontera \(\gamma\) del obstáculo.
+
+La singularidad cuando \(P\to q\) procede exclusivamente del término
+\(-iH_0^{(1)}(k|P-q|)/4\). Como
+\(-iH_0^{(1)}(z)/4=Y_0(z)/4-iJ_0(z)/4\), se define la parte regular por
+\begin{equation}
+G_{s,\mathrm{reg}}(P,q;k)
+=
+G_s(P,q;k)
+-
+\frac14Y_0\!\left(k|P-q|\right).
+\label{eq:green_regularization}
+\end{equation}
+En la evaluación numérica, la regularización equivale a reemplazar
+\(H_0^{(1)}(kr)\) por \(J_0(kr)\) únicamente en el término que contiene la fuente
+singular; el término de la imagen se conserva completo. Esta correspondencia explica las
+rutinas distintas para la función periódica, la función de Dirichlet y sus versiones
+regularizadas.
+
+\subsubsection{Representación integral}
+
+Sea \(n_q\) la normal exterior al dominio de la guía perforada, es decir, la normal que en
+\(\gamma\) apunta hacia el interior del obstáculo. Con esta orientación y con la convención
+\eqref{eq:waveguide_green_problem}, para un punto \(P\in\Omega\) la identidad de Green
+puede escribirse como
+
+\begin{equation}
+u(P)
+=
+\int_{\gamma}
+\left[
+u(q)\pdv{G_s(P,q)}{n_q}
+-
+G_s(P,q)\pdv{u}{n}(q)
+\right]ds_q.
+\end{equation}
+
+Como el obstáculo satisface una condición de Neumann homogénea,
+\[
+\pdv{u}{n}=0
+\qquad\text{en }\gamma,
+\]
+se obtiene
+\begin{equation}
+u(P)
+=
+\int_{\gamma}
+u(q)
+\pdv{G_s(P,q)}{n_q}
+\,ds_q.
+\end{equation}
+
+Al tomar el límite sobre la frontera,
+\begin{equation}
+\frac12u(p)
+=
+\int_{\gamma}
+u(q)
+\pdv{G_s(p,q)}{n_q}
+\,ds_q,
+\qquad p\in\gamma.
+\label{eq:bie}
+\end{equation}
+
+El factor \(1/2\) es el término de salto de la doble capa para una frontera suave. Si se
+invierte la orientación de la normal, deben cambiarse simultáneamente los signos del núcleo
+y de la relación de salto. En adelante se mantiene la convención anterior.
+
+\subsection{Discretización BEM}\label{sub:formulation}
+
+En los cálculos se discretiza el contorno completo del obstáculo, en lugar del medio contorno utilizado en una versión preliminar de la implementación.
+
+Sea
+\[
+q_\varepsilon(t)
+=
+\bigl(X_\varepsilon(t),a+Y_\varepsilon(t)\bigr)
+=
+\bigl(\varepsilon X(t),a+\varepsilon Y(t)\bigr),
+\qquad
+0\leq t<2\pi,
+\]
+una parametrización antihoraria del contorno físico \(\gamma_\varepsilon\), donde \(X,Y\) describen el contorno de referencia. Entonces
+\begin{equation}
+w_\varepsilon(t)=\left|q_\varepsilon'(t)\right|
+=
+\sqrt{X_\varepsilon'(t)^2+Y_\varepsilon'(t)^2}
+=
+\varepsilon\sqrt{X'(t)^2+Y'(t)^2},
+\qquad
+ds=w_\varepsilon(t)\,dt.
+\label{eq:boundary_jacobian}
+\end{equation}
+Se utilizan \(M\) nodos de punto medio:
+\begin{equation}
+t_j=
+\left(j+\frac12\right)\frac{2\pi}{M},
+\qquad
+j=0,\ldots,M-1.
+\end{equation}
+
+Para \(p=q_\varepsilon(\psi)\), se define el núcleo normal ponderado
+\begin{equation}
+K^{w}(\psi,t;k)
+=
+w_\varepsilon(t)
+\pdv{G_s\!\left(q_\varepsilon(\psi),q_\varepsilon(t);k\right)}{n_q}.
+\label{eq:weighted_green_kernel}
+\end{equation}
+El núcleo incluye la derivada normal respecto al punto fuente y el Jacobiano
+de la parametrización. La ecuación~\eqref{eq:bie} se aproxima mediante
+\begin{equation}
+\frac12u_i
+\simeq
+\frac{2\pi}{M}
+\sum_{j=0}^{M-1}
+K^w_{ij}u_j.
+\label{eq:midpoint_collocation}
+\end{equation}
+
+Para \(i\neq j\), la derivada normal se calcula perturbando el punto fuente en la dirección
+\(n_j=n_q(t_j)\):
+\begin{equation}
+K^w_{ij}
+\simeq
+w_{\varepsilon,j}
+\frac{
+G_s(p_i,q_j+h n_j;k)
+-G_s(p_i,q_j-h n_j;k)
+}{2h}.
+\label{eq:centered_normal_derivative}
+\end{equation}
+Para \(i=j\), la singularidad logarítmica se elimina con
+\(G_{s,\mathrm{reg}}\) y se añade el límite geométrico analítico. Si
+\(q_\varepsilon(t)=(x_\gamma(t),y_\gamma(t))\) y
+\begin{equation}
+\kappa_\varepsilon(t)
+=
+\frac{x_\gamma'(t)y_\gamma''(t)-y_\gamma'(t)x_\gamma''(t)}{w_\varepsilon(t)^3}
+\end{equation}
+es la curvatura orientada asociada a la normal \(n_q\), el término diagonal es
+\begin{equation}
+K^w_{ii}
+=
+w_{\varepsilon,i}
+\left[
+\left.
+\pdv{G_{s,\mathrm{reg}}(p_i,q;k)}{n_q}
+\right|_{q=p_i}
+-
+\frac{\kappa_{\varepsilon,i}}{4\pi}
+\right].
+\label{eq:diagonal_weighted_kernel}
+\end{equation}
+En particular, para una parametrización polar del contorno físico
+\(q_\varepsilon(t)=(\rho(t)\cos t,a+\rho(t)\sin t)\), la contribución de curvatura en el núcleo
+no ponderado puede escribirse como
+\begin{equation}
+-\frac{\kappa_{\varepsilon,i}}{4\pi}
+=
+\frac{
+\rho_i\rho_i''-\rho_i^2-2(\rho_i')^2
+}{4\pi w_{\varepsilon,i}^3},
+\qquad
+w_{\varepsilon,i}=\sqrt{\rho_i^2+(\rho_i')^2},
+\label{eq:polar_curvature_term}
+\end{equation}
+que es la expresión empleada en la implementación.
+
+Con estas definiciones, el sistema algebraico queda
+\begin{equation}
+A(k)\mathbf{u}=\mathbf{0},
+\end{equation}
+con
+\begin{equation}
+A(k)
+=
+I-\frac{4\pi}{M}K^w(k).
+\label{eq:bem_matrix}
+\end{equation}
+
+Los experimentos principales emplean \(N_{\mathrm{lat}}=200\) términos en las
+sumas reticulares, índice máximo de pares armónicos \(L_h=20\) (órdenes hasta
+\(2L_h\)) y un incremento de diferencias finitas de
+\[
+h=10^{-6}.
+\]
+Por tanto, \(M\) denota exclusivamente el número de nodos BEM sobre \(\gamma\), mientras que
+\(N_{\mathrm{lat}}\) y \(L_h\) controlan la evaluación de la función de Green.
+
+\subsection{Criterio espectral basado en valores singulares}
+
+Una solución no trivial del sistema homogéneo requiere que \(A(k)\) sea singular. En lugar de calcular
+\(\det A(k)\), que es sensible al escalamiento y al condicionamiento, se utiliza como indicador
+\begin{equation}
+s_{\min}(k)
+=
+\sigma_{\min}\bigl(A(k)\bigr),
+\label{eq:smallest_sv}
+\end{equation}
+donde \(\sigma_{\min}\) denota el menor valor singular.
+
+Un candidato espectral se identifica por un mínimo interior pronunciado de \(s_{\min}(k)\). Para resolver mínimos extremadamente pequeños, la minimización se realiza sobre
+\[
+\log_{10}s_{\min}(k).
+\]
+
+Se adoptan los siguientes criterios numéricos:
+
+\begin{align}
+s_{\min}(k_*)&\leq10^{-4},
+\label{eq:criterion_sv}\\
+D&\geq100,
+\label{eq:criterion_drop}\\
+\frac{|\sigma_M-\sigma_{M^-}|}{|\sigma_M|}
+&\leq0.03,
+\label{eq:criterion_mesh}
+\end{align}
+donde \(D\) mide la profundidad del mínimo respecto a los extremos del intervalo local de búsqueda, y \(M^-\) representa la resolución inmediatamente anterior.
+
+Estos umbrales son reglas operativas para decidir si el cálculo resuelve un modo; no constituyen por sí mismos una prueba matemática de existencia.
+
+\subsection{Uso de la distancia espectral \texorpdfstring{\(\sigma\)}{sigma}}
+
+Para el Teorema~2.1 se define
+\begin{equation}
+\sigma_1
+=
+\sqrt{\Lambda_1-k^2},
+\end{equation}
+mientras que para el Teorema~2.3 se utiliza
+\begin{equation}
+\sigma_2
+=
+\sqrt{\Lambda_2-k^2}.
+\end{equation}
+
+En ambos casos la teoría predice
+\[
+\sigma_j=\mathcal{O}(\varepsilon^2).
+\]
+
+La variable
+\begin{equation}
+\delta_j
+=
+\Lambda_j-k^2
+=
+\sigma_j^2
+\end{equation}
+es, por tanto, de orden
+\(\mathcal{O}(\varepsilon^4)\).
+
+La predicción asintótica se utiliza únicamente para construir una ventana inicial en \(\delta_j\). Tras convertir sus extremos a valores de \(k\), se determina numéricamente el mínimo de \(s_{\min}(A(k))\). La comparación con la teoría se realiza principalmente en \(\sigma\), que resuelve mejor la escala espectral cercana al umbral.
+
+Definimos el error asintótico relativo mediante
+\begin{equation}
+E_\sigma
+=
+\frac{
+\left|
+\sigma_{\mathrm{BEM}}
+-
+\sigma_{\mathrm{asym}}
+\right|
+}{
+\left|
+\sigma_{\mathrm{asym}}
+\right|
+}.
+\label{eq:sigma_error}
+\end{equation}
+
+El umbral de referencia del \(5\%\),
+\begin{equation}
+E_\sigma\leq0.05,
+\end{equation}
+se emplea únicamente para informar la precisión de la aproximación asintótica; no interviene en la clasificación de existencia o unicidad del modo.
+
+\subsection{Refinamiento de malla}
+
+Para cada valor de \(\varepsilon\), la rama espectral esperada se calcula con
+\begin{equation}
+M\in\{8,16,24,32,40\}.
+\label{eq:mesh_sequence}
+\end{equation}
+
+En cada resolución se registran:
+
+\begin{itemize}
+    \item el valor \(kb\) del mínimo;
+    \item la distancia espectral \(\sigma_{\mathrm{BEM}}\);
+    \item \(s_{\min}(A(k_*))\);
+    \item la profundidad del mínimo;
+    \item la variación relativa de \(\sigma\) respecto a la resolución anterior.
+\end{itemize}
+
+La convergencia se evalúa mediante \(\sigma\), ya que las variaciones directas de \(k\) son poco sensibles cuando la solución está muy cerca del umbral.
+
+\subsection{Búsqueda global y evaluación numérica de unicidad}
+
+La búsqueda dirigida cerca de la predicción asintótica localiza el candidato esperado, pero no permite evaluar si existen otros. Por ello se realiza también un barrido independiente de toda la banda espectral relevante.
+
+Para el Teorema~2.1 se explora
+\begin{equation}
+0<k^2<\Lambda_1,
+\end{equation}
+mientras que para el Teorema~2.3 se considera
+\begin{equation}
+\Lambda_1<k^2<\Lambda_2,
+\end{equation}
+excluyendo pequeñas capas numéricas en los extremos de la banda.
+
+La malla espectral combina puntos aproximadamente uniformes en \(kb\) con puntos distribuidos logarítmicamente en
+\(\delta_j=\Lambda_j-k^2\), lo que aumenta la resolución cerca del umbral.
+
+Los mínimos locales distintos de la rama esperada se consideran candidatos adicionales. Estos candidatos se recalculan con dos resoluciones BEM y únicamente se clasifican como persistentes cuando:
+
+\begin{itemize}
+    \item presentan un mínimo suficientemente profundo;
+    \item satisfacen el criterio de casi singularidad;
+    \item su posición espectral permanece estable al cambiar de resolución.
+\end{itemize}
+
+En los cálculos de cribado se emplean \(M=16\) y \(M=32\), y se exige que el desplazamiento del candidato entre ambas resoluciones satisfaga
+\begin{equation}
+|\Delta(kb)|\leq2\times10^{-3}.
+\end{equation}
+
+En las tablas, ``modo único'' y ``BIC único'' indican que el procedimiento no encontró candidatos adicionales que superaran estos filtros dentro de la banda estudiada. La expresión no equivale a una demostración matemática de unicidad.
+
+\subsection{Verificación independiente de la implementación BEM}\label{sec:validacion}
+
+Como comprobación previa, la implementación se compara con los resultados de~\cite{SargentMestel2019} para una guía con un obstáculo circular y condición de Dirichlet en su frontera.
+
+La condición sobre el obstáculo no es la misma que en el problema principal, pero el caso permite verificar de forma independiente el ensamblaje de la función de Green y el procedimiento espectral.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{\detokenize{images/bem_potential.png}}
+    \caption{Campo numérico obtenido en la prueba de referencia para un obstáculo circular con \(r=0.1\).}
+    \label{fig:bem_potential}
+\end{figure}
+
+\begin{table}[!htbp]
+\centering
+\begin{tabular}{cccc}
+\toprule
+\(r\) &
+\(k\) \cite{SargentMestel2019} &
+\(k\) obtenido con BEM &
+diferencia absoluta\\
+\midrule
+0.1 & 3.1296 & 3.1296 & 0.0000\\
+0.2 & 3.1415 & 3.1415 & 0.0000\\
+0.3 & 2.9897 & 2.9897 & 0.0000\\
+0.4 & 2.9995 & 2.9995 & 0.0000\\
+0.5 & 3.0717 & 3.0717 & 0.0000\\
+0.6 & 3.1325 & 3.1325 & 0.0000\\
+\bottomrule
+\end{tabular}
+
+\end{table}
+
+Los valores coinciden con la precisión publicada. Esta prueba respalda la consistencia de la implementación, mientras que la convergencia del problema principal se comprueba por separado mediante la secuencia~\eqref{eq:mesh_sequence}.
+
+\subsection{Configuración numérica para el Teorema 2.1}
+
+En el experimento principal del Teorema~2.1 se fija
+\[
+b=1,
+\qquad
+a=0.6,
+\]
+y se emplean
+\begin{equation}
+\varepsilon=
+0.02,0.04,\ldots,0.20.
+\end{equation}
+
+La dependencia con la posición vertical del obstáculo se estudia mediante un barrido adicional en
+\begin{equation}
+a\in
+\{0.35,0.50,0.55,0.60,0.65,0.70\}.
+\label{eq:a_values}
+\end{equation}
+
+Este segundo experimento utiliza una resolución fija \(M=32\). Para cada valor de \(a\), solo se incluyen los valores de \(\varepsilon\) compatibles con la admisibilidad geométrica y con las condiciones de evaluación de la función de Green.
+
+La fórmula~\eqref{eq:a0_star}, con \(b=1\), \(S=\pi\) y \(\mu=1\), proporciona el umbral asintótico de referencia
+\[
+a_0^*
+=
+\frac{2}{\pi}
+\arctan\left(\frac{1}{\sqrt2}\right).
+\]
+
+Cuando \(a\) queda por debajo de este umbral, la fórmula asintótica no se utiliza para inicializar una rama. En esos casos se busca directamente en toda la banda subcrítica.
+
+\subsection{Configuración numérica para el Teorema 2.3}
+
+\subsubsection{Afirmación (iii): simetría respecto al eje \(x\)}
+
+Para la afirmación (iii) se utiliza el contorno de referencia
+\begin{align}
+X(t)
+&=
+\cos t-\frac{\beta}{2}\cos2t,\\
+Y(t)
+&=
+\sin t-\frac{\beta}{2}\sin2t,
+\end{align}
+con
+\[
+\beta=0.10,
+\]
+y el contorno físico se obtiene mediante~\eqref{eq:scaled_obstacle}, es decir,
+\(q_\varepsilon(t)=(\varepsilon X(t),\varepsilon Y(t))\) porque en este caso \(a=0\).
+
+La geometría satisface
+\[
+X(-t)=X(t),
+\qquad
+Y(-t)=-Y(t),
+\]
+y se verifica numéricamente que el momento \(\nu\) sea compatible con cero.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure[0.5\textwidth]{images/results/obst_x.png}
+    \caption{Obstáculo utilizado para la validación de la afirmación (iii) del Teorema~2.3.}
+    \label{fig:obst_x}
+\end{figure}
+
+El carácter BIC se evalúa mediante tres condiciones:
+
+\begin{enumerate}
+    \item persistencia del mínimo espectral bajo refinamiento;
+    \item compatibilidad de la función propia con la paridad impar requerida por la simetría;
+    \item supresión del primer canal propagante en ambos extremos longitudinales.
+\end{enumerate}
+
+El residual de paridad debe ser menor que \(10^{-2}\), y la fracción correspondiente al primer modo propagante debe permanecer por debajo de \(10^{-2}\).
+
+\subsubsection{Afirmación (iv): simetría respecto al eje \(y\)}
+
+Para la afirmación (iv) se toma el contorno de referencia del Ejemplo~2.4 de~\cite{Zhevandrov2025},
+\begin{align}
+X(t)
+&=
+\sin t-\frac{\beta}{2}\sin2t,\\
+Y(t)
+&=
+-\cos t+\frac{\beta}{2}\cos2t,
+\end{align}
+nuevamente con
+\[
+\beta=0.10.
+\]
+El contorno físico se obtiene multiplicando estas coordenadas por \(\varepsilon\), de acuerdo con~\eqref{eq:scaled_obstacle}.
+
+La geometría satisface
+\[
+X(-t)=-X(t),
+\qquad
+Y(-t)=Y(t).
+\]
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure[0.5\textwidth]{images/results/obst_y.png}
+    \caption{Obstáculo utilizado para la validación de la afirmación (iv) del Teorema~2.3.}
+    \label{fig:obst_y}
+\end{figure}
+
+Los Ejemplos~2.4 y~5.4 de~\cite{Zhevandrov2025} proporcionan, para \(\beta\ll1\), la expansión
+\begin{equation}
+a_1=-\frac{\beta}{12}+\mathcal{O}(\beta^2).
+\label{eq:a1_beta_expansion}
+\end{equation}
+En los cálculos se conserva únicamente el término de primer orden,
+\begin{equation}
+a_{\mathrm{num}}(\varepsilon)
+=
+-\varepsilon\frac{\beta}{12}.
+\label{eq:y_position_numeric}
+\end{equation}
+De acuerdo con~\eqref{eq:a1_beta_expansion}, esta elección satisface
+\begin{equation}
+a_{\mathrm{num}}(\varepsilon)
+=
+\varepsilon a_1+\mathcal{O}(\varepsilon\beta^2),
+\end{equation}
+pero, si \(\beta\) se mantiene fijo, no garantiza que \(a=\varepsilon a_1+\mathcal{O}(\varepsilon^2)\). Con \(\beta=0.10\), la ecuación~\eqref{eq:y_position_numeric} introduce una aproximación adicional de primer orden en \(\beta\). Una verificación estricta de la hipótesis de la afirmación~(iv) exigiría calcular el valor exacto de \(a_1\) mediante~\eqref{eq:t23_a1} y utilizarlo en~\eqref{eq:t23_position}, o bien imponer un régimen conjunto con \(\beta^2=\mathcal{O}(\varepsilon)\).
+
+En esta geometría no se impone una paridad específica de la función propia como mecanismo de cancelación. La paridad respecto al eje \(y\) se registra solo como diagnóstico; el carácter no radiativo se decide a partir de la persistencia del mínimo espectral y de la supresión del primer canal propagante.
+
+Ambos casos del Teorema~2.3 se calculan con los mismos valores
+\[
+\varepsilon=
+0.02,0.04,\ldots,0.20
+\]
+y la misma secuencia de refinamiento~\eqref{eq:mesh_sequence}.
+
+% ============================================================
+\section{Resultados}
+% ============================================================
+
+Los resultados se presentan en tres etapas. Primero se comprueba la estabilidad de la discretización; después se analiza el modo discreto del Teorema~2.1 y, finalmente, las dos configuraciones que producen BIC en el Teorema~2.3.
+
+\subsection{Convergencia de la discretización y resolución del mínimo espectral}
+
+El refinamiento para \(\varepsilon=0.10\), mostrado en la Figura~\ref{fig:t21_refinement}, es representativo del comportamiento observado. Al aumentar \(M\), \(\sigma_{\mathrm{BEM}}\) se estabiliza y el menor valor singular mantiene un mínimo pronunciado sobre la misma rama espectral.
+
+\begin{figure}[!htbp]
+    \centering
+
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t21_refinement_sigma_eps_010.png}
+        \caption{Convergencia de \(\sigma_{\mathrm{BEM}}\).}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t21_refinement_svd_eps_010.png}
+        \caption{Menor valor singular en el mínimo.}
+    \end{subfigure}
+
+    \caption{Refinamiento BEM representativo para el modo discreto del Teorema~2.1 con \(\varepsilon=0.10\).}
+    \label{fig:t21_refinement}
+\end{figure}
+
+% FIGURE SOURCE:
+% Copiar:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/refinement_sigma_epsilon_0.10.png
+% a:
+% images/results/t21_refinement_sigma_eps_010.png
+%
+% Copiar:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/refinement_svd_epsilon_0.10.png
+% a:
+% images/results/t21_refinement_svd_eps_010.png
+
+La Tabla~\ref{tab:mesh_validation} cuantifica esta estabilidad para varios valores de \(\varepsilon\). La comparación se basa en la variación de \(\sigma\) entre las dos últimas mallas, una medida más informativa que la diferencia directa en \(k\) cuando el modo está muy cerca del umbral.
+
+
+\begin{table}[!htbp]
+\centering
+\caption{Validación de la convergencia de malla para el modo del Teorema~2.1. Se muestran los resultados para $M=32$ y $M=40$. La columna «convergido» aplica simultáneamente los filtros sobre $\sigma_{\min}$, el factor de caída, la interioridad del mínimo y el cambio relativo entre mallas.}
+\label{tab:mesh_validation}
+\small
+\setlength{\tabcolsep}{5pt}
+\textbf{(a) Estabilidad de la distancia espectral}\\[0.4em]
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$\varepsilon$ & $\sigma_{\mathrm{BEM}}(M=32)$ &
+$\sigma_{\mathrm{BEM}}(M=40)$ & $\Delta\sigma/\sigma$ $(M=40)$ \\
+\midrule
+0.02 & $1.49387446\times10^{-3}$ & $1.49387444\times10^{-3}$ & $1.54221075\times10^{-8}$ \\
+0.06 & $1.32166382\times10^{-2}$ & $1.32166352\times10^{-2}$ & $2.26865502\times10^{-7}$ \\
+0.10 & $3.52691849\times10^{-2}$ & $3.52691734\times10^{-2}$ & $3.25048621\times10^{-7}$ \\
+0.14 & $6.47155659\times10^{-2}$ & $6.47155068\times10^{-2}$ & $9.12764670\times10^{-7}$ \\
+0.20 & $1.14244606\times10^{-1}$ & $1.14244678\times10^{-1}$ & $6.34064637\times10^{-7}$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.8em}
+\textbf{(b) Diagnósticos de convergencia}\\[0.4em]
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$\varepsilon$ & $\sigma_{\min}(M=40)$ & $\mathrm{drop}(M=40)$ & \text{Convergido} \\
+\midrule
+0.02 & $4.67364598\times10^{-5}$ & $5.32660994\times10^{2}$ & Sí \\
+0.06 & $8.91763792\times10^{-6}$ & $8.28153039\times10^{3}$ & Sí \\
+0.10 & $5.96748757\times10^{-7}$ & $1.98163179\times10^{5}$ & Sí \\
+0.14 & $1.21125911\times10^{-6}$ & $1.26242600\times10^{5}$ & Sí \\
+0.20 & $5.41650542\times10^{-7}$ & $3.22419850\times10^{5}$ & Sí \\
+\bottomrule
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsection{Teorema 2.1: modo discreto por debajo de \texorpdfstring{\(\Lambda_1\)}{Lambda1}}
+
+\subsubsection{Localización espectral y acuerdo asintótico}
+
+La comparación cuantitativa se realiza en términos de
+\[
+\sigma_1=\sqrt{\Lambda_1-k^2}.
+\]
+Con esta variable se observa directamente la escala
+\(\mathcal{O}(\varepsilon^2)\)
+predicha por~\eqref{eq:t21_sigma}.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t21_sigma_bem_vs_asymptotic.png}
+    \caption{Distancia espectral al primer umbral obtenida mediante BEM y mediante la aproximación asintótica del Teorema~2.1 para \(a=0.6\) y \(b=1\).}
+    \label{fig:t21_sigma}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/sigma_bem_vs_asymptotic.png
+% ->
+% images/results/t21_sigma_bem_vs_asymptotic.png
+
+Para los menores valores de \(\varepsilon\), las curvas numérica y asintótica son muy próximas. A medida que crece el obstáculo, la diferencia aumenta, como cabe esperar de una expansión de primer orden. El error relativo~\eqref{eq:sigma_error} cuantifica esta pérdida de precisión sin intervenir en la decisión de si el modo está numéricamente resuelto.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t21_relative_sigma_error.png}
+    \caption{Error relativo en \(\sigma\) entre la solución BEM y la aproximación asintótica del Teorema~2.1. La línea horizontal corresponde al criterio de referencia del \(5\%\).}
+    \label{fig:t21_error}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/relative_error_sigma.png
+% ->
+% images/results/t21_relative_sigma_error.png
+
+La Tabla~\ref{tab:t21_summary} reúne ambos tipos de información: la posición espectral y su error asintótico, por un lado, y los diagnósticos de resolución y unicidad, por otro.
+
+\begin{table}[!htbp]
+\centering
+\caption{Resumen de la validación numérica del Teorema~2.1 para todos los valores disponibles de $\varepsilon$. Los errores y cambios relativos se expresan como porcentajes.}
+\label{tab:t21_summary}
+\small
+\setlength{\tabcolsep}{5pt}
+\textbf{(a) Comparación espectral y error asintótico}\\[0.4em]
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$\varepsilon$ & $kb_{\mathrm{num}}$ & $\sigma_{\mathrm{num}}$ & $\sigma_{\mathrm{asym}}$ & $e_\sigma$ (\%) \\
+\midrule
+0.02 & 1.5707956164 & $1.49387444\times10^{-3}$ & $1.49376690\times10^{-3}$ & $7.19933310\times10^{-3}$ \\
+0.04 & 1.5707851057 & $5.93733757\times10^{-3}$ & $5.97506760\times10^{-3}$ & $6.31457665\times10^{-1}$ \\
+0.06 & 1.5707407236 & $1.32166352\times10^{-2}$ & $1.34439021\times10^{-2}$ & $1.69048297\times10^{0}$ \\
+0.08 & 1.5706264096 & $2.31037183\times10^{-2}$ & $2.39002704\times10^{-2}$ & $3.33281616\times10^{0}$ \\
+0.10 & 1.5704003266 & $3.52691734\times10^{-2}$ & $3.73441725\times10^{-2}$ & $5.55641991\times10^{0}$ \\
+0.12 & 1.5700225472 & $4.92980901\times10^{-2}$ & $5.37756084\times10^{-2}$ & $8.32629957\times10^{0}$ \\
+0.14 & 1.5694626480 & $6.47155068\times10^{-2}$ & $7.31945781\times10^{-2}$ & $1.15842887\times10^{1}$ \\
+0.16 & 1.5687057649 & $8.10143418\times10^{-2}$ & $9.56010815\times10^{-2}$ & $1.52579233\times10^{1}$ \\
+0.18 & 1.5677559345 & $9.76853626\times10^{-2}$ & $1.20995119\times10^{-1}$ & $1.92650385\times10^{1}$ \\
+0.20 & 1.5666362864 & $1.14244678\times10^{-1}$ & $1.49376690\times10^{-1}$ & $2.35190724\times10^{1}$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.8em}
+\textbf{(b) Diagnósticos de resolución y unicidad}\\[0.4em]
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$\varepsilon$ & $s_{\min,\mathrm{final}}$ & $\Delta_{\mathrm{mesh}}$ (\%) & $N_{\mathrm{add}}$ & \text{Modo único} \\
+\midrule
+0.02 & $4.67364598\times10^{-5}$ & $1.54221075\times10^{-6}$ & 0 & Sí \\
+0.04 & $1.18687901\times10^{-5}$ & $1.30485609\times10^{-5}$ & 0 & Sí \\
+0.06 & $8.91763792\times10^{-6}$ & $2.26865502\times10^{-5}$ & 0 & Sí \\
+0.08 & $2.92680534\times10^{-6}$ & $2.91357122\times10^{-5}$ & 0 & Sí \\
+0.10 & $5.96748757\times10^{-7}$ & $3.25048621\times10^{-5}$ & 0 & Sí \\
+0.12 & $9.68719203\times10^{-7}$ & $7.32372919\times10^{-5}$ & 0 & Sí \\
+0.14 & $1.21125911\times10^{-6}$ & $9.12764670\times10^{-5}$ & 0 & Sí \\
+0.16 & $8.62548505\times10^{-7}$ & $3.79623970\times10^{-4}$ & 0 & Sí \\
+0.18 & $4.38533038\times10^{-7}$ & $1.45378171\times10^{-4}$ & 0 & Sí \\
+0.20 & $5.41650542\times10^{-7}$ & $6.34064637\times10^{-5}$ & 0 & Sí \\
+\bottomrule
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsubsection{Distancia al primer umbral}
+
+Como
+\[
+\sigma^2=\Lambda_1-k^2,
+\]
+la separación entre el valor propio y el umbral aparece en un orden superior al de \(\sigma\). La Figura~\ref{fig:t21_gap} muestra cuán pequeña resulta esta distancia para las distintas resoluciones de frontera.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t21_cutoff_gap.png}
+    \caption{Distancia entre la rama espectral numérica y el primer umbral para diferentes resoluciones BEM, junto con la predicción asintótica.}
+    \label{fig:t21_gap}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/paper_cutoff_gap_vs_epsilon_by_M.png
+% ->
+% images/results/t21_cutoff_gap.png
+
+La figura también deja ver por qué una comparación directa en \(k\) es poco sensible: para \(\varepsilon\) pequeño, las curvas quedan prácticamente pegadas al umbral, aunque las diferencias relativas en \(\sigma\) todavía sean medibles.
+
+\subsubsection{Búsqueda global y evidencia numérica de unicidad}
+
+La búsqueda local permite seguir la rama prevista, pero podría pasar por alto soluciones alejadas de la aproximación asintótica. Para evitarlo se complementa con el barrido global descrito en la metodología.
+
+En el ejemplo de la Figura~\ref{fig:t21_full_band}, correspondiente a \(\varepsilon=0.10\), el mínimo de la rama esperada aparece cerca del primer umbral. El resto de los mínimos locales de la banda se analiza por separado para determinar si persisten al cambiar la discretización.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t21_full_band_eps_010.png}
+    \caption{Barrido del menor valor singular a lo largo de la banda \(0<k^2<\Lambda_1\) para \(\varepsilon=0.10\). Se indican la posición asintótica y la posición refinada mediante BEM.}
+    \label{fig:t21_full_band}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/full_band_epsilon_0.10.png
+% ->
+% images/results/t21_full_band_eps_010.png
+
+Ninguno de los mínimos adicionales supera los criterios de persistencia después del segundo refinamiento. El resultado es coherente con la unicidad predicha por el Teorema~2.1, aunque su alcance sigue limitado por la resolución del barrido y no reemplaza una demostración matemática.
+
+\subsubsection{Dependencia respecto a la posición vertical}
+
+La dependencia con la altura del obstáculo ofrece una prueba cualitativa distinta: la teoría predice que la rama aparece al cruzar el valor crítico \(a^*\). Para examinar esta transición se utilizan los valores de \(a\) dados en~\eqref{eq:a_values}.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t21_kb_vs_epsilon_and_a.png}
+    \caption{Ramas espectrales numéricas y asintóticas para diferentes posiciones verticales del obstáculo. El umbral \(a_0^*\) proporciona la predicción de primer orden para la aparición del modo discreto.}
+    \label{fig:t21_a_sweep}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_1_refined_validation/paper_kb_vs_epsilon_and_a.png
+% ->
+% images/results/t21_kb_vs_epsilon_and_a.png
+
+El barrido incluye un valor por debajo del umbral asintótico y varios por encima. Para el caso subcrítico se explora directamente toda la banda, sin forzar una inicialización basada en la fórmula asintótica. No se resuelve allí ningún modo, mientras que por encima de \(a_0^*\) aparecen ramas persistentes. El experimento contrasta así tanto la posición del modo como la región geométrica en la que la teoría anticipa su existencia.
+
+\begin{table}[!htbp]
+\centering
+\scriptsize
+\caption{Barrido en la altura del obstáculo para el Teorema~2.1. El umbral de orden principal es $a_0^*=0.39182655$. No se asigna una rama asintótica a los casos con predicción asintótica inválida.}
+\label{tab:t21_a_sweep}
+\begin{tabular}{@{}rcrrccl@{}}
+\toprule
+$a$ & \text{Relación con } $a_0^*$ & $\#\,\varepsilon$ &
+$\#\,\text{modos resueltos}$ & $\varepsilon_{\min}$ &
+$\varepsilon_{\max}$ & \text{Estado} \\
+\midrule
+0.35 & $a<a_0^*$ & 20 & 0  & 0.02 & 0.50 & sin modo resuelto \\
+0.50 & $a>a_0^*$ & 20 & 13 & 0.02 & 0.48 & rama resuelta \\
+0.55 & $a>a_0^*$ & 20 & 15 & 0.02 & 0.43 & rama resuelta \\
+0.60 & $a>a_0^*$ & 20 & 16 & 0.02 & 0.38 & rama resuelta \\
+0.65 & $a>a_0^*$ & 20 & 18 & 0.02 & 0.33 & rama resuelta \\
+0.70 & $a>a_0^*$ & 20 & 19 & 0.02 & 0.28 & rama resuelta \\
+\bottomrule
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsection{Teorema 2.3(iii): BIC con simetría respecto al eje \(x\)}
+
+El estado buscado pertenece ahora al intervalo
+\[
+\Lambda_1<k^2<\Lambda_2
+\]
+y se aproxima al segundo umbral cuando \(\varepsilon\to0\).
+
+La Figura~\ref{fig:t23x_branch} compara la rama numérica con la predicción asintótica y muestra, en paralelo, la fracción del primer canal propagante.
+
+\begin{figure}[!htbp]
+    \centering
+
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t23x_kb_vs_epsilon.png}
+        \caption{Rama espectral.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t23x_propagating_fraction.png}
+        \caption{Fracción del primer canal propagante.}
+    \end{subfigure}
+
+    \caption{Validación numérica del BIC correspondiente a la afirmación (iii) del Teorema~2.3.}
+    \label{fig:t23x_branch}
+\end{figure}
+
+% FIGURE SOURCE:
+%
+% src/svd_theorems_validations/theorem_2_3_x_symmetry_validation/paper_kb_vs_epsilon_by_M.png
+% ->
+% images/results/t23x_kb_vs_epsilon.png
+%
+% src/svd_theorems_validations/theorem_2_3_x_symmetry_validation/propagating_fraction.png
+% ->
+% images/results/t23x_propagating_fraction.png
+
+La rama se aproxima a \(\sqrt{\Lambda_2}b\) cuando disminuye \(\varepsilon\), pero esta cercanía no basta para identificar un BIC. El segundo panel aporta el diagnóstico decisivo: la proyección del campo sobre el primer modo propagante permanece pequeña a ambos lados del obstáculo.
+
+También se calcula el residual de paridad impar de la función propia. En esta geometría, dicha paridad es el mecanismo que desacopla el estado del canal abierto.
+
+\begin{table}[!htbp]
+\centering
+\caption{Resumen de la validación numérica del Teorema~2.3(iii) para la geometría simétrica respecto de $x$.}
+\label{tab:t23x_summary}
+\small
+\setlength{\tabcolsep}{5pt}
+\textbf{(a) Comparación espectral y error asintótico}\\[0.4em]
+\begin{tabular}{@{}cccc@{}}
+\toprule
+$\varepsilon$ & $\sigma_{\mathrm{num}}$ & $\sigma_{\mathrm{asym}}$ & $e_\sigma$ (\%) \\
+\midrule
+0.02 & $1.24110653\times10^{-2}$ & $1.24297877\times10^{-2}$ & $1.50625298\times10^{-1}$ \\
+0.04 & $4.90803819\times10^{-2}$ & $4.97191510\times10^{-2}$ & $1.28475454\times10^{0}$ \\
+0.06 & $1.07857261\times10^{-1}$ & $1.11868090\times10^{-1}$ & $3.58532008\times10^{0}$ \\
+0.08 & $1.84805043\times10^{-1}$ & $1.98876604\times10^{-1}$ & $7.07552346\times10^{0}$ \\
+0.10 & $2.74636270\times10^{-1}$ & $3.10744694\times10^{-1}$ & $1.16199648\times10^{1}$ \\
+0.12 & $3.71479394\times10^{-1}$ & $4.47472359\times10^{-1}$ & $1.69827172\times10^{1}$ \\
+0.14 & $4.69715074\times10^{-1}$ & $6.09059600\times10^{-1}$ & $2.28786355\times10^{1}$ \\
+0.16 & $5.64618011\times10^{-1}$ & $7.95506416\times10^{-1}$ & $2.90240782\times10^{1}$ \\
+0.18 & $6.52666653\times10^{-1}$ & $1.00681281\times10^{0}$ & $3.51749751\times10^{1}$ \\
+0.20 & $7.31535403\times10^{-1}$ & $1.24297877\times10^{0}$ & $4.11465894\times10^{1}$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.8em}
+\textbf{(b) Diagnósticos de simetría, radiación y unicidad}\\[0.4em]
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}cccccc@{}}
+\toprule
+$\varepsilon$ & $sv_{\min,\mathrm{final}}$ & $r_{\mathrm{odd}}$ &
+$\max(R_{\mathrm{prop}})$ & $N_{\mathrm{add}}$ & \text{BIC único} \\
+\midrule
+0.02 & $1.07612187\times10^{-4}$ & $2.19166476\times10^{-10}$ & $8.28228129\times10^{-8}$ & 0 & No \\
+0.04 & $3.44698586\times10^{-7}$ & $9.08488587\times10^{-11}$ & $3.54719419\times10^{-7}$ & 0 & Sí \\
+0.06 & $3.29746105\times10^{-6}$ & $1.20027309\times10^{-10}$ & $8.81817523\times10^{-7}$ & 0 & Sí \\
+0.08 & $1.87956120\times10^{-6}$ & $1.19677500\times10^{-10}$ & $1.77031589\times10^{-6}$ & 0 & Sí \\
+0.10 & $3.44446241\times10^{-7}$ & $1.50252968\times10^{-10}$ & $3.15737906\times10^{-6}$ & 0 & Sí \\
+0.12 & $6.69187151\times10^{-8}$ & $1.74994704\times10^{-10}$ & $5.18598441\times10^{-6}$ & 0 & Sí \\
+0.14 & $6.74500760\times10^{-8}$ & $1.92263737\times10^{-10}$ & $7.96220188\times10^{-6}$ & 0 & Sí \\
+0.16 & $4.10001047\times10^{-7}$ & $2.16777317\times10^{-10}$ & $1.15040258\times10^{-5}$ & 0 & Sí \\
+0.18 & $8.48610088\times10^{-8}$ & $2.48312568\times10^{-10}$ & $1.56977387\times10^{-5}$ & 0 & Sí \\
+0.20 & $1.19695110\times10^{-7}$ & $2.83725873\times10^{-10}$ & $2.02764369\times10^{-5}$ & 0 & Sí \\
+\bottomrule
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsubsection{Búsqueda de BIC adicionales}
+
+Además de seguir la rama esperada, se analiza toda la banda
+\(\Lambda_1<k^2<\Lambda_2\).
+Un mínimo adicional solo se acepta como candidato a BIC si persiste al cambiar la resolución y satisface, además, los diagnósticos de no radiación.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t23x_full_band_eps_010.png}
+    \caption{Barrido de la banda \(\Lambda_1<k^2<\Lambda_2\) para el caso \(x\)-simétrico con \(\varepsilon=0.10\).}
+    \label{fig:t23x_full_band}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_3_x_symmetry_validation/full_band_epsilon_0.10.png
+% ->
+% images/results/t23x_full_band_eps_010.png
+
+No se encuentran candidatos adicionales que sean, al mismo tiempo, persistentes y no radiativos. Dentro de la resolución empleada, el resultado concuerda con la unicidad establecida por el teorema.
+
+\subsection{Teorema 2.3(iv): configuración \(y\)-simétrica con ajuste de primer orden en \(\beta\)}
+
+En la afirmación (iv), la simetría geométrica no basta para determinar la configuración: la posición vertical del obstáculo debe ajustarse según
+\[
+a=\varepsilon a_1+\mathcal{O}(\varepsilon^2).
+\]
+
+Los experimentos utilizan la aproximación de primer orden en \(\beta\),
+\[
+a_{\mathrm{num}}(\varepsilon)=-\varepsilon\frac{\beta}{12},
+\]
+de modo que la posición cambia con \(\varepsilon\). Esta regla reproduce \(\varepsilon a_1\) con un error \(\mathcal{O}(\varepsilon\beta^2)\). Si \(\beta\) se mantiene fijo, por tanto, los resultados no constituyen una verificación exacta del resto \(\mathcal{O}(\varepsilon^2)\) del Teorema~2.3(iv).
+
+La Figura~\ref{fig:t23y_branch} reúne la rama espectral y el diagnóstico de radiación. La aproximación asintótica describe bien los valores más pequeños de \(\varepsilon\), pero el acuerdo se deteriora al aumentar el tamaño del obstáculo.
+
+\begin{figure}[!htbp]
+    \centering
+
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t23y_kb_vs_epsilon.png}
+        \caption{Rama espectral.}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.48\textwidth}
+        \centering
+        \paperfigure[\textwidth]{images/results/t23y_propagating_fraction.png}
+        \caption{Fracción del primer canal propagante.}
+    \end{subfigure}
+
+    \caption{Resultados numéricos para la configuración \(y\)-simétrica asociada a la afirmación (iv) del Teorema~2.3, usando el ajuste de primer orden \(a_{\mathrm{num}}=-\varepsilon\beta/12\).}
+    \label{fig:t23y_branch}
+\end{figure}
+
+% FIGURE SOURCE:
+%
+% src/svd_theorems_validations/theorem_2_3_y_symmetry_validation/paper_kb_vs_epsilon_by_M.png
+% ->
+% images/results/t23y_kb_vs_epsilon.png
+%
+% src/svd_theorems_validations/theorem_2_3_y_symmetry_validation/propagating_fraction.png
+% ->
+% images/results/t23y_propagating_fraction.png
+
+Aquí no se exige una paridad específica de la función propia para identificar el BIC. La paridad respecto al eje \(y\) se conserva como diagnóstico secundario; los criterios principales son la persistencia del mínimo espectral y una proyección suficientemente pequeña sobre el primer canal propagante. La Tabla~\ref{tab:t23y_summary} muestra que estos filtros dejan de cumplirse para los mayores valores de \(\varepsilon\), lo que delimita el régimen numérico en el que la configuración se clasifica como BIC.
+
+\begin{table}[!htbp]
+\centering
+\caption{Resumen numérico para la geometría simétrica respecto de $y$. La posición implementada es $a_{\mathrm{num}}=-\varepsilon\beta/12$, es decir, el primer orden en $\beta$ de la condición del Teorema~2.3(iv); el valor exacto de $a_1$ difiere en $\mathcal{O}(\beta^2)$.}
+\label{tab:t23y_summary}
+\small
+\setlength{\tabcolsep}{5pt}
+\textbf{(a) Comparación espectral y error asintótico}\\[0.4em]
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$\varepsilon$ & $a_{\mathrm{num}}$ & $\sigma_{\mathrm{num}}$ & $\sigma_{\mathrm{asym}}$ & $e_\sigma$ (\%) \\
+\midrule
+0.02 & -0.00016667 & $1.24725493\times10^{-2}$ & $1.24910740\times10^{-2}$ & $1.48303593\times10^{-1}$ \\
+0.04 & -0.00033333 & $4.93250403\times10^{-2}$ & $4.99642959\times10^{-2}$ & $1.27942472\times10^{0}$ \\
+0.06 & -0.00050000 & $1.08398031\times10^{-1}$ & $1.12419666\times10^{-1}$ & $3.57734069\times10^{0}$ \\
+0.08 & -0.00066667 & $1.85735221\times10^{-1}$ & $1.99857184\times10^{-1}$ & $7.06602695\times10^{0}$ \\
+0.10 & -0.00083333 & $2.76020824\times10^{-1}$ & $3.12276849\times10^{-1}$ & $1.16102188\times10^{1}$ \\
+0.12 & -0.00100000 & $3.73350318\times10^{-1}$ & $4.49678663\times10^{-1}$ & $1.69739753\times10^{1}$ \\
+0.14 & -0.00116667 & $4.72074437\times10^{-1}$ & $6.12062625\times10^{-1}$ & $2.28715464\times10^{1}$ \\
+0.16 & -0.00133333 & $5.67446604\times10^{-1}$ & $7.99428734\times10^{-1}$ & $2.90184879\times10^{1}$ \\
+0.18 & -0.00150000 & $6.55932329\times10^{-1}$ & $1.01177699\times10^{0}$ & $3.51702663\times10^{1}$ \\
+0.20 & -0.00166667 & $7.35202737\times10^{-1}$ & $1.24910740\times10^{0}$ & $4.11417514\times10^{1}$ \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.8em}
+\textbf{(b) Diagnósticos de radiación y unicidad}\\[0.4em]
+\begin{tabular}{@{}ccccc@{}}
+\toprule
+$\varepsilon$ & $sv_{\min,\mathrm{final}}$ & $\max(R_{\mathrm{prop}})$ &
+$N_{\mathrm{add}}$ & \text{BIC único} \\
+\midrule
+0.02 & $1.03646312\times10^{-4}$ & $9.06717439\times10^{-6}$ & 0 & No \\
+0.04 & $3.85954363\times10^{-6}$ & $7.68538360\times10^{-5}$ & 0 & Sí \\
+0.06 & $1.51064174\times10^{-6}$ & $2.83629974\times10^{-4}$ & 0 & Sí \\
+0.08 & $4.28577359\times10^{-6}$ & $7.54943683\times10^{-4}$ & 0 & Sí \\
+0.10 & $9.93243455\times10^{-6}$ & $1.68556637\times10^{-3}$ & 0 & Sí \\
+0.12 & $2.04586600\times10^{-5}$ & $3.35646934\times10^{-3}$ & 0 & Sí \\
+0.14 & $3.79799253\times10^{-5}$ & $6.13471509\times10^{-3}$ & 0 & Sí \\
+0.16 & $6.55963665\times10^{-5}$ & $1.04481413\times10^{-2}$ & 0 & No \\
+0.18 & $1.07477515\times10^{-4}$ & $1.67342696\times10^{-2}$ & 0 & No \\
+0.20 & $1.69256142\times10^{-4}$ & $2.53717392\times10^{-2}$ & 0 & No \\
+\bottomrule
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsubsection{Búsqueda global en la banda embebida}
+
+La Figura~\ref{fig:t23y_full_band} presenta un barrido representativo de la banda embebida para la geometría \(y\)-simétrica.
+
+\begin{figure}[!htbp]
+    \centering
+    \paperfigure{images/results/t23y_full_band_eps_010.png}
+    \caption{Barrido de la banda \(\Lambda_1<k^2<\Lambda_2\) para el caso \(y\)-simétrico con \(\varepsilon=0.10\).}
+    \label{fig:t23y_full_band}
+\end{figure}
+
+% FIGURE SOURCE:
+% src/svd_theorems_validations/theorem_2_3_y_symmetry_validation/full_band_epsilon_0.10.png
+% ->
+% images/results/t23y_full_band_eps_010.png
+
+Los mínimos adicionales se refinan y se someten al mismo diagnóstico de propagación. Ninguno resulta simultáneamente persistente y no radiativo. En el rango donde el candidato principal satisface los criterios de BIC, no se resuelven por tanto otros estados de este tipo.
+
+% ============================================================
+\section{Discusión}
+% ============================================================
+
+Los resultados muestran que conviene separar la calidad del cálculo espectral de la calidad de la aproximación asintótica. Un modo se considera numéricamente resuelto cuando el mínimo de \(s_{\min}(A(k))\) es pronunciado, queda dentro de la ventana de búsqueda y persiste al refinar la discretización. Estas condiciones reducen la posibilidad de interpretar una fluctuación numérica como un estado físico.
+
+La existencia y la unicidad plantean una cuestión distinta. Para el Teorema~2.1, el barrido de la banda subcrítica permite seguir la rama situada bajo \(\Lambda_1\), buscar soluciones adicionales y observar la transición asociada a \(a_0^*\). En el Teorema~2.3, la búsqueda se extiende a \((\Lambda_1,\Lambda_2)\), donde la presencia de un canal abierto obliga a añadir un diagnóstico de radiación. Una matriz BEM casi singular puede señalar un candidato, pero solo la supresión de la componente propagante permite clasificarlo como BIC. En la configuración simétrica respecto al eje \(x\), esta comprobación se refuerza con la paridad impar esperada; en la configuración simétrica respecto al eje \(y\), el elemento decisivo es el ajuste de la posición vertical.
+
+El acuerdo con las fórmulas asintóticas constituye un tercer aspecto. Un estado puede estar bien resuelto aunque la aproximación de primer orden ya no ubique su posición con gran precisión. Esto se observa con claridad cuando aumenta \(\varepsilon\): las ramas continúan siendo identificables, pero el error relativo en \(\sigma\) crece. También puede ocurrir lo contrario: dos valores de \(k\) visualmente muy próximos al umbral pueden corresponder a diferencias apreciables en la escala asintótica.
+
+Esta diferencia de sensibilidad justifica el uso de \(\sigma\) como variable principal. Dado que
+\[
+k^2=\Lambda_j-\sigma^2,
+\]
+una variación pequeña de \(\sigma\) produce una diferencia todavía menor en \(k\). El producto \(kb\) sigue siendo útil para situar la rama dentro del espectro, pero tiene menos capacidad para mostrar la convergencia y el error asintótico cerca de un umbral.
+
+El barrido completo de la banda aporta información que no ofrece una búsqueda local. En los experimentos no aparecen candidatos adicionales que sobrevivan al refinamiento y, en la banda embebida, al filtro de radiación. Esta evidencia es compatible con las afirmaciones de unicidad de los teoremas. Su interpretación debe ser prudente: una búsqueda finita no demuestra la ausencia absoluta de otras soluciones, y el resultado depende de la malla BEM, de la densidad del barrido espectral y de los umbrales de clasificación elegidos.
+
+% ============================================================
+\section{Conclusiones}
+% ============================================================
+
+La formulación BEM reproduce las ramas espectrales predichas por los Teoremas~2.1 y~2.3 de~\cite{Zhevandrov2025}. El refinamiento de la frontera confirma la estabilidad de los mínimos del menor valor singular, mientras que los barridos de las bandas subcrítica y embebida no revelan otros candidatos persistentes dentro de la resolución empleada.
+
+Para el Teorema~2.1 se resuelve la rama discreta situada por debajo de \(\Lambda_1\), su acercamiento al umbral y la transición geométrica asociada a \(a_0^*\). En los dos casos del Teorema~2.3, la identificación del estado requiere además comprobar la supresión del primer canal propagante. La geometría simétrica respecto al eje \(x\) satisface también el diagnóstico de paridad impar. En la geometría simétrica respecto al eje \(y\), los resultados son favorables solo en el rango donde el ajuste aproximado \(a_{\mathrm{num}}=-\varepsilon\beta/12\) y los criterios de radiación permiten resolver el BIC. Verificar estrictamente la condición \(a=\varepsilon a_1+\mathcal{O}(\varepsilon^2)\) exigirá calcular el valor exacto de \(a_1\) para el contorno de referencia.
+
+La variable \(\sigma=\sqrt{\Lambda_j-k^2}\) permite comparar la teoría y los cálculos en la escala adecuada. Para los obstáculos más pequeños, las aproximaciones de primer orden describen con precisión la posición de las ramas; al aumentar \(\varepsilon\), el error asintótico crece aunque el estado pueda seguir estando bien resuelto. Esta diferencia confirma que la existencia numérica del modo, su unicidad dentro del barrido y el acuerdo con la expansión asintótica deben evaluarse por separado.
+
+Quedan abiertas varias extensiones naturales: calcular \(a_1\) sin recurrir a su expansión en \(\beta\), aumentar la resolución del BEM y del barrido espectral, incluir términos asintóticos de orden superior y estudiar la evolución de los estados embebidos cuando se rompen las simetrías que los protegen.
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+
+\end{document}

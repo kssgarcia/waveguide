@@ -1,0 +1,33 @@
+{
+  "source_run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_21-23-19_full_fe445a6af342",
+  "method": "Full matrix SVD without odd projection at discovered roots; no parity constraint imposed on full singular vectors.",
+  "cases": [
+    {
+      "epsilon": 0.02,
+      "kb": 3.1415642574655043,
+      "full_smin_smax": 4.810100317889227e-11,
+      "full_normalized_residual": 4.8101011685530995e-11,
+      "independently_observed_odd_parity": 4.0485587216810314e-10,
+      "absolute_overlap_with_odd_discovery_vector": 0.9999999999999989,
+      "singular_value_separation": 9166147627.134962
+    },
+    {
+      "epsilon": 0.1,
+      "kb": 3.1281975659717824,
+      "full_smin_smax": 1.4865861862884837e-11,
+      "full_normalized_residual": 1.486585032825345e-11,
+      "independently_observed_odd_parity": 1.0510080173916332e-10,
+      "absolute_overlap_with_odd_discovery_vector": 0.9999999999999998,
+      "singular_value_separation": 27780201091.912308
+    },
+    {
+      "epsilon": 0.2,
+      "kb": 3.0541633797524783,
+      "full_smin_smax": 5.166648926294798e-12,
+      "full_normalized_residual": 5.166645339657705e-12,
+      "independently_observed_odd_parity": 1.524235460786002e-10,
+      "absolute_overlap_with_odd_discovery_vector": 0.9999999999999996,
+      "singular_value_separation": 83390068051.73572
+    }
+  ]
+}

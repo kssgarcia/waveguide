@@ -6,3 +6,13 @@ __pycache__/
 .ruff_cache/
 # Caché de imágenes de la implementación SVD previa.
 /src/svd_theorems_validations/images/results/
+/waveguide_my_report/build/
+# Generated TeX auxiliaries
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz

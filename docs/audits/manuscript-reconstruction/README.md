@@ -1,0 +1,9 @@
+# Manuscript reconstruction — completed computational deliverable
+
+Originalobjective: full scientific reconstruction of waveguide_my_report/,includingmethods,results,figures,tables,references,traceability andadversarialreview. Audits precededrewriting.
+
+Authoritativedeliverables:waveguide_my_report/main.tex,build/main.pdf,evidence_audit.md,README.md,RECONSTRUCTION_REPORT.md,data/publication_manifest.json. Thisauditfoldercontainsinventory,24claimmatrix,numerical/source/figureassessments,independentrecomputations,reviewcomments/resolutions andcompletion_audit.json. Originalmanuscript/images/uploads preserved inoriginal-manuscript/.
+
+Computationaltask completed; human scientificapproval,authorship/declarationsandjournal-specificsubmissionpreparationpending. Not a mathematicalproof,officialpeerreview,or submission-readydeclaration. UnresolvedExample5.4andfixedM/scopelimits explicitlystated rather thanhidden.
+
+CodeGraphfallback:rootverified,indexabsent,CLIstatusuninitialized,gentle-aiunavailable;no forbiddenlifecycle/indexcommandused.

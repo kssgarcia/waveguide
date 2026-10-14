@@ -1,0 +1,259 @@
+{
+  "theorem_2_1": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8",
+    "cases": [
+      {
+        "epsilon": 0.02,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.04,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.06,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.08,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.1,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.12,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.14,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.16,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.18,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.2,
+        "spectral_and_physical_recomputed": true
+      }
+    ],
+    "maxima": {
+      "normalized_residual": 6.707486033458758e-10,
+      "equilibrated_residual": 6.879969514431772e-10,
+      "relative_error_sigma": 0.23528214451686652,
+      "wall_relative_residual": 7.652665779832926e-10,
+      "boundary_integral_relative_residual": 7.1122282642936505e-06,
+      "decay_relative_error_left": 4.378625954810361e-07,
+      "decay_relative_error_right": 4.378496424685102e-07,
+      "s0_change": 0.0005009184835203207,
+      "s1_change": 0.0005009185844413822
+    },
+    "sha256": {
+      "summary.csv": "91c10eecac7ef8454bce1335f0b14db1d29ab64e30562b25556c2e35ab627dd6",
+      "physical_diagnostics.csv": "b8da545d7d3619705a18664084cec1f469c0720e480e9b3ad5b5cca9a0a46a10",
+      "internal_convergence.csv": "c5d38503a668dda198e0ee6d9920bb948e475ffa1daa82ef78c425010cbde574"
+    },
+    "geometry_counts": {
+      "zero-supported": 20,
+      "one": 79
+    },
+    "absent_cases_recomputed": 20,
+    "independent_exclusions": [
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.02/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.045263/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.070526/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.095789/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.121053/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.146316/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.171579/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.196842/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.222105/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.247368/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.272632/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.297895/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.323158/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.348421/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.373684/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.398947/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.424211/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.449474/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.474737/contour_exclusion.json",
+      "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/geometry_diagnostics/a_0.35_epsilon_0.5/contour_exclusion.json"
+    ],
+    "suspicious_unresolved_absence_cases": 17,
+    "critical_height": [
+      {
+        "epsilon": "0.04",
+        "a_lower_zero_mode": "0.38995155203060733",
+        "a_upper_one_mode": "0.3908890520306073",
+        "a_critical_estimate": "0.3904203020306073",
+        "bracket_width": "0.00093749999999998",
+        "a0_star": "0.3918265520306073",
+        "normalized_shift_over_epsilon": "-0.035156249999999944",
+        "status": "bracketed"
+      },
+      {
+        "epsilon": "0.06",
+        "a_lower_zero_mode": "0.38901405203060735",
+        "a_upper_one_mode": "0.38995155203060733",
+        "a_critical_estimate": "0.38948280203060737",
+        "bracket_width": "0.00093749999999998",
+        "a0_star": "0.3918265520306073",
+        "normalized_shift_over_epsilon": "-0.03906249999999871",
+        "status": "bracketed"
+      },
+      {
+        "epsilon": "0.08",
+        "a_lower_zero_mode": "0.3880765520306073",
+        "a_upper_one_mode": "0.38901405203060735",
+        "a_critical_estimate": "0.38854530203060733",
+        "bracket_width": "0.0009375000000000355",
+        "a0_star": "0.3918265520306073",
+        "normalized_shift_over_epsilon": "-0.04101562499999947",
+        "status": "bracketed"
+      },
+      {
+        "epsilon": "0.1",
+        "a_lower_zero_mode": "0.38713905203060733",
+        "a_upper_one_mode": "0.3880765520306073",
+        "a_critical_estimate": "0.3876078020306073",
+        "bracket_width": "0.00093749999999998",
+        "a0_star": "0.3918265520306073",
+        "normalized_shift_over_epsilon": "-0.04218749999999993",
+        "status": "bracketed"
+      }
+    ]
+  },
+  "theorem_2_3_iii": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_21-23-19_full_fe445a6af342",
+    "cases": [
+      {
+        "epsilon": 0.02,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.04,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.06,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.08,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.1,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.12,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.14,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.16,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.18,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.2,
+        "spectral_and_physical_recomputed": true
+      }
+    ],
+    "maxima": {
+      "normalized_residual": 9.294063762998448e-11,
+      "equilibrated_residual": 9.567487949476239e-11,
+      "relative_error_sigma": 0.4504191162053155,
+      "wall_relative_residual": 2.4521175350774514e-11,
+      "boundary_integral_relative_residual": 0.004033437498779117,
+      "decay_relative_error_left": 2.8973467315555855e-08,
+      "decay_relative_error_right": 1.0807027066159132e-08,
+      "first_open_channel_relative_amplitude": 1.3031947221729632e-10,
+      "s0_change": 0.0007123001358306966,
+      "s1_change": 0.0007123001327606405
+    },
+    "sha256": {
+      "summary.csv": "6abf9507d13d38a2456f1994c43a19c926cc3607d55b687e38cf48d8589b0869",
+      "physical_diagnostics.csv": "e97fcb3efdd49faceebd90d3ba6c0fc5882bb06b23dc68e4b8b868ac2539edc8",
+      "internal_convergence.csv": "70e8bc291811c7acd9120bad98a75dc1a856bf5472b50eb2ec29049e80de79da"
+    }
+  },
+  "theorem_2_3_iv": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_20-16-45_full_63388d81f58d",
+    "cases": [
+      {
+        "epsilon": 0.02,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.04,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.06,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.08,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.1,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.12,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.14,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.16,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.18,
+        "spectral_and_physical_recomputed": true
+      },
+      {
+        "epsilon": 0.2,
+        "spectral_and_physical_recomputed": true
+      }
+    ],
+    "maxima": {
+      "normalized_residual": 1.2929919865126073e-11,
+      "equilibrated_residual": 1.3189325057268003e-11,
+      "relative_error_sigma": 0.4414671435642371,
+      "wall_relative_residual": 4.753405669776009e-11,
+      "boundary_integral_relative_residual": 0.0021169688446727227,
+      "decay_relative_error_left": 3.573814227228933e-08,
+      "decay_relative_error_right": 3.573814240846459e-08,
+      "first_open_channel_relative_amplitude": 3.5367778734314906e-11
+    },
+    "sha256": {
+      "summary.csv": "8994b4f7a66c2a85cc6b71897db0e5f19efbfe2b917c09b83ffc4bb84f31fde0",
+      "physical_diagnostics.csv": "b448a2e57a9198cd5d80b391434038bd083918395f9f3a2d1803592f2055992f",
+      "internal_convergence.csv": "596364f01e160b334bea11bcbb64801e0742635bb5594003c74ce62f0cc2c78f"
+    },
+    "sensitivity_status_counts": {
+      "certified": 12,
+      "ambiguous/not-established": 3
+    }
+  }
+}

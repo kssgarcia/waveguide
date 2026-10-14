@@ -1,0 +1,349 @@
+\documentclass[11pt]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[a4paper,margin=25mm]{geometry}
+\usepackage{amsmath,amssymb,graphicx,booktabs,array}
+\usepackage{microtype}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{placeins}
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.65}
+\usepackage[colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\norm}[1]{\left\lVert#1\right\rVert}
+\newcommand{\fig}[2][0.96\linewidth]{\includegraphics[width=#1]{figures/#2}}
+\title{Cálculo y certificación numérica de modos próximos a los umbrales de una guía con un obstáculo pequeño}
+\author{M.I. Romero Rodr\'iguez\\Kevin Santiago Sepúlveda García\\H. Machuca Balaguera}
+\date{}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Se calculan modos localizados en una guía infinita con paredes de Dirichlet y un obstáculo pequeño de Neumann. El estudio contrasta las predicciones de los Teoremas 2.1 y 2.3(iii)--(iv) de Zhevandrov y colaboradores mediante una discretización integral de frontera con 24 nodos. Para el modo discreto y el problema restringido a funciones impares en la coordenada transversal se utiliza el método de momentos de contorno de Beyn, seguido de refinamiento en la distancia espectral al umbral. En el caso verdaderamente embebido se ajustan conjuntamente la frecuencia y la colocación del obstáculo, con evaluación directa del coeficiente geométrico de colocación y cancelación del canal propagante. Los treinta casos principales, con $0.02\leq\eps\leq0.20$, satisfacen los controles espectrales y de campo establecidos. Los residuales espectrales normalizados máximos son $6.71\times10^{-10}$, $9.30\times10^{-11}$ y $1.30\times10^{-11}$; los residuales integrales fuera de los nodos alcanzan, respectivamente, $7.12\times10^{-6}$, $4.04\times10^{-3}$ y $2.12\times10^{-3}$. El acuerdo con las fórmulas principales mejora hacia el extremo de menor tamaño del obstáculo. Se presentan veinte exclusiones espectrales numéricas en contornos finitos y cuatro intervalos de transición geométrica. El conteo en el caso simétrico respecto de $x$ se limita al sector impar; no se establece unicidad global de los estados embebidos. Se conserva explícitamente una discrepancia entre la fórmula integral de colocación y un ejemplo impreso del artículo fuente.
+\end{abstract}
+\noindent\textbf{Palabras clave:} modos atrapados; valores propios embebidos; ecuaciones integrales; método de Beyn; aproximaciones asintóticas.
+
+\section{Introducción}
+Un modo atrapado de una guía infinita es una función propia localizada que satisface las condiciones de frontera y pertenece a $L^2$ en la dirección longitudinal. Un valor propio por debajo del primer umbral queda separado de los canales propagantes. Dentro del espectro continuo, la localización requiere cancelar los canales abiertos: una pequeña singularidad algebraica del operador discretizado no basta para identificar un estado ligado en el continuo. Las formulaciones integrales ofrecen una vía para calcular estos estados sin truncar artificialmente la dirección infinita de la guía \cite{Linton1992}. Los estudios de elementos de frontera de Sargent y Mestel examinan también la identificación de soluciones espurias asociadas al truncamiento del dominio \cite{SargentMestel2019}. Los argumentos de existencia basados en simetría y en restricciones espectrales tienen antecedentes en la teoría de modos atrapados \cite{Evans1994}.
+
+El trabajo de Zhevandrov y colaboradores \cite{Zhevandrov2025} estudia un obstáculo de Neumann de tamaño $\eps$ en una guía de Dirichlet. En este estudio se contrastaron directamente los enunciados y ecuaciones del preprint local de 4 de marzo de 2025, asociado a dicha publicación; no se presume identidad textual con la versión editorial. Sus Teoremas 2.1 y 2.3 distinguen una transición geométrica del modo discreto y dos mecanismos de aparición de valores propios embebidos. La escala natural es $\sigma=\sqrt{\Lambda_j-k^2}$: con un coeficiente principal no nulo, $\sigma=O(\eps^2)$ y la distancia del valor propio al umbral es $O(\eps^4)$. Esta separación de escalas dificulta tanto el descubrimiento de la raíz como su representación gráfica. Una comparación de números de onda próximos al umbral puede ocultar un error considerable en $\sigma$.
+
+Aquí se utiliza una ecuación integral de doble capa con la función de Green de la guía. Su evaluación combina la representación reticular de Linton \cite{Linton1998Green} con una expansión modal para secciones longitudinalmente separadas. Para los problemas discretos se calculan momentos del inverso de la matriz sobre un contorno complejo, siguiendo a Beyn \cite{Beyn2012}. El conteo se examina mediante convergencia de ambos momentos, estabilidad del rango y de los candidatos, y variación del contorno. La frecuencia final se determina con refinamiento local, sin identificar la predicción asintótica con el valor numérico obtenido.
+
+La distinción entre los dos casos embebidos es esencial. La simetría respecto de $x$ permite trabajar en el sector impar en $y$, cuyo primer umbral es $\Lambda_2$. La simetría respecto de $y$ no elimina el primer canal propagante; en ese caso se resuelve un problema de ajuste de frecuencia y colocación, seguido de controles sobre las amplitudes complejas de radiación. Se estudian diez tamaños por configuración, una selección de colocaciones para el modo discreto y sensibilidad a parámetros de evaluación. Todos los cálculos principales mantienen $M=24$. Por tanto, el estudio proporciona evidencia a discretización fija, sin una estimación del error de frontera obtenida mediante refinamiento de $M$.
+
+\section{Problema espectral y predicciones analíticas}
+Sea $\Gamma=\{(X(t),Y(t)):0\leq t<2\pi\}$ un contorno suave orientado en sentido antihorario, con coordenadas de media cero. El obstáculo físico tiene frontera
+\begin{equation}
+ q_\eps(t)=(\eps X(t),a+\eps Y(t)).\label{eq:geometry}
+\end{equation}
+En el exterior del obstáculo dentro de $-b<y<b$ se considera
+\begin{equation}
+ -\Delta u=k^2u,\qquad u(x,\pm b)=0,\qquad
+ \partial_nu|_{\gamma_\eps}=0,\qquad u\in L^2(\Omega_\eps).
+ \label{eq:problem}
+\end{equation}
+La normal $n$ apunta hacia el obstáculo, es decir, hacia fuera del dominio perforado. Los umbrales de la guía vacía y sus funciones transversales son
+\begin{equation}
+ \Lambda_n=\frac{n^2\pi^2}{4b^2},\qquad
+ \phi_n(y)=\sin\frac{n\pi(y+b)}{2b},\qquad
+ \int_{-b}^b\phi_n^2\dd y=b.\label{eq:threshold}
+\end{equation}
+En $\Lambda_1<k^2<\Lambda_2$ está abierto únicamente el canal $n=1$.
+
+Las constantes geométricas se calculan en el contorno de referencia, antes de aplicar $\eps$. Sea $S$ su área y sea $\Psi$ la solución en el exterior del contorno de referencia. Para coordenadas exteriores independientes $(\zeta_1,\zeta_2)$ y $r=(\zeta_1^2+\zeta_2^2)^{1/2}$ se tiene
+\begin{equation}
+ \Delta\Psi=0,\qquad \partial_n\Psi=n_2\ \text{en }\Gamma,
+ \qquad \Psi(\zeta_1,\zeta_2)=-\mu\frac{\zeta_2}{r^2}-\nu\frac{\zeta_1}{r^2}+O(r^{-2}),\quad r\to\infty,
+ \label{eq:laplace}
+\end{equation}
+con constante lejana nula. Para $n=(-Y',X')/\sqrt{X'^2+Y'^2}$, las identidades del artículo fuente son
+\begin{equation}
+ \mu=\frac{S+\int_\Gamma n_2\Psi\dd s}{2\pi},\qquad
+ \nu=\frac{\int_\Gamma n_1\Psi\dd s}{2\pi}.\label{eq:dipoles}
+\end{equation}
+El círculo unitario proporciona la calibración $S=\pi$, $\mu=1$, $\nu=0$ y $\Psi=-\zeta_2/r^2$.
+
+El Teorema 2.1 establece, para $\eps$ suficientemente pequeño y la convención de desplazamiento positivo de la fuente, una altura crítica
+\begin{equation}
+ a^*=a_0^*+O(\eps),\qquad
+ a_0^*=\frac{2b}{\pi}\arctan\sqrt{\frac{S}{2\pi\mu}}.\label{eq:critical}
+\end{equation}
+Existe un único modo discreto por debajo de $\Lambda_1$ si $a>a^*$, y no existe si $a\leq a^*$. Su expansión es
+\begin{equation}
+ k^2=\Lambda_1-\sigma^2,\qquad
+ \sigma=\eps^2 C_1(a)+O(\eps^3\log\eps),\label{eq:asym21}
+\end{equation}
+\begin{equation}
+ C_1(a)=\frac{\pi^2}{4b^3}
+ \left[\pi\mu\sin^2\frac{\pi a}{2b}
+       -\frac{S}{2}\cos^2\frac{\pi a}{2b}\right].
+\end{equation}
+La escala $O(\eps^4)$ del desplazamiento de $k^2$ presupone un coeficiente principal no nulo; no debe trasladarse sin más al punto crítico.
+
+El Teorema 2.3(i) excluye valores propios separados de $\Lambda_2$ por un margen fijo para $\eps$ suficientemente pequeño; la parte (ii) excluye valores propios embebidos si $\nu\ne0$. Las configuraciones simétricas examinadas aquí tienen $\nu\simeq0$ y no constituyen experimentos independientes de estas dos afirmaciones de ausencia.
+
+En la parte (iii), $a=0$, $X$ es par y $Y$ es impar. El valor propio embebido satisface
+\begin{equation}
+ k^2=\Lambda_2-\sigma^2,\qquad
+ \sigma=\eps^2 C_2+O(\eps^3\log\eps),\qquad
+ C_2=\frac{\pi^3\mu}{b^3}.\label{eq:asym23}
+\end{equation}
+La función $\phi_1$ es par en $y$, mientras que $\phi_2$ es impar. La restricción a funciones impares elimina el primer canal: el intervalo $[\Lambda_1,\Lambda_2)$ queda por debajo del continuo en ese sector. Esta propiedad justifica la búsqueda de raíces discretas con momentos de contorno en el operador reducido; no elimina el continuo del problema completo.
+
+En la parte (iv), $X$ es impar y $Y$ es par. La simetría en $x$ conserva el canal $n=1$, incluso al restringir a una paridad en $x$. La colocación debe ajustarse según
+\begin{equation}
+ a=\eps a_1+O(\eps^2),\qquad
+ a_1=\frac{\int_0^{2\pi}(X'Y-3XY')(Y-\Psi)\dd t}
+ {2(2S+\pi\mu)}.\label{eq:a1}
+\end{equation}
+La distancia espectral sigue \eqref{eq:asym23}. La existencia y unicidad enunciadas por el teorema son resultados analíticos; los cálculos siguientes evalúan su concordancia en configuraciones finitas y no reproducen todas sus cuantificaciones.
+
+\begin{figure}[!htbp]
+\centering\fig{geometry.pdf}
+\caption{Configuraciones calculadas con $b=1$ y $\eps=0.10$: círculo desplazado y perfiles simétricos respecto de $x$ e $y$. Las formas se obtienen de \eqref{eq:geometry} y \eqref{eq:profiles}; el desplazamiento del caso Y corresponde a la colocación numéricamente ajustada.}
+\label{fig:geometry}
+\end{figure}
+
+\section{Métodos numéricos}
+\subsection{Green de la guía y ecuación integral}
+Se adopta la convención de Linton \cite{Linton1998Green}, $(\Delta+k^2)G=\delta$, cuyo término libre saliente es $-iH_0^{(1)}(kr)/4$. La función periódica auxiliar tiene período $d=4b$. La combinación de imágenes
+\begin{equation}
+ G_s(P,q;k)=\mathcal G_0^{4b}(x-\xi,y-\eta;k)
+ -\mathcal G_0^{4b}(x-\xi,y+\eta+2b;k)\label{eq:green}
+\end{equation}
+impone las dos paredes de Dirichlet. En esta representación $P=(x,y)$, $q=(\xi,\eta)$ y los argumentos $X,Y$ de $\mathcal G$ denotan separaciones, no funciones del contorno: $r=(X^2+Y^2)^{1/2}$. Para separaciones $r<d$ se utiliza la expansión armónica de Linton (2.46),
+\begin{equation}
+ \mathcal G_0^d(X,Y;k)=-\frac{i}{4}
+ \left[H_0^{(1)}(kr)+\sum_{\ell\geq0}\epsilon_\ell S_\ell(0,kd)
+ J_\ell(kr)\cos\{\ell(\pi/2-\vartheta)\}\right],\label{eq:lattice}
+\end{equation}
+con $\epsilon_0=1$, $\epsilon_\ell=2$ para $\ell>0$ y $\vartheta=\operatorname{atan2}(Y,X)$. Las sumas reticulares $S_\ell$ se calculan mediante las expresiones aceleradas del mismo trabajo, en lugar de truncar directamente una suma de Hankel sobre imágenes lejanas.
+
+Antes de todas las evaluaciones ordinarias y regularizadas del ensamblaje se aplica
+\begin{equation}
+ \widetilde Y=Y-d\left\lfloor\frac{Y+d/2}{d}\right\rfloor,
+ \qquad -d/2\leq\widetilde Y<d/2.\label{eq:wrap}
+\end{equation}
+Para fase periódica cero esta reducción es exacta; evita evaluar la expansión local sobre una separación reflejada fuera de su dominio. Se aplica de manera consistente también a la reconstrucción del campo. La singularidad de fuente se regulariza restando $Y_0(kr)/4$; queda $-iJ_0(kr)/4$ en el término libre y se conserva íntegro el término de imagen. La periodicidad exacta no elimina los errores de truncación armónica o reticular.
+
+Para secciones suficientemente separadas se evalúa la representación modal
+\begin{equation}
+ G_s(P,q;k)=-\frac{1}{2b}\sum_{n=1}^{\infty}
+ \frac{e^{-\gamma_n|x-\xi|}}{\gamma_n}\phi_n(y)\phi_n(\eta),
+ \quad \gamma_n=\sqrt{\Lambda_n-k^2},\label{eq:modal}
+\end{equation}
+con $\gamma_n=-i\sqrt{k^2-\Lambda_n}$ en un canal abierto. El signo produce ondas salientes con la convención temporal $e^{-i\omega t}$. La implementación comprueba la cola de la expansión; los controles independientes comparan esta representación con la reticular.
+
+La identidad de Green, con la normal ya definida y la condición de Neumann homogénea, proporciona
+\begin{equation}
+ u(P)=\int_{\gamma_\eps}u(q)\partial_{n_q}G_s(P,q;k)\dd s_q,
+ \qquad \frac12u(p)=\int_{\gamma_\eps}u(q)\partial_{n_q}G_s(p,q;k)\dd s_q.
+ \label{eq:bie}
+\end{equation}
+La segunda integral se interpreta con el límite de doble capa. Esta orientación y el signo de \eqref{eq:green} deben conservarse conjuntamente.
+
+\subsection{Discretización y certificación espectral}
+Se usan nodos $t_j=2\pi(j+1/2)/M$, $M=24$, en el contorno completo. Con $w_\eps=|q'_\eps|$ y $K^w=w_\eps\partial_{n_q}G_s$, la regla periódica de punto medio da
+\begin{equation}
+ A(k)v=0,\qquad A(k)=I-\frac{4\pi}{M}K^w(k).\label{eq:matrix}
+\end{equation}
+Las derivadas respecto de la fuente se evalúan con diferencias centradas de paso $h$. En la diagonal se deriva la parte regularizada y se añade el límite de curvatura $-\kappa/(4\pi)$, multiplicado por $w_\eps$. Para orientación antihoraria, $\kappa=(x'y''-y'x'')/|q'|^3$.
+
+Las raíces reales se refinan en $\sigma$ en lugar de $kb$, pues la conversión $k^2=\Lambda_j-\sigma^2$ comprime la escala cercana al umbral. Se exige un mínimo interior con una caída de al menos un factor 100 frente a los valores de prueba laterales. Se registran la razón $s_{\min}/s_{\max}$ y el residual del vector singular
+\begin{equation}
+ r_A=\frac{\norm{Av}_2}{\norm{A}_2\norm{v}_2},\qquad
+ \norm A_2=s_{\max}.\label{eq:residual}
+\end{equation}
+Se controla además $B=D^{-1}A$, donde $D_{ii}=\norm{A_{i,:}}_2$, mediante $r_B=\norm{Bv}_2/(\norm{B}_2\norm{v}_2)$, evaluado con el mismo vector singular de $A$, y un umbral absoluto separado sobre $s_{\min}(B)$. El escalamiento es diagnóstico y no modifica el operador físico.
+
+Para un vector singular exacto, \eqref{eq:residual} coincide con $s_{\min}/s_{\max}$; ambas cantidades no se cuentan como verificaciones independientes. La evaluación explícita del residual comprueba el vector utilizado, y el control con filas equilibradas evita aceptar una razón pequeña producida únicamente por una escala grande del operador. Los umbrales operativos son $r_A,r_B\leq10^{-8}$, razón singular $\leq10^{-4}$ y $s_{\min}(B)\leq10^{-6}$ en 2.1/X o $10^{-8}$ en Y. En X los criterios locales se aplican al operador reducido, con un control adicional del vector levantado en la matriz completa. Son reglas de aceptación, no cotas a posteriori del error del problema continuo.
+
+\subsection{Momentos de contorno y reducción impar}
+Para una matriz analítica $A(z)$ invertible en un contorno cerrado $\mathcal C$ se forman \cite{Beyn2012}
+\begin{equation}
+ S_0=\frac{1}{2\pi i}\oint_{\mathcal C} A(z)^{-1}V\dd z,
+ \qquad S_1=\frac{1}{2\pi i}\oint_{\mathcal C} zA(z)^{-1}V\dd z,\label{eq:moments}
+\end{equation}
+con una matriz de prueba de ocho columnas y semilla fija 1729. Si $S_0=U\Sigma W^*$ tiene rango numérico $r$, los valores propios de
+\begin{equation}
+ U_r^*S_1W_r\Sigma_r^{-1}\label{eq:beyn}
+\end{equation}
+son candidatos del problema no lineal dentro del contorno. La suficiencia de la dimensión de prueba y la separación del rango se evalúan numéricamente; no se presume un conteo fiable de cualquier espectro no observado.
+
+Se integran elipses en la variable $z=kb$, con semialtura imaginaria 0.03, mediante cuadratura gaussiana graduada cerca de sus extremos reales. Los niveles nominales son 256, 512 y 1024, con extensión a 2048/4096 cuando hace falta. Las tablas registran los puntos efectivamente usados. Se exige acuerdo entre un estimador de rango por tolerancia y otro por salto singular, estabilidad entre niveles, cambios relativos de ambos momentos menores que $10^{-3}$, desplazamiento estable del candidato y residuales de las resoluciones lineales menores que $10^{-10}$. Un contorno más próximo al umbral debe mantener el conteo. El extremo inferior queda separado del umbral por un margen explícito; el superior se adapta a la proximidad prevista de la rama. La predicción decide la cobertura del contorno, pero no fija la raíz refinada.
+
+En 2.1 se usa $A$ completo. Para X se construye un levantamiento ortonormal $Q$ de vectores impares bajo reflexión en $y$ y se usa
+\begin{equation}
+ A_{\mathrm{odd}}=Q^*AQ,\qquad v=Qv_{\mathrm{odd}}.\label{eq:odd}
+\end{equation}
+La dimensión reducida es 12. El defecto de conmutación del operador con la reflexión, el residual de $Av$ y la fuga fuera del sector se controlan separadamente. El conteo se refiere al problema matricial analítico en el sector impar y al interior de la elipse. No es un conteo del espectro completo de la guía.
+
+Los momentos cercanos a cero requieren otro criterio: para dos rangos consecutivos nulos se controla la pequeñez absoluta de los cuatro momentos, en vez de exigir estabilidad relativa de cantidades dominadas por ruido. En las exclusiones de 2.1 se añade un conteo independiente de la fase del determinante equilibrado. Dos cuadraturas resueltas deben dar el mismo entero, con incrementos de fase controlados y sin muestras singulares. Un diagnóstico incompleto, un fallo de resolución o un candidato no evaluado se clasifica como ambiguo. Ninguno de ellos constituye evidencia de ausencia.
+
+\subsection{Constantes de Laplace y ajuste del estado embebido}
+Para X/Y se resuelve \eqref{eq:laplace} mediante fuentes fundamentales logarítmicas colocadas dentro del obstáculo de referencia,
+\begin{equation}
+ \Psi_N(P)=-\frac{1}{2\pi}\sum_{j=1}^N c_j\log|P-s_j|,
+ \qquad \sum_jc_j=0.\label{eq:mfs}
+\end{equation}
+La restricción elimina el término logarítmico lejano; la representación sin constante añadida fija la constante lejana a cero. Las fuentes se colocan a escala radial 0.65; el sistema de Neumann se resuelve por mínimos cuadrados. Se comparan órdenes 60, 80, 120 y 160, residuales en puntos distintos de los de colocación y las identidades \eqref{eq:dipoles}. Los momentos de las fuentes proporcionan $\mu,\nu$; el círculo unitario comprueba signos y normalización. La integral \eqref{eq:a1} se evalúa directamente con 4096 puntos. Para Y se varían también la escala de las fuentes y la cuadratura; $a_1$ no se obtiene ajustando la colocación de los BIC.
+
+En Y se parametriza
+\begin{equation}
+ a=\eps a_1+c\eps^2,\qquad
+ \sigma=\sigma_{\mathrm{asym}}e^\ell.\label{eq:tuning}
+\end{equation}
+Se sigue una rama del operador completo mediante solapamiento de vectores. Una resolución conjunta anula la parte real de su valor propio cercano a cero y una proyección firmada del acoplamiento del primer canal, calculada con la parte real del vector alineado en fase. Con $q_1=\sqrt{k^2-\Lambda_1}$ y coeficientes salientes $C_1^\pm$, esa condición utiliza $\operatorname{Re}\{ibq_1(C_1^-+C_1^+)\}/\eps^2$. Se elimina así el prefactor saliente antes de controlar el acoplamiento firmado, evitando reemplazarlo por una fuga cuadrática. El vector se fija en fase durante el seguimiento; el Jacobiano se examina y se emplean semillas alternativas. Se requiere solapamiento de rama de al menos 0.5, condición del Jacobiano menor que $10^{10}$ y norma del residual conjunto menor que $2\times10^{-8}$. La parte imaginaria completa del valor propio, los residuales de la matriz compleja y los dos coeficientes salientes complejos se comprueban después. Por ello, utilizar la parte real en la ecuación de ajuste no equivale a aceptar una solución de la matriz real solamente.
+
+La continuidad entre tamaños y la fórmula principal ayudan a inicializar el cálculo. Los controles independientes incluyen resoluciones iniciadas desde $a=0$ en dos tamaños, sin imponer la colocación asintótica. El barrido posterior de la banda real es exploratorio y no se interpreta como un conteo de valores propios de un operador analítico discreto. No se usa un rango de Beyn de la matriz embebida completa como certificado de unicidad.
+
+\subsection{Diagnósticos de campo y reproducibilidad}
+El campo se reconstruye mediante \eqref{eq:bie}, con \eqref{eq:modal} en secciones separadas. Se registran valores en las paredes, paridad, consistencia integral en puntos desplazados respecto de los nodos y normas transversales en $|x|/b=1.5,2,2.5,3$. La pendiente de $\log\norm{u(x,\cdot)}_{L^2(-b,b)}$ se compara con $-\sigma$. En la banda embebida se proyecta el campo sobre $\phi_1$ a ambos lados y se examinan las amplitudes complejas salientes, incluyendo su consistencia de fase en Y.
+
+La tolerancia para paredes es $10^{-6}$, para la amplitud relativa del canal abierto $10^{-5}$ y para el residual integral fuera de los nodos $5\times10^{-3}$. El error relativo permitido de la tasa de decaimiento es 0.20. Estos diagnósticos tienen normalizaciones diferentes, detalladas en el archivo de evidencia. Las paredes están incorporadas en el Green y la paridad de la reconstrucción usual de X está parcialmente impuesta por $Q$; son controles de implementación. Para reducir esta dependencia se calculan además vectores singulares de la matriz completa sin imponer paridad en tres tamaños representativos.
+
+El residual integral compara $u/2$ interpolado trigonométricamente con la integral de doble capa en blancos desplazados. No es una evaluación directa de la derivada normal hipersingular ni una cota de error de Neumann del campo continuo. Se conserva esta distinción al interpretar la certificación física. Asimismo, que la expansión modal reproduzca una tasa de decaimiento prevista por su propia raíz es consistencia de la reconstrucción, no convergencia independiente del operador.
+
+Los cálculos principales usan 200 términos reticulares, orden armónico 20 (pares hasta orden 40) y $h=10^{-6}$. La sensibilidad cambia estos parámetros de uno en uno con $M$ fijo. Se verifican Green reticular y modal, regularización, reducción periódica y comparación de órdenes armónicos. Los resultados se guardan en directorios versionados, con parámetros y huellas del código y del ensamblaje. Las figuras y tablas se generan de tres corridas fijadas explícitamente; sus archivos fuente y transformaciones se registran con hashes. No se reutilizan resultados SVD anteriores ni resultados previos a la corrección periódica.
+\begin{table}[!htbp]\centering
+\caption{Parámetros de evaluación principales. $H$ es el índice máximo de pares armónicos y $N_{\mathrm{lat}}$ la truncación de las sumas aceleradas; $M$ es el número de nodos de frontera. Se fija $b=1$.}
+\label{tab:configuration}\input{tables/configuration.tex}
+\end{table}
+
+
+\section{Resultados}
+Todos los resultados de esta sección corresponden a $b=1$, $M=24$ y $\eps=0.02,0.04,\ldots,0.20$. La clasificación espectral y los controles físicos se recalcularon a partir de columnas numéricas, sin aceptar las etiquetas de los scripts como evidencia suficiente. Los treinta casos principales cumplen los umbrales indicados. El resumen de diagnósticos en tres tamaños representativos permite separar precisión algebraica de consistencia de reconstrucción.
+\begin{table}[!htbp]\centering
+\caption{Diagnósticos en tres tamaños representativos de cada configuración. El canal $n=1$ está cerrado en 2.1. Las tolerancias de cada columna son distintas; el residual BIE mide consistencia integral fuera de los nodos.}
+\label{tab:diagnostics}\input{tables/diagnostics.tex}
+\end{table}
+
+\subsection{Modo discreto y transición geométrica}
+La configuración principal es un círculo unitario de referencia desplazado a $a=0.6$. En este caso $a_0^*=0.3918265520$ y $C_1=3.7344172475$. Beyn descubre un candidato real y el refinamiento en $\sigma$ localiza un modo en cada tamaño. Los estimadores de rango coinciden en uno; los cambios finales máximos de $S_0$ y $S_1$ son $5.01\times10^{-4}$. La estabilidad del candidato y el contorno más estrecho completan el respaldo de un único modo dentro de cada contorno matricial examinado.
+
+La Tabla~\ref{tab:21} presenta los valores refinados. El error relativo de la predicción principal en $\sigma$ aumenta de $0.0966\%$ en $\eps=0.02$ a $5.56\%$ en $0.10$ y $23.53\%$ en $0.20$. Así, con un umbral descriptivo de acuerdo del $5\%$, los puntos hasta $\eps=0.08$ concuerdan con el término principal. Este umbral describe aproximación asintótica y no interviene en la existencia numérica del modo.
+\begin{table}[!htbp]\centering
+\caption{Rama discreta a $a=0.6$. $E_\sigma=|\sigma_{\mathrm{num}}-C_1\eps^2|/(C_1\eps^2)$; los números de onda y distancias son valores refinados, no inicializaciones teóricas.}
+\label{tab:21}\input{tables/theorem_2_1.tex}
+\end{table}
+
+\begin{figure}[!htbp]\centering\fig{spectral_scaling.pdf}
+\caption{Comparación de las tres ramas mediante $\sigma/(C\eps^2)$ (fila superior) y $(\sigma-C\eps^2)/(\eps^3|\log\eps|)$ (fila inferior), con $C=C_1$ o $C_2$. Los marcadores corresponden a las raíces refinadas y las referencias al coeficiente principal calculado sobre cada geometría. Se muestran los diez tamaños de cada corrida; las líneas entre datos sólo ayudan a leer la tendencia. La separación para tamaños mayores mide error de la fórmula principal, no rechazo del modo.}
+\label{fig:scaling}
+\end{figure}
+\begin{figure}[!htbp]\centering\fig{beyn_convergence.pdf}
+\caption{Diagnósticos de cuadratura de Beyn en casos representativos de 2.1 y X: rangos, cambios de ambos momentos y estabilidad del candidato. La primera comparación no definida se conserva como dato ausente. X corresponde al sector impar; Y no aparece como un problema de conteo.}
+\label{fig:beyn}
+\end{figure}
+
+El barrido geométrico contiene 99 configuraciones admisibles: 79 con modo físicamente certificado y veinte con exclusión numérica. Estas últimas corresponden a $a=0.35$. Todas tienen dos conteos completos del determinante iguales a cero, a 260 y 516 puntos efectivos. Diecisiete presentan también mínimos SVD sospechosos sin certificar; su clasificación de ausencia descansa en el conteo independiente, no en el fracaso del refinamiento. El alcance de la exclusión es el interior de una elipse cuya proyección real termina en $kb=\pi/2-10^{-12}$ y comienza en $10^{-4}$. No se excluyen los intervalos omitidos ni se demuestra ausencia en el problema continuo.
+
+La transición se encerró para $\eps=0.04,0.06,0.08,0.10$ en intervalos de anchura $9.375\times10^{-4}$. Sus puntos medios son $0.3904203$, $0.3894828$, $0.3885453$ y $0.3876078$. La aproximación hacia $a_0^*$ al disminuir $\eps$ es compatible con \eqref{eq:critical}. La anchura de los intervalos impide inferir un coeficiente de orden superior a partir de la curvatura de los puntos medios.
+\begin{figure}[!htbp]\centering\fig{critical_height.pdf}
+\caption{Clasificación geométrica y transición discreta. Las exclusiones son numéricas dentro de los contornos registrados. Los intervalos de altura muestran los extremos efectivamente clasificados; son brackets deterministas, no intervalos estadísticos de confianza. No se asigna $\sigma=0$ a una configuración sin modo.}
+\label{fig:critical}
+\end{figure}
+
+La Figura~\ref{fig:kb_a} sitúa las ramas discretas frente al primer umbral y muestra su dependencia de la altura. La Figura~\ref{fig:kb_each_a} desglosa las mismas observaciones por altura, con escalas verticales individuales para resolver las ramas cercanas al umbral. En $a=0.35$ no se asigna un número de onda a las configuraciones con exclusión numérica.
+\begin{figure}[!htbp]\centering\fig{kb_vs_epsilon_by_a.pdf}
+\caption{Número de onda $kb$ frente al tamaño $\eps$ para las alturas del barrido de 2.1, con $b=1$ y $M=24$. Se representan sólo modos con certificación espectral y controles físicos completos. Las líneas discontinuas del mismo color muestran $kb_{\mathrm{asym}}=\sqrt{(\pi/2)^2-[C_1(a)\eps^2]^2}$, obtenido del término principal de \eqref{eq:asym21}; la línea gris punteada indica el primer umbral $\pi/2$. Las líneas continuas unen valores numéricos. La comparación fuera del régimen pequeño de $\eps$ no implica validez uniforme de la aproximación.}
+\label{fig:kb_a}
+\end{figure}
+\begin{figure}[!htbp]\centering\fig{kb_vs_epsilon_each_a.pdf}
+\caption{Las ramas de la Figura~\ref{fig:kb_a}, separadas por altura. Las curvas discontinuas corresponden al término principal teórico y las continuas a los modos calculados. Los paneles usan escalas verticales distintas para mostrar las pequeñas distancias al umbral. El panel $a=0.35$ conserva explícitamente la exclusión numérica sin inventar una curva de valores propios. Sólo se muestran las geometrías presentes en el barrido admisible.}
+\label{fig:kb_each_a}
+\end{figure}
+
+
+\subsection{Simetría respecto de \texorpdfstring{$x$}{x}: descubrimiento en el sector impar}
+Las geometrías X e Y utilizan, respectivamente,
+\begin{equation}
+ \begin{aligned}
+ X_X(t)&=\cos t-\tfrac\beta2\cos2t,&Y_X(t)&=\sin t-\tfrac\beta2\sin2t,\\
+ X_Y(t)&=\sin t-\tfrac\beta2\sin2t,&Y_Y(t)&=-\cos t+\tfrac\beta2\cos2t,
+ \end{aligned}\quad \beta=0.5.\label{eq:profiles}
+\end{equation}
+Para X se toma $a=0$. El cálculo MFS da $\mu=1.0797777207$, $\nu=1.28\times10^{-15}$ y $C_2=33.4798867602$. Los controles de calibración circular, puntos exteriores independientes e identidad de dipolo satisfacen las tolerancias previstas. Beyn aplicado a $A_{\mathrm{odd}}$ encuentra rango uno con acuerdo entre estimadores en los diez tamaños, cambios de momentos finales menores que $7.13\times10^{-4}$ y estabilidad al variar el contorno.
+
+La Tabla~\ref{tab:X} y la Figura~\ref{fig:scaling} muestran el acercamiento de $\sigma/\eps^2$ a $C_2$ al disminuir el obstáculo. El error relativo es $0.2588\%$ en $\eps=0.02$, $13.44\%$ en $0.10$ y $45.04\%$ en $0.20$. El acuerdo del $5\%$ se restringe a los tamaños muestreados hasta $0.06$. Los puntos mayores siguen siendo modos numéricamente aceptados aunque la fórmula principal ya no los aproxime con esa precisión.
+\begin{table}[!htbp]\centering
+\caption{Raíces del problema X obtenidas mediante Beyn en el sector impar y refinamiento SVD. El rango uno se refiere al interior del contorno reducido, no a la totalidad del espectro embebido.}
+\label{tab:X}\input{tables/theorem_X.tex}
+\end{table}
+
+La reconstrucción habitual con $Qv_{\mathrm{odd}}$ tiene paridad impuesta. Como control adicional, se extrajeron vectores de la SVD completa sin restricción de paridad en $\eps=0.02,0.10,0.20$. El defecto impar máximo fue $4.05\times10^{-10}$ y el solapamiento absoluto con el vector reducido superó $0.999999999999998$. El residual completo fue menor que $4.82\times10^{-11}$. Esto confirma que las raíces del problema reducido coinciden con vectores casi nulos impares de la matriz completa en esos tres casos. No suministra un conteo del sector par.
+
+La amplitud relativa máxima del primer canal es $1.31\times10^{-10}$ y el error relativo máximo de la tasa de decaimiento es $2.90\times10^{-8}$. El residual BIE fuera de los nodos alcanza $4.034\times10^{-3}$, próximo al umbral de $5\times10^{-3}$. Por ello la precisión algebraica no debe confundirse con un error físico uniforme de orden $10^{-10}$. La evidencia de unicidad permanece limitada al sector impar y a los contornos inspeccionados; el problema completo y sus márgenes espectrales no han sido excluidos.
+
+\subsection{Simetría respecto de \texorpdfstring{$y$}{y}: ajuste del BIC}
+La geometría Y de \eqref{eq:profiles} proporciona $\mu=1.1769382790$, $\nu=-2.86\times10^{-17}$ y $C_2=36.4924739147$. La integral \eqref{eq:a1}, con $\Psi$ calculada independientemente de las raíces espectrales, da
+\begin{equation}
+ a_1=-0.2297180104.\label{eq:a1value}
+\end{equation}
+La variación de orden MFS, posición de fuentes y cuadratura comprueba la estabilidad del coeficiente. La colocación principal $\eps a_1$ se utiliza como referencia; se resuelve numéricamente la corrección $c$ de \eqref{eq:tuning}.
+
+Los diez estados ajustados satisfacen el residual de raíz, los controles de singularidad de la matriz compleja y los controles físicos. La Tabla~\ref{tab:Y} distingue colocación principal y colocación numérica. Una extrapolación lineal de $a_{\mathrm{BIC}}/\eps$ usando los cinco puntos con $\eps\leq0.10$ da $-0.2296782619$, a una diferencia relativa de $0.0173\%$ de \eqref{eq:a1value}. El ajuste cuadrático difiere $0.0372\%$. Son ajustes de una ventana finita y no demuestran un límite exacto ni el resto uniforme de \eqref{eq:a1}.
+\begin{table}[!htbp]\centering
+\caption{Colocación y raíz del BIC Y. $a_{\mathrm{lead}}=\eps a_1$ se calcula con \eqref{eq:a1}, mientras que $a_{\mathrm{BIC}}$ se obtiene del ajuste conjunto. $c=(a_{\mathrm{BIC}}-a_{\mathrm{lead}})/\eps^2$. Todos los casos principales satisfacen los controles físicos; no se certifica unicidad global.}
+\label{tab:Y}\input{tables/theorem_Y.tex}
+\end{table}
+\begin{figure}[!htbp]\centering\fig{placement.pdf}
+\caption{Colocación del BIC Y comparada con el valor integral $a_1$ y corrección escalada. Las raíces se calcularon con el operador completo y cancelación firmada del primer canal. La línea de extrapolación ajusta los cinco puntos con $\eps\leq0.10$. La comparación evalúa consistencia de la ley principal sobre los tamaños muestreados; el coeficiente integral no se obtuvo ajustando los mismos puntos.}
+\label{fig:placement}
+\end{figure}
+
+El error de la fórmula principal de $\sigma$ es $0.2011\%$ en $\eps=0.02$, $12.90\%$ en $0.10$ y $44.15\%$ en $0.20$. La amplitud relativa máxima del primer canal es $3.54\times10^{-11}$; las partes reales e imaginarias de las amplitudes salientes izquierda/derecha se conservan en los datos. El residual BIE máximo es $2.117\times10^{-3}$ y el error relativo máximo de decaimiento $3.58\times10^{-8}$. Los controles modales, las cuadraturas alternativas y el sobremuestreo de la densidad a raíces guardadas respaldan la reconstrucción. El barrido de banda no encuentra otros BIC resueltos, pero no establece unicidad: un muestreo finito de mínimos no es un conteo espectral global.
+
+La fuente presenta una discrepancia que afecta la interpretación del coeficiente de colocación. Su Ejemplo 5.4 imprime $a_1=-\beta/12+O(\beta^2)$. Sin embargo, sustituir las expresiones de $X,Y,f$ impresas en esa misma página en (5.47), con $f=(Y-\Psi)/2$, da un numerador $-3\pi\beta/2+O(\beta^2)$ y denominador $3\pi+O(\beta)$: el resultado es $-\beta/2+O(\beta^2)$. El cálculo directo de (2.7) para $\beta=0.02,0.05,0.10$ tiene pendiente ajustada $-0.4986263$, compatible con esa sustitución y distinta de $-1/12$. Esto identifica una inconsistencia interna del preprint suministrado, no determina qué expresión pretendían corregir sus autores. Los valores principales de este estudio proceden de (2.7); no se adopta la cifra del ejemplo ni se modifica la física para forzarla.
+
+\subsection{Sensibilidad y consistencia física}
+Los estudios de sensibilidad a $\eps=0.10$ usan quince variantes de paso diferencial, truncación reticular y orden armónico. El parámetro $M$ permanece fijo. Las comparaciones independientes de los operadores con expansiones modales de 12000/24000 términos, en tamaños $0.02,0.10,0.20$, dan diferencias menores que $5.1\times10^{-10}$ en los contrastes representativos de X/Y. En Y, la diferencia del operador entre órdenes armónicos 20 y 40 en esos controles es menor que $2.2\times10^{-12}$.
+
+En Y se conservan tres variantes rechazadas: $h=10^{-5}$, $h=10^{-4}$ y orden armónico 5. Los otros doce ajustes de sensibilidad quedan certificados; los siete de calidad de referencia pasan también los controles físicos independientes registrados. El rechazo significa precisión insuficiente en ese ajuste, no inexistencia del BIC. La Figura~\ref{fig:sensitivity} los muestra sin excluirlos del registro.
+\begin{figure}[!htbp]\centering\fig{physical_diagnostics.pdf}
+\caption{Diagnósticos de los casos principales: residuales espectrales, consistencia integral y controles de radiación/decaimiento según corresponda. Las tolerancias proceden de la configuración real. Las cantidades tienen normalizaciones distintas y no representan estimaciones intercambiables de un único error.}
+\label{fig:physical}
+\end{figure}
+\begin{figure}[!htbp]\centering\fig{sensitivity.pdf}
+\caption{Sensibilidad a parámetros de evaluación con $M=24$ y $\eps=0.10$. Las diferencias se calculan respecto del ajuste de referencia. Los ajustes Y ambiguos se distinguen de los aceptados; una igualdad numérica con la referencia no implica error arbitrariamente pequeño.}
+\label{fig:sensitivity}
+\end{figure}
+\FloatBarrier
+
+\begin{figure}[!htbp]\centering\fig{mfs_coefficients.pdf}
+\caption{Controles de las constantes geométricas: orden MFS, estabilidad de $a_1$ frente a fuentes/cuadratura y contraste de pequeña $\beta$. La comparación con el coeficiente impreso $-\beta/12$ se conserva explícitamente; no se utiliza ese coeficiente para ajustar los BIC.}
+\label{fig:mfs}
+\end{figure}
+\begin{figure}[!htbp]\centering\fig{fields_decay.pdf}
+\caption{Campos y decaimiento reconstruidos a las raíces guardadas con $\eps=0.10$ en X/Y. Los vectores se obtienen de la matriz completa sin imponer paridad. Se enmascara una banda de $0.025b$ alrededor del obstáculo para evitar evaluar el campo con cuadratura insuficiente. Las normas transversales son muestras reconstruidas; la referencia exponencial usa la raíz calculada. La normalización y el convención de fase se conservan con los datos complejos.}
+\label{fig:fields}
+\end{figure}
+\FloatBarrier
+
+\section{Discusión}
+Las tres configuraciones separan dificultades diferentes. En 2.1 el modo está debajo de todos los canales y el descubrimiento por contorno se aplica a la matriz completa. En X la reducción impar convierte el intervalo embebido del problema completo en un intervalo discreto del sector; el método de Beyn evita depender exclusivamente de una inicialización local. En Y la simetría geométrica deja abierta una vía de radiación y obliga a resolver además la colocación. Una casi singularidad aislada, sin cancelación de las amplitudes salientes, no sería evidencia suficiente de un BIC.
+
+El refinamiento espectral y la comparación asintótica responden a preguntas diferentes. Las ramas de tamaño mayor pueden satisfacer los controles espectrales y de campo aun cuando el término principal tenga errores relativos superiores al $40\%$. El acercamiento de $\sigma/\eps^2$ al coeficiente geométrico al reducir $\eps$ concuerda con la predicción analítica. Diez puntos finitos no prueban el resto $O(\eps^3\log\eps)$ ni la analiticidad en $\eps$ y $\eps\log\eps$. En particular, una curva suavemente ajustada no justificaría sustituir la expansión con logaritmos por una serie ordinaria de potencias.
+
+La unicidad requiere evidencia de cobertura espectral y resolución de los momentos, además de una raíz aceptada. El respaldo disponible en 2.1 y en el sector impar X se limita a contornos concretos del problema discretizado. Los veinte conteos nulos de 2.1 están sujetos a márgenes y a resolución finita de fase. La ausencia de otros mínimos en el barrido exploratorio Y sólo documenta lo observado por ese procedimiento. No excluye una raíz estrecha no muestreada ni convierte una búsqueda exitosa en prueba de unicidad. Las partes 2.3(i)--(ii) siguen siendo resultados teóricos de la fuente, no conclusiones reproducidas experimentalmente por las geometrías de este artículo.
+
+La principal limitación numérica es mantener $M=24$. Los controles de Green, momentos, pasos diferenciales, MFS y reconstrucción aíslan errores de implementación y sensibilidad, pero no sustituyen una cota de convergencia del operador de frontera. El residual BIE de X es mayor que los residuales algebraicos por varios órdenes de magnitud. La representación incorpora paredes, radiación saliente y decaimiento modal; sus comprobaciones deben interpretarse como consistencia interna, complementada por controles independientes de operador y paridad, sin atribuirles independencia que no tienen.
+
+La discrepancia del Ejemplo 5.4 impide presentar todas las expresiones de la fuente como numéricamente reconciliadas. La fórmula integral (2.7), su equivalente (5.47) y el cálculo MFS son consistentes entre sí en los controles realizados. No se ha determinado cuál es la corrección editorial o analítica del coeficiente impreso ni se ha comparado aquí línea por línea la versión publicada con el preprint local. El valor de \eqref{eq:a1value} y el ajuste de colocación permanecen trazables independientemente de esa cuestión.
+
+\section{Conclusiones}
+A discretización fija de 24 nodos se localizaron y verificaron treinta modos próximos a los umbrales en tres configuraciones geométricas. Los controles del operador, los residuales equilibrados y las amplitudes del canal abierto respaldan la interpretación como modos discretos y estados embebidos localizados dentro de la precisión registrada. Las distancias espectrales reproducen el coeficiente principal hacia el extremo de menor tamaño del obstáculo; la colocación ajustada del BIC Y concuerda con la evaluación directa de la fórmula integral de $a_1$.
+
+La transición geométrica de 2.1 queda descrita por cuatro intervalos de transición y veinte exclusiones numéricas en contornos finitos. El conteo X se limita al sector impar. La unicidad global de los estados embebidos, la exclusión de los márgenes no cubiertos, los restos asintóticos uniformes y la analiticidad no se establecen mediante estos experimentos. Permanece abierta la discrepancia del coeficiente impreso en el Ejemplo 5.4. Estas limitaciones delimitan las conclusiones computacionales sin alterar los teoremas analíticos que motivan el estudio.
+
+\section*{Disponibilidad y reproducción}
+La reconstrucción adicional de la Figura~\ref{fig:fields} conserva las raíces originales y no repite el ajuste espectral. Las tablas, parámetros, huellas de implementación, scripts de figuras y matriz de afirmaciones y evidencia se conservan en el repositorio que acompaña este manuscrito. El archivo \texttt{README.md} del artículo describe la compilación y la regeneración desde las corridas fijadas. La preparación del borrador y su auditoría utilizaron herramientas de asistencia científica \cite{Kassis2026}; la revisión humana de contenido, autoría, declaraciones y requisitos de la revista queda bajo responsabilidad de los autores. No se atribuye a dichas herramientas evidencia del problema físico.
+
+\bibliographystyle{unsrt}
+\bibliography{references}
+\end{document}

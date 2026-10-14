@@ -1,0 +1,8 @@
+{
+  "command": "OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1 /Users/kevinsepulveda/miniforge3/bin/python -m unittest discover -s src/beyn_theorems_validations/tests -p test_*.py -q",
+  "tests": 90,
+  "duration_seconds": 1.962,
+  "status": "passed",
+  "scope": "regression suite; not a full rerun or proof of manuscript claims",
+  "initial_pytest_attempt": "pytest unavailable; tests use unittest; no dependency installed"
+}

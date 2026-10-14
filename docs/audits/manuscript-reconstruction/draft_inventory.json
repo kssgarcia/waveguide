@@ -1,0 +1,124 @@
+{
+  "draft_sha256": "11ea470ca7b52ad80e56f84815d320c14be1a28d46b241c5c62fd886e8b5bb63",
+  "figures": [
+    {
+      "path": "images/geo_problema.jpeg",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "\\detokenize{images/bem_potential.png",
+      "exists": false,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/obst_x.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/obst_y.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_refinement_sigma_eps_010.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_refinement_svd_eps_010.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_sigma_bem_vs_asymptotic.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_relative_sigma_error.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_cutoff_gap.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_full_band_eps_010.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t21_kb_vs_epsilon_and_a.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23x_kb_vs_epsilon.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23x_propagating_fraction.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23x_full_band_eps_010.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23y_kb_vs_epsilon.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23y_propagating_fraction.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    },
+    {
+      "path": "images/results/t23y_full_band_eps_010.png",
+      "exists": true,
+      "status": "legacy provenance; not authorized as current evidence"
+    }
+  ],
+  "tables": [
+    "tab:mesh_validation",
+    "tab:t21_summary",
+    "tab:t21_a_sweep",
+    "tab:t23x_summary",
+    "tab:t23y_summary"
+  ],
+  "citations": [
+    "Cao2021",
+    "Evans1994",
+    "FahyWalker2004",
+    "Harari1998",
+    "Ihlenburg1998",
+    "Kang2023",
+    "Khallaf2000",
+    "Klaren1994",
+    "Koshelev2023",
+    "Linton1992",
+    "Linton1998Green",
+    "MartiSabate2024",
+    "Pozrikidis2002",
+    "SargentMestel2019",
+    "Zhevandrov2025"
+  ],
+  "sections": [
+    "Introducción",
+    "Formulación del problema",
+    "Metodología",
+    "Resultados",
+    "Discusión",
+    "Conclusiones"
+  ],
+  "target_journal": "not specified; venue compliance and human submission approval remain pending",
+  "authorization": "User explicitly requested manuscript reconstruction and internal adversarial review through this assistant; no submission or external manuscript transfer authorized."
+}

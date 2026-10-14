@@ -1,0 +1,182 @@
+{
+  "beyn_convergence.pdf": {
+    "sha256": "c3f8d948902b6223b293fc209449ec17dcfe2f468d8865d7092869fce3292852",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:27 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 432 pts\nPage rot:        0\nFile size:       34930 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "beyn_convergence.png": {
+    "sha256": "0c6e741830ccf5f713000b6a6ca0aa31080df0d3ee64f3d8e2e535408af1b86c",
+    "size_px": [
+      2130,
+      1800
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "critical_height.pdf": {
+    "sha256": "069c08d78121476965c56b55d9ca7ed73d7dab3cbe179806553cbc42bbcd6845",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:27 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 230.4 pts\nPage rot:        0\nFile size:       22890 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "critical_height.png": {
+    "sha256": "3aafe884480410a5e23f9f3195ea3c159a86ffbb0d3b1d30e4b7313b59b05fb3",
+    "size_px": [
+      2130,
+      960
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "fields_decay.pdf": {
+    "sha256": "a9abf50028c67c999bba499d751c72812718a8bcc9d133eb3b7d81390dc5a0fb",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:29 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 352.8 pts\nPage rot:        0\nFile size:       53535 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "fields_decay.png": {
+    "sha256": "5fbd8462ff1c53fdf69dffb6f73b6dddad9c08fcdd7396becc6b4e1ece86a925",
+    "size_px": [
+      2130,
+      1470
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "geometry.pdf": {
+    "sha256": "abb4570f22c426a84e0625cce2e43c1794dfeec087e4f2c6e24035f0b00cacaf",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:26 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 187.2 pts\nPage rot:        0\nFile size:       33467 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "geometry.png": {
+    "sha256": "e2767c1fc84a57666abfde77a1a0a87d8763fcf9cc8ed24ec60af571aa10bd2e",
+    "size_px": [
+      2130,
+      780
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "mfs_coefficients.pdf": {
+    "sha256": "ad3eadea0a045d1d6aac76a1aefbaf3fc24da942e152d0f9ff5e9ae455a332e6",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:28 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 338.4 pts\nPage rot:        0\nFile size:       27586 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "mfs_coefficients.png": {
+    "sha256": "0f770d3f77331decad8b2537b1e20a64562e0c7b97c356e15b129876a8d304e4",
+    "size_px": [
+      2130,
+      1410
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "physical_diagnostics.pdf": {
+    "sha256": "62b145a1cefacf4652ffe41f448305eacfad1015be29ec7eb3f0674c0830d825",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:28 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 345.6 pts\nPage rot:        0\nFile size:       30006 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "physical_diagnostics.png": {
+    "sha256": "9e2fcebc98652cda58a9c46f2683ae08f86f727493baf87db562e79cfb524f44",
+    "size_px": [
+      2130,
+      1440
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "placement.pdf": {
+    "sha256": "7b491a1edb420f0a741eff0a146bc9b3a75a85b3342e65311993c196651f590f",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:27 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 201.6 pts\nPage rot:        0\nFile size:       22811 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "placement.png": {
+    "sha256": "ee66fdfaea6e763af932eb718763d27152bbd5704ee0dd80cdbc06e8b5d000e0",
+    "size_px": [
+      2130,
+      840
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "sensitivity.pdf": {
+    "sha256": "29eb7559ef0dbd3cbdf1174e34e03e39b8c6f99102531fc5503130c4a950e1c1",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:28 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 201.6 pts\nPage rot:        0\nFile size:       26180 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "sensitivity.png": {
+    "sha256": "91669816c4ac3ee5ca2e1018e80ed8b746e939ae8482a2552b362ae0ef84fa86",
+    "size_px": [
+      2130,
+      840
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  },
+  "spectral_scaling.pdf": {
+    "sha256": "e012c65842eadad31f7db5f058cd9a2e1f9f55f6a63aee397d3a013f4e42cf74",
+    "pdfinfo": "Creator:         Matplotlib v3.10.8, https://matplotlib.org\nProducer:        Matplotlib pdf backend v3.10.8\nCreationDate:    Tue Oct 13 22:17:26 2026 -05\nCustom Metadata: no\nMetadata Stream: no\nTagged:          no\nUserProperties:  no\nSuspects:        no\nForm:            none\nJavaScript:      no\nPages:           1\nEncrypted:       no\nPage size:       511.2 x 324 pts\nPage rot:        0\nFile size:       24615 bytes\nOptimized:       no\nPDF version:     1.4\n"
+  },
+  "spectral_scaling.png": {
+    "sha256": "2cf0ee892a5ce3367b00651423c168244e43c188d5b78e63052e94cf6c2ce19a",
+    "size_px": [
+      2130,
+      1350
+    ],
+    "mode": "RGBA",
+    "dpi": [
+      299.9994,
+      299.9994
+    ],
+    "alpha_extrema": [
+      255,
+      255
+    ]
+  }
+}

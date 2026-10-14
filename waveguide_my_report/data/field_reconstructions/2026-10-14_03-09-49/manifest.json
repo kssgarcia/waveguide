@@ -1,0 +1,61 @@
+{
+  "stage": "completed",
+  "created_utc": "2026-10-14_03-09-49",
+  "source_lock_sha256": "761d71ab7e43f5b70280e5e960c79e9135ef4e77e7921000fa04869df21a5aec",
+  "cases": {
+    "theorem_X": {
+      "epsilon": 0.1,
+      "kb": 3.1281975659717824,
+      "a": 0.0,
+      "sigma": 0.2898006027212058,
+      "M": 24,
+      "normalized_full_residual": 1.4865869820216388e-11,
+      "scalar_batch_relative_discrepancy": 3.055903216390816e-11,
+      "decay_rates": [
+        0.28980060353762344,
+        0.2898006032140141
+      ],
+      "stored_decay_rates": [
+        0.2898006035376186,
+        0.289800603214894
+      ],
+      "max_production_channel_ratio": 4.117608222106138e-12,
+      "boundary_parity_relative_residual": 1.0510080173723157e-10,
+      "normalization": "unit boundary-vector Euclidean norm; max component phase positive real",
+      "near_boundary_exclusion_width_over_b": 0.025,
+      "modal_terms": 128,
+      "sources": [
+        "src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_21-23-19_full_fe445a6af342/summary.csv"
+      ],
+      "method": "saved-root unrestricted full-matrix SVD; no eigenvalue refinement; existing centered-difference lattice kernel near source, analytic modal separated sections",
+      "npz_sha256": "5b39749c94edd75a71453bcda48169bfad5d10c2ed5a27a68dff152a5b322c25"
+    },
+    "theorem_Y": {
+      "epsilon": 0.1,
+      "kb": 3.1254703839631186,
+      "a": -0.0230172206762107,
+      "sigma": 0.317866764633855,
+      "M": 24,
+      "normalized_full_residual": 2.7569628555898544e-12,
+      "scalar_batch_relative_discrepancy": 1.535332163013032e-11,
+      "decay_rates": [
+        0.3178667655401862,
+        0.31786676554018656
+      ],
+      "stored_decay_rates": [
+        0.3178667655401866,
+        0.3178667655401868
+      ],
+      "max_production_channel_ratio": 5.189765481919695e-12,
+      "boundary_parity_relative_residual": 4.961953022334406e-11,
+      "normalization": "unit boundary-vector Euclidean norm; max component phase positive real",
+      "near_boundary_exclusion_width_over_b": 0.025,
+      "modal_terms": 128,
+      "sources": [
+        "src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_20-16-45_full_63388d81f58d/summary.csv"
+      ],
+      "method": "saved-root unrestricted full-matrix SVD; no eigenvalue refinement; existing centered-difference lattice kernel near source, analytic modal separated sections",
+      "npz_sha256": "563bd45727d24ceecdbfb2e475f48ff1f8f45cbe3599482f83786d8c065c3db6"
+    }
+  }
+}
