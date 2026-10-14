@@ -1,0 +1,50 @@
+{
+  "theorem_2_1": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8",
+    "stage": "full-validation-completed",
+    "fingerprint_verified": true,
+    "baseline_cases": 10,
+    "physical_cases_passed": 10,
+    "sensitivity_cases": 15,
+    "max_normalized_residual": 6.707486033458758e-10,
+    "max_offgrid_BIE_residual": 7.1122282642936505e-06,
+    "source_fingerprint": "a292ac45874b8e22aaffdad6c746a442d1cbfbe9f0b1bc23721dfcf1516844de",
+    "table_sha256": {
+      "summary.csv": "91c10eecac7ef8454bce1335f0b14db1d29ab64e30562b25556c2e35ab627dd6",
+      "physical_diagnostics.csv": "b8da545d7d3619705a18664084cec1f469c0720e480e9b3ad5b5cca9a0a46a10",
+      "internal_convergence.csv": "c5d38503a668dda198e0ee6d9920bb948e475ffa1daa82ef78c425010cbde574"
+    }
+  },
+  "theorem_2_3_iii": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iii/runs/2026-10-13_21-23-19_full_fe445a6af342",
+    "stage": "completed",
+    "fingerprint_verified": true,
+    "baseline_cases": 10,
+    "physical_cases_passed": 10,
+    "sensitivity_cases": 15,
+    "max_normalized_residual": 9.294063762998448e-11,
+    "max_offgrid_BIE_residual": 0.004033437498779117,
+    "source_fingerprint": "68d62f1bd9fca114be95818e752c5b0c78ed6e8d8381bbdf667e49b115aff20e",
+    "table_sha256": {
+      "summary.csv": "6abf9507d13d38a2456f1994c43a19c926cc3607d55b687e38cf48d8589b0869",
+      "physical_diagnostics.csv": "e97fcb3efdd49faceebd90d3ba6c0fc5882bb06b23dc68e4b8b868ac2539edc8",
+      "internal_convergence.csv": "70e8bc291811c7acd9120bad98a75dc1a856bf5472b50eb2ec29049e80de79da"
+    }
+  },
+  "theorem_2_3_iv": {
+    "run": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_20-16-45_full_63388d81f58d",
+    "stage": "completed",
+    "fingerprint_verified": true,
+    "baseline_cases": 10,
+    "physical_cases_passed": 10,
+    "sensitivity_cases": 15,
+    "max_normalized_residual": 1.2929919865126073e-11,
+    "max_offgrid_BIE_residual": 0.0021169688446727227,
+    "source_fingerprint": "b95977cad6f9bf069a88701e2f1936e0ca6173dfbbada01393451b2d226fd3b8",
+    "table_sha256": {
+      "summary.csv": "8994b4f7a66c2a85cc6b71897db0e5f19efbfe2b917c09b83ffc4bb84f31fde0",
+      "physical_diagnostics.csv": "b448a2e57a9198cd5d80b391434038bd083918395f9f3a2d1803592f2055992f",
+      "internal_convergence.csv": "596364f01e160b334bea11bcbb64801e0742635bb5594003c74ce62f0cc2c78f"
+    }
+  }
+}

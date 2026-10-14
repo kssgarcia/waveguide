@@ -1,0 +1,7 @@
+{
+  "representative_independent_checks_passed": true,
+  "internal_sensitivity_passed": true,
+  "all_requested_modes_supported": true,
+  "M": 24,
+  "stage": "post-run-verification"
+}
