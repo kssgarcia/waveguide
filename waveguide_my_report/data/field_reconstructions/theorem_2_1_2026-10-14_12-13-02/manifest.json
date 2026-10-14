@@ -1,0 +1,22 @@
+{
+  "epsilon": 0.1,
+  "a": 0.6,
+  "kb": 1.5704003534913096,
+  "sigma": 0.0352679745195148,
+  "M": 24,
+  "normalized_residual": 1.1823488341276888e-11,
+  "scalar_batched_discrepancy": 2.4915978842403217e-10,
+  "measured_decay_rates": [
+    0.035267978313335106,
+    0.03526797831333482
+  ],
+  "near_boundary_mask_width_over_b": 0.025,
+  "root_source": "/Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_1/runs/2026-10-13_17-52-48_full_5605ecd253a8/summary.csv",
+  "source_lock_sha256": "761d71ab7e43f5b70280e5e960c79e9135ef4e77e7921000fa04869df21a5aec",
+  "data_sha256": "5c255f203b4f07c2d2f2fce0ee3d79805b74016afecdf193fee8f806059a7762",
+  "method": "Full matrix SVD at saved root; centered-difference Green near field and analytic modal far field; original scalar implementation independently sampled; no root refinement.",
+  "figure_sha256": {
+    "pdf": "d928c878c1be7c4eb67dda2fe64f3546235ba57b686f5a87c0a0d134fc027cf6",
+    "png": "c524b073eb3485ae7051f5b11062c79a0ff74f2958bc50aa7120f59731c7f809"
+  }
+}

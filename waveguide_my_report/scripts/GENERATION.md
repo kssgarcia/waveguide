@@ -35,3 +35,7 @@ Generated figure filenames:
 Tables `theorem_2_1.tex`, `theorem_X.tex`, `theorem_Y.tex` contain all ten baseline rows. `diagnostics.tex` contains .02/.10/.20 physical diagnostics in all cases; `configuration.tex` records implementation parameters. `numeric_macros.tex` contains data-derived coefficients, representative errors and diagnostic maxima; full raw columns remain in companion CSVs. The X rank refers only to the odd-y discovery contour, not full-space uniqueness. Y receives no Beyn eigenvalue-count claim.
 
 Added kb_vs_epsilon_by_a and kb_vs_epsilon_each_a from the pinned D21 sweep, with figure data in data/kb_vs_epsilon_by_a.csv. Certified finite roots only; exclusions remain absent values.
+
+## Discrete-mode example with nonzero placement
+
+`python waveguide_my_report/scripts/generate_theorem_2_1_field.py` reconstructs the certified epsilon=.10,a=.60 first-theorem mode at its existing root. It saves a new versioned complex-field archive, scalar-vs-batched checks and measured decay; exports figures/field_theorem_2_1.pdf and .png. No root search or manuscript edit is performed. This supplementary example has its own manifest and is not yet included in main.tex.
