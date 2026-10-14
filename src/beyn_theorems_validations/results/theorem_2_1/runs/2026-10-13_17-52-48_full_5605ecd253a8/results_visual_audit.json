@@ -1,0 +1,21 @@
+{
+  "principal_figures_visually_reviewed": 99,
+  "baseline_cases": 10,
+  "paper_modes": 79,
+  "paper_absence_cases": 20,
+  "absence_cases_requiring_determinant_exclusion": 17,
+  "baseline_maxima": {
+    "normalized_residual": 6.707486033458758e-10,
+    "equilibrated_residual": 6.879969514431772e-10,
+    "beyn_final_s0_relative_change": 0.0005009184835203207,
+    "beyn_final_s1_relative_change": 0.0005009185844413822,
+    "wall_relative_residual": 7.652665779832926e-10,
+    "boundary_integral_relative_residual": 7.1122282642936505e-06,
+    "decay_relative_error_left": 4.378625954810361e-07,
+    "decay_relative_error_right": 4.378496424685102e-07
+  },
+  "H20_H40_sigma": [
+    0.03526797424344564,
+    0.03526797424344564
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "passed": true,
+  "required_variants": 7,
+  "limitation": "Coarse harmonic orders and extreme FD steps are diagnostics; failed cases remain ambiguous."
+}

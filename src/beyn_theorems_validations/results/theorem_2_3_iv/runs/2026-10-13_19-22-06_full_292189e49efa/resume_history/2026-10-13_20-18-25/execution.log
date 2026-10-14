@@ -1,0 +1,464 @@
+Resuming Y, unchanged fingerprint; original files preserved in their run
+=== Theorem 2.3(iv) numerical validation: full BEM + complex-root tuning + fixed-M SVD ===
+assembly version = 2026-10-13-Y-signed-channel-certified-v3
+b = 1.0
+shape beta = 0.5
+fixed BEM order M = 24
+Lambda_1 = 2.467401100272
+Lambda_2 = 9.869604401089
+sqrt(Lambda_1)b = 1.570796326795
+sqrt(Lambda_2)b = 3.141592653590
+
+=== SHAPE / Y-AXIS SYMMETRY CHECK ===
+reference area = 3.53429173529
+min |r'(t)| = 5.000000e-01
+X-odd defect = 0.000e+00
+Y-even defect = 0.000e+00
+
+=== INDEPENDENT MFS: mu, nu, Psi, a1 ===
+circle calibration: mu=1, nu=-2.546e-16, a1=-3.701e-17, a1(5.47)=-3.701e-17
+  N=  60: mu=1.1769382794, nu=-3.407e-16, a1(2.7)=-0.229718010292, a1(5.47)=-0.229718010292, mismatch=0.000e+00, boundary_res=1.494e-10
+  N=  80: mu=1.17693827901, nu=4.362e-17, a1(2.7)=-0.229718010365, a1(5.47)=-0.229718010365, mismatch=0.000e+00, boundary_res=4.516e-14
+  N= 120: mu=1.17693827901, nu=-1.645e-16, a1(2.7)=-0.229718010365, a1(5.47)=-0.229718010365, mismatch=0.000e+00, boundary_res=3.142e-14
+  N= 160: mu=1.17693827901, nu=-2.858e-17, a1(2.7)=-0.229718010365, a1(5.47)=-0.229718010365, mismatch=0.000e+00, boundary_res=2.037e-14
+selected mu = 1.17693827901
+selected nu = -2.858e-17 (must vanish by y-axis symmetry)
+selected a1 from formula (2.7) = -0.229718010365
+selected a1 from formula (5.47) = -0.229718010365; relative mismatch=0.000e+00
+paper Example 5.4 leading diagnostic -beta/12 = -0.0416666666667
+C = pi^3 mu/b^3 = 36.4924739147
+
+=== a1 ROBUSTNESS: SOURCE SCALE / QUADRATURE ===
+max relative a1 variation = 3.625e-16
+  rho=0.55, Q= 1024: a1=-0.229718010365, rel=1.208e-16, MFS_res=9.817e-15
+  rho=0.55, Q= 2048: a1=-0.229718010365, rel=1.208e-16, MFS_res=9.817e-15
+  rho=0.55, Q= 4096: a1=-0.229718010365, rel=1.208e-16, MFS_res=9.817e-15
+  rho=0.65, Q= 1024: a1=-0.229718010365, rel=3.625e-16, MFS_res=2.037e-14
+  rho=0.65, Q= 2048: a1=-0.229718010365, rel=0.000e+00, MFS_res=2.037e-14
+  rho=0.65, Q= 4096: a1=-0.229718010365, rel=0.000e+00, MFS_res=2.037e-14
+  rho=0.75, Q= 1024: a1=-0.229718010365, rel=1.208e-16, MFS_res=2.293e-14
+  rho=0.75, Q= 2048: a1=-0.229718010365, rel=0.000e+00, MFS_res=2.293e-14
+  rho=0.75, Q= 4096: a1=-0.229718010365, rel=0.000e+00, MFS_res=2.293e-14
+
+=== SMALL-BETA EXAMPLE 5.4 DIAGNOSTIC ===
+  beta=0.0200: a1(2.7)=-0.00999866671113, a1/beta=-0.49993334, -1/12=-0.083333333
+  beta=0.0500: a1(2.7)=-0.0249791710209, a1/beta=-0.49958342, -1/12=-0.083333333
+  beta=0.1000: a1(2.7)=-0.0498334740032, a1/beta=-0.49833474, -1/12=-0.083333333
+  fitted small-beta slope a1/beta = -0.4986263012; paper -1/12=-0.08333333333; relative difference=498.352%
+
+complex-k full-matrix assembly: PASS
+
+=== EMBEDDED-MODE / PLACEMENT SWEEP ===
+epsilons = (0.02, 0.04, 0.06, 0.08, 0.1, 0.12, 0.14, 0.16, 0.18, 0.2)
+
+=== epsilon=0.02000000 ===
+predicted a leading = -4.594360207296e-03
+predicted kb = 3.141558741928
+predicted sigma = 1.45969896e-02
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.020000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -4.594360207296e-03
+numerical tuned placement = -4.595457721637e-03
+(a-eps*a1)/eps^2 = -2.74378585e-03
+placement search interior = YES
+kb asymptotic = 3.141558741928
+kb BEM = 3.141558878161
+sigma asym = 1.45969896e-02
+sigma BEM = 1.45676401e-02
+sigma/epsilon^2 = 3.64191003e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 0.201%
+relative singular value at leading (a,sigma) prediction = 8.515e-04
+relative singular value after tuning = 9.545e-12
+row-scaled smallest singular value = 1.899e-11
+spectral drop = 3.313e+09
+complex root: success=True, residual=2.030e-11, |lambda0|=2.152e-11, seed=theorem-leading
+embedded mode resolved = PASS
+boundary x-even residual = 1.037e-10
+field x-even residual = 2.945e-13
+first open-channel amplitude = 1.588e-13
+signed open-channel coefficients L/R = (+1.070e-13-2.868e-13j) / (-1.125e-13+2.860e-13j); phase consistency=2.888e-04
+wall residual = 5.890e-12
+off-grid BIE residual = 2.117e-03
+decay left/right = 1.456764e-02/1.456764e-02
+physical embedded-mode checks = PASS
+whole-band uniqueness screen = PASS (sampled screen only) (additional resolved BICs=0)
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.04000000 ===
+predicted a leading = -9.188720414592e-03
+predicted kb = 3.141050023069
+predicted sigma = 5.83879583e-02
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.040000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -9.188720414592e-03
+numerical tuned placement = -9.195163775288e-03
+(a-eps*a1)/eps^2 = -4.02710044e-03
+placement search interior = YES
+kb asymptotic = 3.141050023069
+kb BEM = 3.141065516796
+sigma asym = 5.83879583e-02
+sigma BEM = 5.75484168e-02
+sigma/epsilon^2 = 3.59677605e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 1.438%
+relative singular value at leading (a,sigma) prediction = 6.078e-03
+relative singular value after tuning = 5.298e-12
+row-scaled smallest singular value = 1.063e-11
+spectral drop = 5.949e+09
+complex root: success=True, residual=1.136e-11, |lambda0|=1.206e-11, seed=theorem-leading
+embedded mode resolved = PASS
+boundary x-even residual = 6.023e-11
+field x-even residual = 3.122e-13
+first open-channel amplitude = 2.497e-13
+signed open-channel coefficients L/R = (+1.853e-13+1.073e-13j) / (+2.103e-14-1.360e-13j); phase consistency=4.636e-04
+wall residual = 1.613e-11
+off-grid BIE residual = 5.294e-04
+decay left/right = 5.754842e-02/5.754842e-02
+physical embedded-mode checks = PASS
+whole-band uniqueness screen = PASS (sampled screen only) (additional resolved BICs=0)
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.06000000 ===
+predicted a leading = -1.378308062189e-02
+predicted kb = 3.138844621932
+predicted sigma = 1.31372906e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.060000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -1.378308062189e-02
+numerical tuned placement = -1.379993249531e-02
+(a-eps*a1)/eps^2 = -4.68107595e-03
+placement search interior = YES
+kb asymptotic = 3.138844621932
+kb BEM = 3.139059985095
+sigma asym = 1.31372906e-01
+sigma BEM = 1.26122207e-01
+sigma/epsilon^2 = 3.50339464e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 3.997%
+relative singular value at leading (a,sigma) prediction = 1.705e-02
+relative singular value after tuning = 1.293e-11
+row-scaled smallest singular value = 2.618e-11
+spectral drop = 2.452e+09
+complex root: success=True, residual=2.799e-11, |lambda0|=2.975e-11, seed=theorem-leading
+embedded mode resolved = PASS
+boundary x-even residual = 5.675e-11
+field x-even residual = 1.020e-11
+first open-channel amplitude = 1.290e-12
+signed open-channel coefficients L/R = (-4.006e-13+2.774e-13j) / (+5.586e-13-2.491e-13j); phase consistency=4.279e-05
+wall residual = 1.423e-11
+off-grid BIE residual = 2.350e-04
+decay left/right = 1.261222e-01/1.261222e-01
+physical embedded-mode checks = PASS
+whole-band uniqueness screen = PASS (sampled screen only) (additional resolved BICs=0)
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.08000000 ===
+predicted a leading = -1.837744082918e-02
+predicted kb = 3.132899286981
+predicted sigma = 2.33551833e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.080000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -1.837744082918e-02
+numerical tuned placement = -1.840838917625e-02
+(a-eps*a1)/eps^2 = -4.83567923e-03
+placement search interior = YES
+kb asymptotic = 3.132899286981
+kb BEM = 3.134216371678
+sigma asym = 2.33551833e-01
+sigma BEM = 2.15156075e-01
+sigma/epsilon^2 = 3.36181367e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 7.877%
+relative singular value at leading (a,sigma) prediction = 3.436e-02
+relative singular value after tuning = 3.117e-12
+row-scaled smallest singular value = 6.362e-12
+spectral drop = 1.035e+10
+complex root: success=True, residual=6.802e-12, |lambda0|=7.239e-12, seed=epsilon-continuation
+embedded mode resolved = PASS
+boundary x-even residual = 5.628e-11
+field x-even residual = 1.181e-11
+first open-channel amplitude = 1.617e-12
+signed open-channel coefficients L/R = (+2.053e-13-1.589e-13j) / (-4.172e-13+1.787e-13j); phase consistency=5.261e-05
+wall residual = 1.110e-11
+off-grid BIE residual = 1.330e-04
+decay left/right = 2.151561e-01/2.151561e-01
+physical embedded-mode checks = PASS
+whole-band uniqueness screen = PASS (sampled screen only) (additional resolved BICs=0)
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.10000000 ===
+predicted a leading = -2.297180103648e-02
+predicted kb = 3.120325998329
+predicted sigma = 3.64924739e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.100000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -2.297180103648e-02
+numerical tuned placement = -2.301722067621e-02
+(a-eps*a1)/eps^2 = -4.54196397e-03
+placement search interior = YES
+kb asymptotic = 3.120325998329
+kb BEM = 3.125470383963
+sigma asym = 3.64924739e-01
+sigma BEM = 3.17866765e-01
+sigma/epsilon^2 = 3.17866765e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 12.895%
+relative singular value at leading (a,sigma) prediction = 5.837e-02
+relative singular value after tuning = 5.275e-12
+row-scaled smallest singular value = 1.083e-11
+spectral drop = 6.310e+09
+complex root: success=True, residual=1.158e-11, |lambda0|=1.234e-11, seed=epsilon-continuation
+embedded mode resolved = PASS
+boundary x-even residual = 7.474e-11
+field x-even residual = 3.947e-11
+first open-channel amplitude = 7.658e-12
+signed open-channel coefficients L/R = (-9.114e-13-2.950e-13j) / (+1.289e-12+2.778e-13j); phase consistency=2.110e-05
+wall residual = 2.456e-11
+off-grid BIE residual = 8.623e-05
+decay left/right = 3.178668e-01/3.178668e-01
+physical embedded-mode checks = PASS
+whole-band uniqueness screen = PASS (sampled screen only) (additional resolved BICs=0)
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.12000000 ===
+predicted a leading = -2.756616124377e-02
+predicted kb = 3.097331586028
+predicted sigma = 5.25491624e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.120000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -2.756616124377e-02
+numerical tuned placement = -2.762159687371e-02
+(a-eps*a1)/eps^2 = -3.84969652e-03
+placement search interior = YES
+kb asymptotic = 3.097331586028
+kb BEM = 3.112446121345
+sigma asym = 5.25491624e-01
+sigma BEM = 4.26946768e-01
+sigma/epsilon^2 = 2.96490811e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 18.753%
+relative singular value at leading (a,sigma) prediction = 8.930e-02
+relative singular value after tuning = 5.592e-12
+row-scaled smallest singular value = 1.152e-11
+spectral drop = 6.215e+09
+complex root: success=True, residual=1.232e-11, |lambda0|=1.312e-11, seed=epsilon-continuation
+embedded mode resolved = PASS
+boundary x-even residual = 2.631e-11
+field x-even residual = 3.308e-11
+first open-channel amplitude = 2.698e-12
+signed open-channel coefficients L/R = (+2.696e-13+1.178e-13j) / (+9.771e-14-1.577e-13j); phase consistency=3.650e-05
+wall residual = 4.753e-11
+off-grid BIE residual = 6.124e-05
+decay left/right = 4.269468e-01/4.269468e-01
+physical embedded-mode checks = PASS
+sampled-band screen = not run for this epsilon
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.14000000 ===
+predicted a leading = -3.216052145107e-02
+predicted kb = 3.059087818036
+predicted sigma = 7.15252489e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.140000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -3.216052145107e-02
+numerical tuned placement = -3.221597160595e-02
+(a-eps*a1)/eps^2 = -2.82908953e-03
+placement search interior = YES
+kb asymptotic = 3.059087818036
+kb BEM = 3.095580669525
+sigma asym = 7.15252489e-01
+sigma BEM = 5.35709548e-01
+sigma/epsilon^2 = 2.73321198e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 25.102%
+relative singular value at leading (a,sigma) prediction = 1.272e-01
+relative singular value after tuning = 4.619e-12
+row-scaled smallest singular value = 9.521e-12
+spectral drop = 7.938e+09
+complex root: success=True, residual=1.018e-11, |lambda0|=1.084e-11, seed=coarse-svd
+embedded mode resolved = PASS
+boundary x-even residual = 7.224e-11
+field x-even residual = 1.148e-11
+first open-channel amplitude = 6.471e-12
+signed open-channel coefficients L/R = (-4.535e-13-9.960e-14j) / (+2.255e-13+2.455e-14j); phase consistency=3.559e-05
+wall residual = 1.727e-11
+off-grid BIE residual = 4.661e-05
+decay left/right = 5.357096e-01/5.357096e-01
+physical embedded-mode checks = PASS
+sampled-band screen = not run for this epsilon
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.16000000 ===
+predicted a leading = -3.675488165837e-02
+predicted kb = 2.999476797963
+predicted sigma = 9.34207332e-01
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.160000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -3.675488165837e-02
+numerical tuned placement = -3.679502098547e-02
+(a-eps*a1)/eps^2 = -1.56794246e-03
+placement search interior = YES
+kb asymptotic = 2.999476797963
+kb BEM = 3.075948166930
+sigma asym = 9.34207332e-01
+sigma BEM = 6.38864051e-01
+sigma/epsilon^2 = 2.49556270e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 31.614%
+relative singular value at leading (a,sigma) prediction = 1.717e-01
+relative singular value after tuning = 2.665e-12
+row-scaled smallest singular value = 5.477e-12
+spectral drop = 1.463e+10
+complex root: success=True, residual=5.857e-12, |lambda0|=6.230e-12, seed=theorem-leading
+embedded mode resolved = PASS
+boundary x-even residual = 4.645e-11
+field x-even residual = 2.401e-11
+first open-channel amplitude = 4.620e-12
+signed open-channel coefficients L/R = (+1.574e-13+3.113e-14j) / (-2.105e-13+8.785e-14j); phase consistency=6.969e-05
+wall residual = 2.880e-11
+off-grid BIE residual = 3.809e-05
+decay left/right = 6.388641e-01/6.388641e-01
+physical embedded-mode checks = PASS
+sampled-band screen = not run for this epsilon
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.18000000 ===
+predicted a leading = -4.134924186566e-02
+predicted kb = 2.910607895991
+predicted sigma = 1.18235615e+00
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.180000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -4.134924186566e-02
+numerical tuned placement = -4.135435607591e-02
+(a-eps*a1)/eps^2 = -1.57845995e-04
+placement search interior = YES
+kb asymptotic = 2.910607895991
+kb BEM = 3.054938648880
+sigma asym = 1.18235615e+00
+sigma BEM = 7.32771624e-01
+sigma/epsilon^2 = 2.26164081e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 38.024%
+relative singular value at leading (a,sigma) prediction = 2.221e-01
+relative singular value after tuning = 7.791e-12
+row-scaled smallest singular value = 1.592e-11
+spectral drop = 5.345e+09
+complex root: success=True, residual=1.703e-11, |lambda0|=1.808e-11, seed=epsilon-continuation
+embedded mode resolved = PASS
+boundary x-even residual = 5.152e-11
+field x-even residual = 3.335e-11
+first open-channel amplitude = 3.275e-11
+signed open-channel coefficients L/R = (-9.610e-13-3.276e-13j) / (+1.162e-12+1.067e-13j); phase consistency=1.025e-05
+wall residual = 1.652e-11
+off-grid BIE residual = 4.360e-05
+decay left/right = 7.327716e-01/7.327716e-01
+physical embedded-mode checks = PASS
+sampled-band screen = not run for this epsilon
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== epsilon=0.20000000 ===
+predicted a leading = -4.594360207296e-02
+predicted kb = 2.781884856931
+predicted sigma = 1.45969896e+00
+
+--- Theorem 2.3(iv) validation result ---
+epsilon = 0.200000
+a1 formula (2.7) = -2.297180103648e-01
+paper Example 5.4 -beta/12 = -4.166666666667e-02
+leading placement eps*a1 = -4.594360207296e-02
+numerical tuned placement = -4.589080979992e-02
+(a-eps*a1)/eps^2 = 1.31980683e-03
+placement search interior = YES
+kb asymptotic = 2.781884856931
+kb BEM = 3.033958947949
+sigma asym = 1.45969896e+00
+sigma BEM = 8.15289828e-01
+sigma/epsilon^2 = 2.03822457e+01
+C=pi^3 mu/b^3 = 3.64924739e+01
+relative sigma error = 44.147%
+relative singular value at leading (a,sigma) prediction = 2.767e-01
+relative singular value after tuning = 1.375e-12
+row-scaled smallest singular value = 2.783e-12
+spectral drop = 3.244e+10
+complex root: success=True, residual=2.977e-12, |lambda0|=3.155e-12, seed=epsilon-continuation
+embedded mode resolved = PASS
+boundary x-even residual = 5.797e-11
+field x-even residual = 3.409e-11
+first open-channel amplitude = 3.537e-11
+signed open-channel coefficients L/R = (+9.118e-13+2.877e-13j) / (-2.656e-13-1.710e-16j); phase consistency=2.410e-05
+wall residual = 1.857e-11
+off-grid BIE residual = 5.030e-05
+decay left/right = 8.152899e-01/8.152899e-01
+physical embedded-mode checks = PASS
+sampled-band screen = not run for this epsilon
+mode_exists_supported=True; uniqueness_supported=False (ambiguous/not-established)
+
+=== INDEPENDENT a1 FROM NUMERICAL BIC PLACEMENT BRANCH ===
+resolved-roots: n=5, a1_fit=-0.229678261866, formula(2.7)=-0.229718010365, relative difference=0.017%, RMSE=1.320e-05
+physical-bics: n=5, a1_fit=-0.229678261866, formula(2.7)=-0.229718010365, relative difference=0.017%, RMSE=1.320e-05
+  retuned convergence finite_difference_step=1e-08: certified
+  retuned convergence finite_difference_step=1e-07: certified
+  retuned convergence finite_difference_step=1e-06: certified
+  retuned convergence finite_difference_step=1e-05: ambiguous/not-established
+  retuned convergence finite_difference_step=0.0001: ambiguous/not-established
+  retuned convergence lattice_terms=25: certified
+  retuned convergence lattice_terms=50: certified
+  retuned convergence lattice_terms=100: certified
+  retuned convergence lattice_terms=200: certified
+  retuned convergence harmonic_order=5: ambiguous/not-established
+  retuned convergence harmonic_order=10: certified
+  retuned convergence harmonic_order=15: certified
+  retuned convergence harmonic_order=20: certified
+  retuned convergence harmonic_order=30: certified
+  retuned convergence harmonic_order=40: certified
+
+=== FINAL SUMMARY ===
+resolved full-matrix embedded mode: 10/10
+physical BIC diagnostics: 10/10
+whole-band uniqueness scans passed: 5/5
+Publication claim audit:
+  -        supported: Theorem 2.3(iv) symmetry assumptions: X odd, Y even, nu=0
+  -        supported: Direct numerical evaluation of a1 from theorem formula (2.7)
+  -        supported: Finite-sample consistency with placement law a = epsilon a1 + O(epsilon^2)
+  -        supported: One non-radiating embedded trapped mode for sampled tuned geometries
+  -        supported: Finite-sample consistency with sigma = epsilon^2 pi^3 mu/b^3 + O(epsilon^3 |log epsilon|)
+  -        supported: No additional resolved non-radiating candidate on the sampled real band
+  - ambiguous/not-established: Uniqueness of the embedded mode on the full open band
+  - unresolved-inconsistency: Example 2.4 / 5.4 small-beta coefficient a1 ~ -beta/12
+  - theoretical-only: Analyticity in epsilon and epsilon log epsilon
+
+Files written to: /Users/kevinsepulveda/Documents/waveguide/src/beyn_theorems_validations/results/theorem_2_3_iv/runs/2026-10-13_19-22-06_full_292189e49efa
+{"epsilon": 0.02, "M": 24, "mode_exists_supported": true, "modal_terms": [12000, 24000], "matrix_relative_difference": 4.025188470168246e-10, "modal_truncation_relative_change": 6.214217823287885e-11, "modal_vector_residual": 1.6595516220433137e-10, "H20_H40_matrix_relative_change": 0.0, "physical_variants": [{"variant": "quadrature-64", "physical_supported": true, "BIE_residual": 0.0021169688446727227, "open_channel_ratio": 1.5871493226922799e-13, "modal_projection_discrepancy": 1.1399196347490322e-16, "decay_relative_error": 4.769940556200234e-11}, {"variant": "quadrature-128", "physical_supported": true, "BIE_residual": 0.0021169688446727227, "open_channel_ratio": 1.5876401867414863e-13, "modal_projection_discrepancy": 1.5326082260929897e-16, "decay_relative_error": 4.769607130491549e-11}, {"variant": "source-oversample-8", "physical_supported": true, "BIE_residual": 8.935002384494656e-05, "open_channel_ratio": 1.587640186741509e-13, "modal_projection_discrepancy": 7.285981952802618e-17, "decay_relative_error": 4.76861876142652e-11}, {"variant": "sections-shifted", "physical_supported": true, "BIE_residual": 0.0021169688446727227, "open_channel_ratio": 1.58986064089e-13, "modal_projection_discrepancy": 8.396625333743072e-17, "decay_relative_error": 1.4342664100906153e-11}], "independent_checks_passed": true}
+{"epsilon": 0.1, "M": 24, "mode_exists_supported": true, "modal_terms": [12000, 24000], "matrix_relative_difference": 9.61933755125982e-11, "modal_truncation_relative_change": 6.752354986279784e-11, "modal_vector_residual": 9.571563442979129e-11, "H20_H40_matrix_relative_change": 0.0, "physical_variants": [{"variant": "quadrature-64", "physical_supported": true, "BIE_residual": 8.62309121880694e-05, "open_channel_ratio": 7.658095669640446e-12, "modal_projection_discrepancy": 1.0616085638305633e-16, "decay_relative_error": 2.851294069414923e-09}, {"variant": "quadrature-128", "physical_supported": true, "BIE_residual": 8.62309121880694e-05, "open_channel_ratio": 7.658185365321563e-12, "modal_projection_discrepancy": 1.6007576826627217e-16, "decay_relative_error": 2.851294593324536e-09}, {"variant": "source-oversample-8", "physical_supported": true, "BIE_residual": 1.328438414117149e-05, "open_channel_ratio": 7.658113121125796e-12, "modal_projection_discrepancy": 1.090458598973287e-16, "decay_relative_error": 2.851294593324536e-09}, {"variant": "sections-shifted", "physical_supported": true, "BIE_residual": 8.62309121880694e-05, "open_channel_ratio": 7.905389880597204e-12, "modal_projection_discrepancy": 1.2908002725437168e-16, "decay_relative_error": 1.0511374951607816e-09}], "independent_checks_passed": true}
+{"epsilon": 0.2, "M": 24, "mode_exists_supported": true, "modal_terms": [12000, 24000], "matrix_relative_difference": 1.213431641206458e-10, "modal_truncation_relative_change": 9.475187871356283e-11, "modal_vector_residual": 1.9122468906895957e-10, "H20_H40_matrix_relative_change": 2.1070087504543015e-12, "physical_variants": [{"variant": "quadrature-64", "physical_supported": true, "BIE_residual": 5.030246328911193e-05, "open_channel_ratio": 3.5367753942549895e-11, "modal_projection_discrepancy": 3.3104874713741843e-16, "decay_relative_error": 3.573814254463985e-08}, {"variant": "quadrature-128", "physical_supported": true, "BIE_residual": 5.030246328911193e-05, "open_channel_ratio": 3.536774838886326e-11, "modal_projection_discrepancy": 3.43357523932537e-16, "decay_relative_error": 3.573814240846459e-08}, {"variant": "source-oversample-8", "physical_supported": true, "BIE_residual": 4.824411721838402e-05, "open_channel_ratio": 3.5367778734314906e-11, "modal_projection_discrepancy": 3.433575239358348e-16, "decay_relative_error": 3.573814240846459e-08}, {"variant": "sections-shifted", "physical_supported": true, "BIE_residual": 5.030246328911193e-05, "open_channel_ratio": 3.8372500980389456e-11, "modal_projection_discrepancy": 8.671291628827225e-16, "decay_relative_error": 1.5593518916669725e-08}], "independent_checks_passed": true}
+unbiased placement {"epsilon": 0.02, "search_a1": 0.0, "correction_bound": 32.0, "a_recovered": -0.004595457722510306, "placement_difference": 8.737437856565222e-13, "relative_sigma_difference": 3.101776011467252e-11, "root_norm": 8.800235524834197e-11, "physical_supported": true, "spectral_supported": true, "attempts": [{"source": "zero-placement", "optimizer_success": true, "message": "`xtol` termination condition is satisfied.", "root_norm": 1.0757921164867682e-10, "coupling_residual": 3.0349962495896232e-12, "jacobian_condition": 6.757958169302272, "correction": -11.488644306384073, "log_sigma_ratio": -0.0020126742270808423, "accepted": true}, {"source": "positive-placement", "optimizer_success": true, "message": "`xtol` termination condition is satisfied.", "root_norm": 8.800235524834197e-11, "coupling_residual": 1.3647601822527742e-11, "jacobian_condition": 6.757960750996666, "correction": -11.488644306275765, "log_sigma_ratio": -0.0020126743242026234, "accepted": true}], "passed": true}
+unbiased placement {"epsilon": 0.1, "search_a1": 0.0, "correction_bound": 32.0, "a_recovered": -0.023017220676493044, "placement_difference": 2.8227420401094605e-13, "relative_sigma_difference": 3.286135730238362e-12, "root_norm": 1.2617028309283139e-11, "physical_supported": true, "spectral_supported": true, "attempts": [{"source": "zero-placement", "optimizer_success": true, "message": "`xtol` termination condition is satisfied.", "root_norm": 3.451584499569374e-11, "coupling_residual": 8.852714353939758e-12, "jacobian_condition": 1.5615213285503853, "correction": -2.3017220676397945, "log_sigma_ratio": -0.13805882237696945, "accepted": true}, {"source": "positive-placement", "optimizer_success": true, "message": "`xtol` termination condition is satisfied.", "root_norm": 1.2617028309283139e-11, "coupling_residual": 1.3396650847854225e-11, "jacobian_condition": 1.5604434837100059, "correction": -2.3017220676493038, "log_sigma_ratio": -0.1380588223629359, "accepted": true}], "passed": true}
+Internal sensitivity gate: True, 7 reference-quality variants

@@ -121,3 +121,5 @@ python src/beyn_theorems_validations/runners/refresh_reviewed_figures.py
 ```
 
 Este runner sólo lee tablas/checkpoints y crea gráficas; no ejecuta solvers. Las ejecuciones numéricas futuras incorporan también las funciones plot corregidas.
+
+Para continuar después de Ctrl+C, consultar [cómo reanudar una ejecución](docs/RESUME_RUNS.md). No hace falta editar el código ni repetir los casos con checkpoints compatibles.

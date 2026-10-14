@@ -1,6 +1,6 @@
 {
   "run_id": "2026-10-13_19-22-06_full_292189e49efa",
-  "stage": "running",
+  "stage": "completed",
   "harness_version": "theorem-2.3-execution-v1",
   "config": {
     "b": 1.0,
