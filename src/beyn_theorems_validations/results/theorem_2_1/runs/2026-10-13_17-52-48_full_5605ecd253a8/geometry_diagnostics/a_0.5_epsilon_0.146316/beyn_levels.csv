@@ -1,0 +1,4 @@
+epsilon,M,quadrature_points,probe_dim,threshold_rank,gap_rank,estimated_rank,selected_gap_ratio,leading_s0_singular_value,trailing_kept_s0_singular_value,first_discarded_s0_singular_value,max_linear_solve_relative_residual,raw_eigenvalues,near_real_candidates,near_contour_seeds,moments_converged,candidate_stable,rank_stable,s0_relative_change,s1_relative_change
+0.146316,24,192,8,8,1,1,227692.6768920735,0.0033365039585001254,0.0033365039585001254,1.4653540922098389e-08,1.0670408221360907e-14,1,1,0,False,False,False,nan,nan
+0.146316,24,384,8,1,1,1,668819742.5854628,0.003355196573422687,0.003355196573422687,5.016593201110469e-12,1.161210739771254e-14,1,1,0,False,True,True,0.005571256155180192,0.0055313068618569996
+0.146316,24,768,8,1,1,1,893782470.7058733,0.0033553309237661704,0.0033553309237661704,3.754080029244997e-12,1.0615951928212154e-14,1,1,0,True,True,True,4.0040862469654705e-05,4.004064662704491e-05

@@ -1,0 +1,89 @@
+  Beyn quadrature-convergence study:
+  Beyn contour discovery: M=24, quadrature=256, probe_dim=8
+    contour node  42/256
+    contour node  84/256
+    contour node 126/256
+    contour node 168/256
+    contour node 210/256
+    contour node 252/256
+    contour node 256/256
+  rank diagnostics: threshold-rank=3, gap-rank=1, selected gap=3.191e+07
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [1.272e-02, 3.985e-10, 2.160e-10, 9.121e-11, 4.729e-11, 1.513e-11, 1.125e-11, 5.899e-12]
+  max contour linear-solve residual = 5.372e-15
+  raw Beyn eigenvalues:
+    [0] +1.566636814081 +7.156e-08i  real-candidate
+    Nq=256: rank=1, strict=1, near-contour=0, S0-change=--, candidate-shift=--, raw=1.566636814081+7.16e-08i
+  Beyn contour discovery: M=24, quadrature=512, probe_dim=8
+    contour node  85/512
+    contour node 170/512
+    contour node 255/512
+    contour node 340/512
+    contour node 425/512
+    contour node 510/512
+    contour node 512/512
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=2.191e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [1.216e-02, 5.549e-12, 4.850e-12, 4.406e-12, 3.994e-12, 3.539e-12, 3.213e-12, 2.245e-12]
+  max contour linear-solve residual = 5.605e-15
+  raw Beyn eigenvalues:
+    [0] +1.566637281950 +1.844e-11i  real-candidate
+    Nq=512: rank=1, strict=1, near-contour=0, S0-change=4.592e-02, candidate-shift=4.679e-07, raw=1.566637281950+1.84e-11i
+  Beyn contour discovery: M=24, quadrature=1024, probe_dim=8
+    contour node 170/1024
+    contour node 340/1024
+    contour node 510/1024
+    contour node 680/1024
+    contour node 850/1024
+    contour node 1020/1024
+    contour node 1024/1024
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=2.831e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [1.218e-02, 4.304e-12, 3.811e-12, 3.457e-12, 3.168e-12, 2.738e-12, 2.351e-12, 1.744e-12]
+  max contour linear-solve residual = 5.632e-15
+  raw Beyn eigenvalues:
+    [0] +1.566637282154 +1.722e-11i  real-candidate
+    Nq=1024: rank=1, strict=1, near-contour=0, S0-change=1.831e-03, candidate-shift=2.040e-10, raw=1.566637282154+1.72e-11i
+    continuing adaptive quadrature: moments not converged
+  adaptive Beyn escalation -> Nq=2048
+  Beyn contour discovery: M=24, quadrature=2048, probe_dim=8
+    contour node 341/2048
+    contour node 682/2048
+    contour node 1023/2048
+    contour node 1364/2048
+    contour node 1705/2048
+    contour node 2046/2048
+    contour node 2048/2048
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=4.013e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [1.218e-02, 3.036e-12, 2.852e-12, 2.475e-12, 2.201e-12, 1.831e-12, 1.744e-12, 1.403e-12]
+  max contour linear-solve residual = 5.458e-15
+  raw Beyn eigenvalues:
+    [0] +1.566637282113 -8.020e-11i  real-candidate
+    Nq=2048: rank=1, strict=1, near-contour=0, S0-change=2.442e-06, candidate-shift=4.125e-11, raw=1.566637282113-8.02e-11i
+  effective cutoff margin               = 1.000e-05
+  final strict near-real Beyn candidates = 1
+  kb seeds available for local search    = 1
+  sigma refinement tasks                 = 1
+  candidate 1 [strict-beyn]: seed kb=1.566637282113 -8.020e-11i, sigma bracket=[2.85577557e-02, 4.56924091e-01]
+    M=24: sigma_BEM=1.14231022e-01, kb=1.566637282173, sv_min=3.461e-09, sv_min/sv_max=5.584e-10, drop=9.27e+07, sigma-interior=yes
+    resolved=YES
+  tighter-cutoff diagnostic: margin 1.000e-05 -> 2.000e-06
+  Beyn contour discovery: M=24, quadrature=2048, probe_dim=8
+    contour node 341/2048
+    contour node 682/2048
+    contour node 1023/2048
+    contour node 1364/2048
+    contour node 1705/2048
+    contour node 2046/2048
+    contour node 2048/2048
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=3.461e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [1.218e-02, 3.520e-12, 3.088e-12, 2.930e-12, 2.324e-12, 1.961e-12, 1.737e-12, 1.357e-12]
+  max contour linear-solve residual = 1.309e-14
+  raw Beyn eigenvalues:
+    [0] +1.566637282095 -2.452e-11i  real-candidate
+  tighter-cutoff rank consistency = PASS (1 -> 1)
+  reconstructing field for independent physical diagnostics...
+    wall residual=1.129e-10, off-grid BIE residual=7.112e-06
+    decay rates left/right=1.142311e-01/1.142311e-01, expected sigma=1.142310e-01

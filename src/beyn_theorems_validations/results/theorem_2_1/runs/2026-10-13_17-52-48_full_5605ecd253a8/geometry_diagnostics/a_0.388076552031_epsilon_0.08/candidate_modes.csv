@@ -1,0 +1,2 @@
+epsilon,candidate_index,seed_source,beyn_kb_real,beyn_kb_imag,kb_numerical,sigma_numerical,sigma_min_final,sigma_max_final,relative_singular_value_final,final_drop_factor,final_relative_mesh_change,resolved,normalized_residual,equilibrated_residual,equilibrated_sigma_min
+0.08,1,paper-beyn,1.5707655894982617,9.379100840405673e-07,1.5707863267941709,0.005604982499118956,0.043814987302688284,47.07601862184702,0.0009307283960150922,1.0000000007574186,nan,False,0.0009307283960150874,0.000943379940825496,0.0045766525564434404

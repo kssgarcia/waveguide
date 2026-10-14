@@ -1,0 +1,13 @@
+{
+  "fingerprint_verified": true,
+  "baseline_modes": 10,
+  "baseline_unique_inside_search": 10,
+  "paper_cases": 99,
+  "paper_status_counts": {
+    "zero-supported": 20,
+    "one": 79
+  },
+  "critical_brackets": 4,
+  "interrupted_run_fully_recovered": true,
+  "scope": "M=24 and sampled search domains; not a continuum/global proof"
+}

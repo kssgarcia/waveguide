@@ -1,0 +1,79 @@
+  Beyn contour discovery: M=24, quadrature=384, probe_dim=8
+    contour node  64/384
+    contour node 128/384
+    contour node 192/384
+    contour node 256/384
+    contour node 320/384
+    contour node 384/384
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=9.331e+08
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [2.180e-02, 2.336e-11, 1.519e-11, 1.294e-11, 9.904e-12, 9.103e-12, 7.016e-12, 5.287e-12]
+  max contour linear-solve residual = 1.145e-14
+  raw Beyn eigenvalues:
+    [0] +1.562867371473 -1.131e-10i  real-candidate
+  Beyn contour discovery: M=24, quadrature=192, probe_dim=8
+    contour node  32/192
+    contour node  64/192
+    contour node  96/192
+    contour node 128/192
+    contour node 160/192
+    contour node 192/192
+  rank diagnostics: threshold-rank=8, gap-rank=1, selected gap=2.858e+05
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [2.530e-02, 8.852e-08, 3.469e-08, 1.666e-08, 7.188e-09, 5.514e-09, 2.497e-09, 1.110e-09]
+  max contour linear-solve residual = 1.064e-14
+  raw Beyn eigenvalues:
+    [0] +1.562883211424 -8.601e-07i  real-candidate
+  Beyn contour discovery: M=24, quadrature=768, probe_dim=8
+    contour node 128/768
+    contour node 256/768
+    contour node 384/768
+    contour node 512/768
+    contour node 640/768
+    contour node 768/768
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=2.275e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [2.218e-02, 9.747e-12, 7.921e-12, 6.925e-12, 6.021e-12, 5.283e-12, 4.608e-12, 3.334e-12]
+  max contour linear-solve residual = 1.127e-14
+  raw Beyn eigenvalues:
+    [0] +1.562867371200 -9.679e-12i  real-candidate
+  Beyn contour discovery: M=24, quadrature=1024, probe_dim=8
+    contour node 170/1024
+    contour node 340/1024
+    contour node 510/1024
+    contour node 680/1024
+    contour node 850/1024
+    contour node 1020/1024
+    contour node 1024/1024
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=2.211e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [2.218e-02, 1.003e-11, 8.148e-12, 6.722e-12, 5.868e-12, 5.221e-12, 4.365e-12, 3.108e-12]
+  max contour linear-solve residual = 1.189e-14
+  raw Beyn eigenvalues:
+    [0] +1.562867371193 +3.685e-11i  real-candidate
+  candidate 1 [paper-beyn]: seed kb=1.562867371473 -1.131e-10i, sigma bracket=[3.94070738e-02, 6.30513181e-01]
+    M=24: sigma_BEM=1.57628299e-01, kb=1.562867371105, sv_min=1.564e-09, sv_min/sv_max=1.704e-10, drop=1.85e+08, sigma-interior=yes
+    resolved=YES
+  candidate 2 [paper-beyn]: seed kb=1.562867371193 +3.685e-11i, sigma bracket=[3.94070745e-02, 6.30513192e-01]
+    M=24: sigma_BEM=1.57628299e-01, kb=1.562867371073, sv_min=2.248e-09, sv_min/sv_max=2.449e-10, drop=1.29e+08, sigma-interior=yes
+    resolved=YES
+  candidate 3 [paper-beyn]: seed kb=1.562883211424 -8.601e-07i, sigma bracket=[3.93677912e-02, 6.29884659e-01]
+    M=24: sigma_BEM=1.57628299e-01, kb=1.562867371120, sv_min=1.238e-09, sv_min/sv_max=1.348e-10, drop=2.34e+08, sigma-interior=yes
+    resolved=YES
+  candidate 4 [paper-beyn]: seed kb=1.562867371200 -9.679e-12i, sigma bracket=[3.94070745e-02, 6.30513192e-01]
+    M=24: sigma_BEM=1.57628299e-01, kb=1.562867371074, sv_min=2.367e-09, sv_min/sv_max=2.578e-10, drop=1.22e+08, sigma-interior=yes
+    resolved=YES
+  Beyn contour discovery: M=24, quadrature=1024, probe_dim=8
+    contour node 170/1024
+    contour node 340/1024
+    contour node 510/1024
+    contour node 680/1024
+    contour node 850/1024
+    contour node 1020/1024
+    contour node 1024/1024
+  rank diagnostics: threshold-rank=1, gap-rank=1, selected gap=2.497e+09
+  Beyn estimated enclosed rank = 1
+  singular values of S0: [2.218e-02, 8.883e-12, 7.405e-12, 6.446e-12, 5.573e-12, 5.046e-12, 3.885e-12, 3.177e-12]
+  max contour linear-solve residual = 2.433e-14
+  raw Beyn eigenvalues:
+    [0] +1.562867371193 +3.245e-11i  real-candidate

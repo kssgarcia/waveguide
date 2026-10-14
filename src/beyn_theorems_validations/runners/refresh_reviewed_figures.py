@@ -100,7 +100,7 @@ def main():
             ax.legend();fig.tight_layout();fig.savefig(dest/'sensitivity_physical_limits.png',dpi=220);y.plt.close(fig)
         provenance['sources'][name]=str(run)
         for p in run.glob('*.csv'):provenance['files'][str(p)]=hashlib.sha256(p.read_bytes()).hexdigest()
-    name='theorem_2_1';run=latest(name);baseline=BASE/'results'/name/'runs/2026-10-07_11-06-56_full_832cf4c8c71d';dest=output/name;copy_pngs(baseline,dest)
+    name='theorem_2_1';run=latest(name);baseline=run if (run/'summary.csv').exists() else BASE/'results'/name/'runs/2026-10-07_11-06-56_full_832cf4c8c71d';dest=output/name;copy_pngs(baseline,dest)
     cfg=config(f,baseline)
     old=records(baseline/'paper_a_sweep_M24.csv',f.PaperSweepRow);new=records(run/'paper_a_sweep_M24.csv',f.PaperSweepRow)
     merged={(r.a,r.epsilon):r for r in old};merged.update({(r.a,r.epsilon):r for r in new});rows=list(merged.values())
@@ -114,9 +114,10 @@ def main():
     summary=list(csv.DictReader((baseline/'summary.csv').open()));fig,axes=f.plt.subplots(1,2,figsize=(11,4.5))
     axes[0].plot([float(r['epsilon']) for r in summary],[float(r['kb_numerical']) for r in summary],'o-');axes[0].set_ylabel('kb');axes[0].set_xlabel('epsilon')
     axes[1].semilogy([float(r['epsilon']) for r in summary],[float(r['normalized_residual']) for r in summary],'o-');axes[1].set_ylabel('normalized residual');axes[1].set_xlabel('epsilon')
-    fig.suptitle('2.1 baseline v10: fixed-M=24 localization; not spatial convergence')
+    version=json.loads((baseline/'run_manifest.json').read_text())['assembly_version']
+    fig.suptitle(f'2.1 {version}: fixed-M=24 localization; not spatial convergence')
     fig.tight_layout();fig.savefig(dest/'baseline_localization_certificates.png',dpi=220);f.plt.close(fig)
-    provenance['sources'][name]={'baseline':str(baseline),'supplement':str(run),'limitation':'Baseline not recomputed; supplemental final tables override matching geometry keys.'}
+    provenance['sources'][name]={'baseline':str(baseline),'supplement':str(run),'limitation':'Baseline from final run when available; otherwise historical baseline with explicit supplemental table overrides.'}
     for source in (baseline,run):
         for p in source.glob('*.csv'):provenance['files'][str(p)]=hashlib.sha256(p.read_bytes()).hexdigest()
     for folder in output.iterdir():

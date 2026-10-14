@@ -1,0 +1,8 @@
+{
+  "assembly_version": "theorem-2.3-iii-periodic-green-v3",
+  "M": 24,
+  "cases": 10,
+  "existence_and_odd_uniqueness_passed": true,
+  "full_problem_uniqueness_established": false,
+  "scope": "Physical BIC and numerical odd-sector uniqueness inside sampled contours; even sector and omitted thresholds not excluded."
+}
